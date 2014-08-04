@@ -1,0 +1,99 @@
+%% 20140106
+
+
+%% 0000 - Running BOLD-Motion Nuisance Parameter Correlations (Motion Signals Regressed from BOLD)
+% This is the second half of missing data from previous BOLD-Nuisance correlation analyses and a continuation of the
+% work done on 20131222. Signal regression is taking place during temporarily placed code in the correlation method
+% file.
+
+% Setup correlation parameters
+ccStruct = struct(...
+    'Initialization', struct(...
+        'Bandwidth', {{[0.01 0.08], [0.01 0.08]}},...
+        'GSR', [false false],...
+        'Modalities', 'BOLD-Motion',...
+        'Relation', 'Correlation',...
+        'ScanState', 'RS'),...
+    'Correlation', struct(...
+        'Control', [],...
+        'Channels', [],...
+        'Fs', 0.5,...
+        'GenerateNull', false,...
+        'Mask', [],...
+        'MaskThreshold', [],...
+        'Scans', [],...
+        'Subjects', [],...
+        'TimeShifts', [-20:2:20]),...
+    'Thresholding', struct(...
+        'AlphaVal', 0.05,...
+        'CDFMethod', 'arbitrary',...
+        'FWERMethod', 'sgof',...
+        'Mask', [],...
+        'MaskThreshold', [],...
+        'Parallel', 'gpu',...
+        'Tails', 'both'));
+corrData = corrObj(ccStruct);
+store(corrData);
+meanCorrData = mean(corrData);
+store(meanCorrData);
+brainData = plot(meanCorrData, 'CLim', [-3 3]);
+store(brainData, 'ext', {'fig', 'png'});
+
+
+%% 0019 - Create Variance Maps of BOLD Data Over Time
+% Garth hypothesized a while back that some of the data correlations we're seeing (especially between BOLD & BOLD
+% nuisance signals) might be the result of certain brain regions exhibiting higher variances than surrounding areas.
+% The following analysis investigates signal variances across subjects and scans over time.
+
+load masterStructs
+boldFiles = get(fileData([fileStruct.Paths.DataObjects '/BOLD'], 'search', 'dcZ'), 'Path');
+
+% Fill in which slices & time points to display
+slicesToPlot = 48:4:64;
+timesToPlot = 1:11:218;
+
+% Set up various plotting parameters
+titleStr = 'Subject %d Scan %d Variance Map';
+plotStruct = struct(...
+    'CLim', [0 9],...
+    'ColorbarLabel', 'Variance',...
+    'XLabel', 'Time (s)',...
+    'XTickLabel', timesToPlot,...
+    'YLabel', 'Slices',...
+    'YTickLabel', slicesToPlot);
+    
+progbar = progress('Subjects Processed', 'Scans Processed');
+for a = 1:length(boldFiles);
+    load(boldFiles{a})
+    
+    reset(progbar, 2);
+    for b = 1:length(boldData)
+        if ~isempty(boldData(b).Data)
+            
+            % Get the relevant functional images
+            functionalData = boldData(b).Data.Functional;
+            functionalData = functionalData(:, :, slicesToPlot, timesToPlot);
+            
+            % Calculate signal variances (already z-scored, so a fraction of the signal STD)
+            functionalData = functionalData.^2;
+            
+            % Print an appropriate plot title
+            plotStruct.Title = sprintf(titleStr, a, b);
+            plotVars = struct2var(plotStruct);
+            
+            % Generate the plot
+            brainData(b) = brainPlot('mri', functionalData, plotVars{:});
+        end
+        update(progbar, 2, b/length(boldData));
+    end
+    
+    % Store plot images
+    store(brainData, 'ext', {'fig', 'png'});
+    
+    % Garbage collect
+    close(brainData)
+    clear boldData
+    
+    update(progbar, a/length(boldFiles));
+end
+close(progbar);

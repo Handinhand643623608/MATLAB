@@ -1,0 +1,218 @@
+function ai_corrEB(fileStruct, paramStruct)
+
+%% Initialize
+% Load standard anatomical images
+MNIbrain = load_nii(fileStruct.files.MNI);
+MNIbrain = MNIbrain.img;
+
+% Initialize function-specific parameters
+assignInputs(fileStruct.analysis.xcorr.EEG_BOLD, 'createOnly')
+assignInputs(paramStruct.xcorr.EEG_BOLD, 'createOnly')
+if isempty(paramStruct.xcorr.EEG_BOLD.subjects)
+    subjects = paramStruct.general.subjects;
+    scans = paramStruct.general.scans;
+end
+
+% Initialize the folder structure for saving outputs
+saveDir = [fileStruct.paths.analyses '\Cross-Correlation\EEG-BOLD'];
+if ~exist(saveDir, 'dir')
+    mkdir(saveDir);
+end
+saveDirsElectrodes = cell(length(electrodes), 1);
+saveDirsRaw = cell(length(electrodes), 1);
+saveDirsMean = cell(length(electrodes), 1);
+saveDirsThresh = cell(length(electrodes), 1);
+for i = 1:length(electrodes)
+    saveDirsElectrodes{i} = [saveDir '\' electrodes{i}];
+    if ~exist(saveDirsElectrodes{i}, 'dir')
+        mkdir(saveDirsElectrodes{i})
+    end
+    saveDirsRaw{i} = u_create_folders('Raw', saveDirsElectrodes{i}, subjects, scans);
+    saveDirsMean{i} = [saveDirsElectrodes{i} '\Mean'];
+    if ~exist(saveDirsMean{i})
+        mkdir(saveDirsMean{i});
+    end
+    saveDirsThresh{i} = [saveDirsElectrodes{i} '\Mean Thresholded'];
+    if ~exist(saveDirsThresh{i})
+        mkdir(saveDirsThresh{i});
+    end
+end  
+
+%% Image the Raw Cross-Correlation Data
+% Load the raw cross-correlation data
+load 20130108-corrData_FPZP8-BOLD;
+
+% Initialize index for counting images
+m = 1;
+
+for i = subjects            
+    for j = scans{i}
+        for k = 1:length(electrodes)            
+            % Get the data to be imaged
+            current_xcorr = corrData(i, j).data.(electrodes{k});
+            
+            % Cut the data down to slices of interest
+            current_xcorr = current_xcorr(:, :, imageSlices, :);
+            
+            % Rotate & flip the data for proper display orientation
+            current_xcorr = permute(current_xcorr, [2 1 3 4]);
+            current_xcorr = flipdim(current_xcorr, 1);
+            
+            % Get the tick sizes for relabeling image axes
+            x_tick_size = size(current_xcorr, 2);
+            y_tick_size = size(current_xcorr, 1);
+            
+            % Convert data from 3D to 2D
+            current_xcorr = combine_4Dto3D(current_xcorr, length(imageSlices));
+            
+            % Calculate tick locations
+            y_tick_locations = (y_tick_size/2):y_tick_size:((y_tick_size/2) + (y_tick_size*(size(current_xcorr, 3) - 1)));
+            x_tick_locations = (x_tick_size/2):x_tick_size:((x_tick_size/2) + (size(current_xcorr, 2) - (x_tick_size/2)));
+            
+            % Convert 3D data to 2D
+            current_xcorr = current_xcorr(:, :, imageShifts);
+            current_xcorr = combine_3Dto2D(current_xcorr, 1);
+            
+            % Remove 0s in the data to help visualization
+            current_xcorr(current_xcorr == 0) = NaN;
+            
+            % Make the images
+            figure;
+            imagesc(current_xcorr, [-0.5 0.5]);
+            axis equal
+            label_image_axes(imageSlices, 'bottom', gcf, x_tick_locations);
+            label_image_axes(-shiftsTime(imageShifts), 'left', gcf, y_tick_locations);
+            ylabel('Time Shift (Seconds)')
+            xlabel('Slice')
+            title([electrodes{k} '-BOLD Cross-Correlation (Subject ' num2str(i) ' Scan ' num2str(j) ')']);
+            colorbar
+            currentSaveName = sprintf('%03d', m);
+            currentSaveStr = [saveDirsRaw{k}{i}{j} '\' currentSaveName '.png'];
+                m = m + 1;
+            saveas(gcf, currentSaveStr, 'png')
+            close
+        end
+    end
+end
+
+% Garbage collect
+clear current* corrData
+
+%% Image the Average Cross-Correlations Data
+% Load the mean cross-correlation data
+load 20130109-meanCorrData_FPZP8_BOLD.mat;
+
+m = 1;
+for i = 1:length(electrodes)
+    
+    % Get the data to be imaged
+    currentMeanCorr = meanCorrData.data.(electrodes{i});
+    
+    % Condition the data for imaging
+    currentMeanCorr = currentMeanCorr(:, :, imageSlices, :);
+    currentMeanCorr = permute(currentMeanCorr, [2 1 3 4]);
+    currentMeanCorr = flipdim(currentMeanCorr, 1);
+
+    % Get the tick sizes for relabeling image axes
+    x_tick_size = size(currentMeanCorr, 2);
+    y_tick_size = size(currentMeanCorr, 1);
+
+    % Convert data from 3D to 2D
+    currentMeanCorr = combine_4Dto3D(currentMeanCorr, length(imageSlices));
+
+    % Calculate tick locations
+    y_tick_locations = (y_tick_size/2):y_tick_size:((y_tick_size/2) + (y_tick_size*(size(currentMeanCorr, 3) - 1)));
+    x_tick_locations = (x_tick_size/2):x_tick_size:((x_tick_size/2) + (size(currentMeanCorr, 2) - (x_tick_size/2)));
+
+    % Convert 3D data to 2D
+    currentMeanCorr = currentMeanCorr(:, :, imageShifts);
+    currentMeanCorr = combine_3Dto2D(currentMeanCorr, 1);
+
+    % Remove 0s in the data to help visualization
+    currentMeanCorr(currentMeanCorr == 0) = NaN;
+    
+    % Image the data
+    figure;
+    imagesc(currentMeanCorr, [-0.5 0.5]);
+    axis equal
+    label_image_axes(imageSlices, 'bottom', gcf, x_tick_locations);
+    label_image_axes(-shiftsTime(imageShifts), 'left', gcf, y_tick_locations);
+    ylabel('Time Shift (Seconds)')
+    xlabel('Slice')
+    title([electrodes{i} '-BOLD Average Cross-Correlation']);
+    colorbar
+    currentSaveName = sprintf('%03d', m);
+    currentSaveStr = [saveDirsMean{i} '\' currentSaveName '.png'];
+        m = m + 1;
+    saveas(gcf, currentSaveStr, 'png')
+    close
+    
+end
+    
+%% Image Thresholded Cross-Correlation Data
+
+m = 1;
+for i = 1:length(electrodes)
+    
+    % Get the mean cross-correlation data
+    currentMeanCorr = meanCorrData.data.(electrodes{i});
+    
+    % Get the cutoffs for significance
+    currentCutoffs = meanCorrData.info.cutoffs.(electrodes{i});
+    
+    % Cut the data down to slices of interest
+    currentMeanCorr = currentMeanCorr(:, :, imageSlices, :);
+    currentMNIbrain = MNIbrain(:, :, imageSlices);
+    
+    % Rotate & flip the data for proper display orientation
+    currentMeanCorr = permute(currentMeanCorr, [2 1 3 4]);
+    currentMeanCorr = flipdim(currentMeanCorr, 1);
+    currentMNIbrain = permute(currentMNIbrain, [2 1 3]);
+    currentMNIbrain = flipdim(currentMNIbrain, 1);
+    
+    % Get the tick sizes for relabeling image axes
+    x_tick_size = size(currentMeanCorr, 2);
+    y_tick_size = size(currentMeanCorr, 1);
+    
+    % Fill in time dimension of anatomical data
+    tempMNIbrain = zeros([size(currentMNIbrain) length(imageShifts)]);
+    for j = 1:length(imageShifts)
+        tempMNIbrain(:, :, :, j) = currentMNIbrain;
+    end
+    currentMNIbrain = tempMNIbrain;
+    
+    clear temp*
+    
+    % Convert data from 3D to 2D
+    currentMeanCorr = combine_4Dto3D(currentMeanCorr, length(imageSlices));
+    currentMNIbrain = combine_4Dto3D(currentMNIbrain, length(imageSlices));
+
+    % Calculate tick locations
+    y_tick_locations = (y_tick_size/2):y_tick_size:((y_tick_size/2) + (y_tick_size*(size(currentMeanCorr, 3) - 1)));
+    x_tick_locations = (x_tick_size/2):x_tick_size:((x_tick_size/2) + (size(currentMeanCorr, 2) - (x_tick_size/2)));
+
+    % Convert 3D data to 2D
+    currentMeanCorr = currentMeanCorr(:, :, imageShifts);
+    currentMeanCorr = combine_3Dto2D(currentMeanCorr, 1);
+    currentMNIbrain = combine_3Dto2D(currentMNIbrain, 1);
+
+    % Remove 0s in the data to help visualization
+    currentMeanCorr(currentMeanCorr == 0) = NaN;
+    currentMNIbrain(currentMNIbrain == 0) = NaN;
+    
+    % Make the images
+    figure;
+    plot_network(currentMNIbrain, currentMeanCorr, currentCutoffs(2), currentCutoffs(1), [-1 1]);
+    axis equal
+    label_image_axes(imageSlices, 'bottom', gcf, x_tick_locations);
+    label_image_axes(-shiftsTime(imageShifts), 'left', gcf, y_tick_locations);
+    ylabel('Time Shift (Seconds)')
+    xlabel('Slice')
+    title([electrodes{i} '-BOLD Thresholded Average Cross-Correlation']);
+    colorbar
+    currentSaveName = sprintf('%03d', m);
+    currentSaveStr = [saveDirsThresh{i} '\' currentSaveName '.png'];
+        m = m + 1;
+    saveas(gcf, currentSaveStr, 'png')
+    close
+end

@@ -1,0 +1,125 @@
+function arx_nullEB(fileStruct, paramStruct)
+
+%% Initialize
+% Initialize function-specific parameters
+assignInputs(fileStruct.analysis.xcorr.EEG_BOLD, 'createOnly');
+assignInputs(paramStruct.xcorr.EEG_BOLD, 'createOnly');
+totalScans = length(cat(1, scans{:}));
+
+% Create folders for the part files & output file
+savePartPath = [fileStruct.paths.MAT_files '\nullPart'];
+if ~exist(savePartPath, 'dir')
+    mkdir(savePartPath)
+end
+if ~exist(savePath, 'dir')
+    mkdir(savePath)
+end
+
+% Load data stored elsewhere
+load(eegDataFile)
+
+% Determine the null pairing sequence
+indTranslate = cell(totalScans, 1);
+m = 1;
+for i = subjects
+    for j = scans{i}
+        indTranslate{m} = [i j];
+        m = m + 1;
+    end
+end
+nullPairings = nchoosek(1:totalScans, 2);
+
+% Initialize MATLAB parallel processing
+if matlabpool('size') == 0
+    matlabpool
+end    
+
+%% Cross-Correlate Data for the Null Distribution
+m = 1;
+progressbar('DC EEG-BOLD Null Distribution Generation', 'Electrodes Completed')
+for i = 1:size(nullPairings, 1)
+    % Initialize a data storage array
+    nullData(size(nullPairings, 1), 1) = struct('data', [], 'info', []);
+    
+    % Get the current null pairing of data
+    currentPairing = nullPairings(i, :);
+    subScanNums = [indTranslate{currentPairing(1)}; indTranslate{currentPairing(2)}];
+    
+    % Load the appropriate BOLD data
+    load(['BOLD_data_subject_' num2str(subScanNums(1, 1)) '.mat']);
+    currentBOLD = BOLD_data.BOLD(subScanNums(1, 2)).functional;
+    currentMean = BOLD_data.BOLD(subScanNums(1, 2)).mean;
+    szBOLD = size(currentBOLD);
+    
+    % Prepare BOLD data for cross-correlation
+    currentBOLD = combine_4Dto3D(currentBOLD, 1);
+    currentMean = combine_3Dto2D(currentMean, 1);
+
+    progressbar([], 0)
+    for j = 1:length(electrodes)     
+        % Acquire the EEG data
+        currentEEG = EEG_data(subScanNums(2, 1), subScanNums(2, 2)).data.EEG;
+        currentEEG = currentEEG(strcmp(electrodes{j}, EEG_data(subScanNums(2, 1), subScanNums(2, 2)).info.channels), :);
+        if length(currentEEG) ~= szBOLD(4)
+            currentEEG((szBOLD(4) + 1):end) = [];
+        end
+        
+        % Convert the time shift vector to sampleps
+        shiftsSamples = round(shiftsTime .* EEG_data(subScanNums(2, 1), subScanNums(2, 2)).info.Fs);
+        
+        % Allocate the correlation storage array
+        currentCorr = zeros([szBOLD(1:(end-1)) length(shiftsSamples)]);
+        
+        parfor k = 1:length(shiftsSamples)
+            try
+                tempCorr = fc_2D_manual_seed(currentBOLD, currentMean, currentEEG, shiftsSamples(k));
+                currentCorr(:, :, :, k) = split_2D_3D(tempCorr, [szBOLD(1), szBOLD(2)]);
+            catch err
+                if matlabpool('size') == 0
+                    disp('Parallel processing has crashed. Attempting to restore core pool')
+                    pause(5)
+                    matlabpool
+                    tempCorr = fc_2D_manual_seed(currentBOLD, currentMean, currentEEG, shiftsSamples(k));
+                    currentCorr(:, :, :, k) = split_2D_3D(tempCorr, [szBOLD(1), szBOLD(2)]);
+                else
+                    rethrow(err)
+                end
+            end
+                
+        end
+        
+        % Store the results in the output data structure
+        nullData(i).data.(electrodes{j}) = currentCorr;
+        
+        progressbar([], j/length(electrodes))
+    end
+    
+    % Fill in the information section of output structure
+    nullData(i).info = struct(...
+        'nullPairing', {{[subScanNums(1, :)] [subScanNums(2, :)]}},...
+        'dataFormat', '(X x Y x Z x timeShifts)',...
+        'electrodes', {electrodes},...
+        'timeShifts', shiftsTime,...
+        'comments', comments);
+    
+    % Save temporary data
+    currentPartStr = ['part' num2str(m) '_nullData_' electrodes{1} electrodes{2} '-BOLD.mat'];
+        m = m + 1;
+    save([savePartPath '\' currentPartStr], 'nullData', 'i', 'm', '-v7.3');
+    
+    % Garbage collect
+    clear current* BOLD_data nullData
+    
+    progressbar(i/size(nullPairings, 1), [])
+end
+
+matlabpool('close')
+
+% Aggregate & save the data
+saveStr = ['nullData_' electrodes{1} electrodes{2} '-BOLD_' saveID '.mat'];
+u_aggregate_partData(fileStruct,...
+    'filesPath', savePartPath,...
+    'searchStr', 'part*',...
+    'savePath', savePath,...
+    'saveName', saveStr,...
+    'deleteFolders', 0);

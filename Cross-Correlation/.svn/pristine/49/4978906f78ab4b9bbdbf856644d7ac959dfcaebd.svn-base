@@ -1,0 +1,125 @@
+function arx_realEB(fileStruct, paramStruct)
+
+%% Initialize
+% Assign inputs
+assignInputs(paramStruct.xcorr.EEG_BOLD, 'createOnly');
+assignInputs(fileStruct.analysis.xcorr.EEG_BOLD, 'createOnly');
+
+% Load loop-independent data
+load(eegDataFile);
+
+% Initialize function-specific parameters
+maxScans = paramStruct.general.maxScans;
+
+% Create folders for the part files & output file
+savePartPath = [fileStruct.paths.MAT_files '\corrPart'];
+if ~exist(savePartPath, 'dir')
+    mkdir(savePartPath)
+end
+if ~exist(savePath, 'dir')
+    mkdir(savePath)
+end
+
+% Start MATLAB parallel processing
+if matlabpool('size') == 0
+    matlabpool
+end
+
+%% Cross-Correlate EEG & BOLD Time Courses
+progressbar('DC EEG-BOLD Cross-Correlation', 'Scans Completed', 'Electrodes Completed')
+m = 1;
+for i = subjects
+
+    % Load the BOLD data to be analyzed
+    loadStr = [boldDataPath '\BOLD_data_subject_' num2str(i) '.mat'];
+    load(loadStr)
+    szBOLD = size(BOLD_data.BOLD(1).functional);
+
+    progressbar([], 0, [])
+    for j = scans{i}
+        % Initialize the output data structure
+        corrData(length(subjects), maxScans) = struct('data', [], 'info', []);
+
+        % Pre-allocate the output data structure
+        for k = 1:length(electrodes)
+            corrData(i, j).data.(electrodes{k}) = zeros([szBOLD(1:(end-1)), 2*length(shiftsTime) + 1]); 
+        end
+
+        % Get the BOLD & EEG data
+        currentBOLD = BOLD_data.BOLD(j).functional;
+        currentMean = BOLD_data.BOLD(j).mean;
+
+        % Prepare the current data
+        currentBOLD = combine_4Dto3D(currentBOLD, 1);
+        currentMean = combine_3Dto2D(currentMean, 1);
+
+        progressbar([], [], 0)
+        for k = 1:length(electrodes)
+
+            % Get the EEG data
+            currentEEG = EEG_data(i, j).data.EEG(strcmp(electrodes{k}, EEG_data(i, j).info.channels), :);
+
+            % Convert the time shift vector from seconds to samples
+            shiftsSamples = round(shiftsTime .* EEG_data(i, j).info.Fs);
+
+            % Allocate the correlation storage array
+            currentCorr = zeros([szBOLD(1:(end-1)) length(shiftsSamples)]);
+
+            % Cross-correlate the modalities
+            parfor L = 1:length(shiftsSamples)
+                try
+                    tempCorr = fc_2D_manual_seed(currentBOLD, currentMean, currentEEG, shiftsSamples(L));
+                    currentCorr(:, :, :, L) = split_2D_3D(tempCorr, [szBOLD(1), szBOLD(2)]);
+                catch err
+                    if matlabpool('size') == 0
+                        disp('Parallel processing has crashed. Attempting to restore core pool')
+                        pause(5)
+                        matlabpool
+                        tempCorr = fc_2D_manual_seed(currentBOLD, currentMean, currentEEG, shiftsSamples(L));
+                        currentCorr(:, :, :, L) = split_2D_3D(tempCorr, [szBOLD(1), szBOLD(2)]);
+                    else
+                        rethrow(err)
+                    end
+                end                        
+            end
+
+            % Store the data in the output structure
+            corrData(i, j).data.(electrodes{k}) = currentCorr;
+
+            progressbar([], [], k/length(electrodes))
+        end
+
+            % Append useful information to the data structure
+        corrData(i, j).info = struct(...
+            'structFormat', 'corrData(subject, scan).data.fieldname...',...
+            'dataFormat', '(X x Y x Z x Time Shift)',...
+            'subject', i,...
+            'scans', j,...
+            'timeShifts', shiftsTime,...
+            'electrodes', {electrodes},...
+            'comments', comments);
+
+        progressbar([], j/length(scans{i}), [])
+    end
+
+    % Save the data part
+    currentPartStr = ['part' num2str(m) '_corrData_' electrodes{1} electrodes{2} '-BOLD.mat'];
+        m = m + 1;
+    save([savePartPath '\' currentPartStr], 'corrData', 'i', 'j', 'm', '-v7.3')
+
+    % Garbage collect
+    clear current* BOLD_data corrData
+
+    progressbar(find(subjects == i)/length(subjects), [], []) 
+end 
+
+% Aggregate & save the data
+saveStr = ['corrData_' electrodes{1} electrodes{2} '-BOLD_' saveID '.mat'];
+u_aggregate_partData(fileStruct,...
+    'filesPath', savePartPath,...
+    'searchStr', 'part*',...
+    'savePath', savePath,...
+    'saveName', saveStr,...
+    'deleteFolders', 0);
+
+
