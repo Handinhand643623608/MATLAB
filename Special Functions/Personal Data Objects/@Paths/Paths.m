@@ -17,6 +17,10 @@ classdef Paths < hgsetget
 %                   into structures. Implemented a get method for the TodayData folder that points to a folder named
 %                   after the current date, creating the folder if it doesn't exist.
 %       20140718:   Added in some paths for my new CABI account.
+%       20140804:   Updated the working code directory across my computers, which received a much needed update today.
+%                   Calling the working directory "svnSandbox" no longer makes sense; I haven't used SVN seriously in a
+%                   very long time.
+
    
     
     %% Important Paths
@@ -46,9 +50,9 @@ classdef Paths < hgsetget
                     myPaths.DataObjects   = 'E:/Graduate Studies/Lab Work/Data Sets/Data Objects';
                     myPaths.Desktop       = 'C:/Users/Josh/Desktop';
                     myPaths.Globals       = 'C:/Users/Josh/Dropbox/Globals';
-                    myPaths.Main          = 'C:/Users/Josh/Dropbox/svnSandbox';
+                    myPaths.Main          = 'C:/Users/Josh/Dropbox/MATLAB Code';
                     myPaths.Raw           = 'E:/Graduate Studies/Lab Work/Data Sets/Raw Data';
-                    myPaths.Today         = 'C:/Users/Josh/Dropbox/svnSandbox/Today Scripts';
+                    myPaths.Today         = 'C:/Users/Josh/Dropbox/MATLAB Code/Today Scripts';
                     myPaths.TodayData     = 'E:/Graduate Studies/Lab Work/Data Sets/Today Data';
                     
                 case 'shella-bigboy1'
@@ -56,9 +60,9 @@ classdef Paths < hgsetget
                     myPaths.Desktop       = 'C:/Users/jgrooms/Desktop';
                     myPaths.FlashDrive    = 'E:';
                     myPaths.Globals       = 'C:/Users/jgrooms/Dropbox/Globals';
-                    myPaths.Main          = 'C:/Users/jgrooms/Dropbox/svnSandbox';
+                    myPaths.Main          = 'C:/Users/jgrooms/Dropbox/MATLAB Code';
                     myPaths.Raw           = 'S:/Josh/Data/Raw';
-                    myPaths.Today         = 'C:/Users/jgrooms/Dropbox/svnSandbox/Today Scripts';
+                    myPaths.Today         = 'C:/Users/jgrooms/Dropbox/MATLAB Code/Today Scripts';
                     myPaths.TodayData     = 'C:/Users/jgrooms/Desktop/Today Data';
                     
                 case ''     % CABI doesn't have names evidently...
@@ -66,9 +70,9 @@ classdef Paths < hgsetget
                     myPaths.Desktop = '/home/jgrooms/Desktop';
                     myPaths.FlashDrive = '';
                     myPaths.Globals = '/home/jgrooms/Dropbox/Globals';
-                    myPaths.Main = '/home/jgrooms/Dropbox/svnSandbox';
+                    myPaths.Main = '/home/jgrooms/Dropbox/MATLAB Code';
                     myPaths.Raw = '';
-                    myPaths.Today = '/home/jgrooms/Dropbox/svnSandbox/Today Scripts';
+                    myPaths.Today = '/home/jgrooms/Dropbox/MATLAB Code/Today Scripts';
                     myPaths.TodayData = '/home/jgrooms/Desktop/Today Data';
             end
             
