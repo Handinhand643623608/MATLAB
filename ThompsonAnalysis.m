@@ -183,7 +183,7 @@ for a = 1:length(subjectsToRun)
             
         % Create & store a plot of the SWC data over time
         fig = windowObj('Size', 'fullscreen'); 
-        plot(swcData(b, :), 'LineWidth', 4);
+        plot(swcData, 'LineWidth', 4);
         set(gca, 'FontSize', 15);
         xlabel('Samples (TR)', 'FontSize', 20);
         title('SWC between Task Positive & Default Mode ROI Signals', 'FontSize', 25);
