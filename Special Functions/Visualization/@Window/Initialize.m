@@ -1,15 +1,15 @@
-function drawWindow(windowHandle, varargin)
-%DRAWWINDOW Initializes the figure window with input properties.
-
-
+function Initialize(H, varargin)
+%DRAWWINDOW - Initializes the figure window with input properties.
+%
+%   WARNING: This method is for internal class use only and is not meant to be called directly.
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130206
-%       20130801:   Updated method name for consistency with other objects. Major overhaul of object
-%                   to make it more lightweight and easy to deal with. Removed the massive changelog
-%                   (see SVN for the complete listing).
-%       20130803:   Removed presets altogether (these should go in their respective subclass
-%                   definintions). Wrote a separate function for converting strings to RGB values.
+%       20130801:   Updated method name for consistency with other objects. Major overhaul of object to make it more 
+%                   lightweight and easy to deal with. Removed the massive changelog (see SVN for the complete listing).
+%       20130803:   Removed presets altogether (these should go in their respective subclass definintions). Wrote a 
+%                   separate function for converting strings to RGB values.
+%       20140716:   Updated this function to work with the new position and size enumerations for this class. 
 
 
 
@@ -26,9 +26,9 @@ inStruct = struct(...
     'NumberTitle', 'on',...
     'PaperPositionMode', 'auto',...
     'PaperSize', [],...
-    'Position', [],...
+    'Position', WindowPositions.CenterCenter,...
     'Resize', 'on',...
-    'Size', [],...
+    'Size', WindowSizes.Default,...
     'Tag', 'WindowObject',...
     'Units', 'pixels',...
     'Visible', 'on');
@@ -65,42 +65,19 @@ if ~isempty(inStruct.FigureNumber)
         figNum = figNum + 1;
     end
     figHandle = figure(figNum);
-    windowHandle.FigureHandle = figHandle;
+    H.FigureHandle = figHandle;
 else
     figHandle = figure;
-    windowHandle.FigureHandle = figHandle;
+    H.FigureHandle = figHandle;
 end
 
 % Set the size of the window, then position
-newFigPos = get(windowHandle.FigureHandle, 'OuterPosition');
 if ~isempty(inStruct.Size)
-    if ischar(inStruct.Size)
-        newFigPos = windowHandle.translate(inStruct.Size, newFigPos);
-    elseif length(inStruct.Size) == 4
-        newFigPos = inStruct.Size;
-    else
-        newFigPos(3:4) = inStruct.Size;
-    end
+    H.Size = inStruct.Size;
 end
+    
 if ~isempty(inStruct.Position)
-    if ischar(inStruct.Position)
-        newFigPos = windowHandle.translate(inStruct.Position, newFigPos);
-    elseif length(inStruct.Position) == 4
-        newFigPos = inStruct.Position;
-    else
-        newFigPos(1:2) = inStruct.Position;
-    end
-end    
-set(windowHandle.FigureHandle, 'OuterPosition', newFigPos);
-
-% Fix overlapping windows
-if ~isempty(inStruct.FigureNumber)
-    if figNum ~= inStruct.FigureNumber
-        outerPos = get(figNum-1, 'OuterPosition');
-        whOuterPos = get(windowHandle.FigureHandle, 'OuterPosition');        
-        whOuterPos(2) = outerPos(2) - whOuterPos(4);
-        set(windowHandle.FigureHandle, 'OuterPosition', whOuterPos);
-    end
+    H.Position = inStruct.Position;
 end
 
 % Remove unnecessary fields from the input structure
@@ -117,16 +94,16 @@ for i = 1:length(propNames)
     switch lower(propNames{i})
         case 'colorbar'
             if istrue(inStruct.Colorbar)
-                windowHandle.Colorbar = colorbar;
+                H.Colorbar = colorbar;
             end
         otherwise
             if ~isempty(inStruct.(propNames{i}))
-                set(windowHandle.FigureHandle, propNames{i}, inStruct.(propNames{i}));
+                set(H.FigureHandle, propNames{i}, inStruct.(propNames{i}));
             end
     end
 end
 
 % Freeze the window size, if called for
 if ~isempty(inStruct.Resize)
-    set(windowHandle.FigureHandle, 'Resize', inStruct.Resize);
+    set(H.FigureHandle, 'Resize', inStruct.Resize);
 end
