@@ -1,19 +1,17 @@
-classdef windowObj < hgsetget
+classdef Window < hgsetget
 %WINDOWOBJ Creates an easily customizable figure window.
-%   This object automates a lot of the more difficult and tedious work associated with figure
-%   and GUI building. This includes window resizing, figure/GUI element placement, and settings
-%   associated with saving images.
+%   This object automates a lot of the more difficult and tedious work associated with figure and GUI building. This
+%   includes window resizing, figure/GUI element placement, and settings associated with saving images.
 
 
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130205
-%       20130801:   Removed a number of redundant properties in order to make this object more
-%                   lightweight. Major overhaul of object functionality. Now windowObj is more
-%                   of a wrapper for the native FIGURE objects. Removed old changelog entries
-%                   (see SVN for the complete list)
-%       20130803:   Moved GET to a separate function & improved its functionality. Renamed the
-%                   initialization function to DRAWWINDOW to prevent conflict with subclasses.
+%       20130801:   Removed a number of redundant properties in order to make this object more lightweight. Major 
+%                   overhaul of object functionality. Now windowObj is more of a wrapper for the native FIGURE objects.
+%                   Removed old changelog entries (see SVN for the complete list)
+%       20130803:   Moved GET to a separate function & improved its functionality. Renamed the initialization function 
+%                   to DRAWWINDOW to prevent conflict with subclasses.
     
     
 
@@ -21,18 +19,18 @@ classdef windowObj < hgsetget
     properties (SetObservable, AbortSet)
         Axes                    % An axes object customized for this window.
         Colorbar                % A color bar object customized for this window.
-        Data                    % Any data displayed in the window's axes        
+        Data                    % Any data displayed in the window's axes.
         FigureHandle            % The numerical figure handle this object controls.
         Listeners               % Handles of listeners for events & property changes.
         Monitor                 % Which monitor the window is being displayed on.
-        Text                    % Handles to various text objects that exist in the window
+        Text                    % Handles to various text objects that exist in the window.
     end
 
     
     
     %% Constructor Method
     methods 
-        function windowHandle = windowObj(varargin)
+        function windowHandle = Window(varargin)
             %WINDOWOBJ Construct a window object with multiple features.            
             drawWindow(windowHandle, varargin{:});
         end
