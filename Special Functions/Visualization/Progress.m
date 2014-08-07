@@ -76,18 +76,22 @@ classdef Progress < Window
                 'Resizable', 'on',...
                 'Size', [500, 100]); drawnow
             
+            currentTime = now;
+            H.Clock.Average = currentTime;
+            H.Clock.LastTime = currentTime;
+            H.Clock.NumIterations = 0;
             H.Text = struct('BarText', [], 'BarTitle', []);
             
-            if nargin == 0; titleStr = {'Progress'};
+            if nargin == 0; barTitle = {'Progress'};
             else 
-                titleStr = varargin;
-                if strcmpi(titleStr{end}, 'fast')
+                barTitle = varargin;
+                if strcmpi(barTitle{end}, 'fast')
                     H.UseAnimation = false;
-                    titleStr(end) = [];
+                    barTitle(end) = [];
                 end
             end
             
-            for a = 1:length(titleStr); AddBar(H, titleStr{a}); end
+            for a = 1:length(barTitle); AddBar(H, barTitle{a}); end
 
         end
     end
@@ -96,6 +100,7 @@ classdef Progress < Window
     
     %% Public Methods
     methods
+        % Class methods
         function AddBar(H, barTitle)
             %ADDBAR - Add a new progress bar to the window.
             innerFigPos = get(H.FigureHandle, 'Position');
@@ -114,10 +119,6 @@ classdef Progress < Window
             H.Text.BarTitle = cat(1, H.Text.BarTitle, Progress.newTitle(H.Axes(end), barTitle));
             H.Text.BarText = cat(1, H.Text.BarText, Progress.newText(H.Axes(end), [max(get(H.Patch(end), 'XData')) + 1, 0]));
             H.Position = WindowPositions.UpperRight;
-        end
-        function close(progData, varargin)
-            evalin('caller', ['clear ' inputname(1)]);
-            close@windowObj(progData, varargin{:});
         end
         function RemoveBar(H)
             %REMOVEBAR - Remove the last progress bar from the window.
@@ -156,11 +157,19 @@ classdef Progress < Window
             elseif (pctComplete < 0); pctComplete = 0;
             end
             
-            if H.UseAnimation; UpdateAnimated(H, idxBar, pctComplete);
+            if (H.UseAnimation); UpdateAnimated(H, idxBar, pctComplete);
             else UpdateInstantly(H, idxBar, pctComplete);
             end
             
+            if (idxBar == 1) && (pctComplete ~= 0); UpdateTimeRemaining(H, pctComplete); end
+                
             H.Complete(idxBar) = pctComplete*100;
+        end
+        
+        % Overloaded MATLAB methods
+        function close(progData, varargin)
+            evalin('caller', ['clear ' inputname(1)]);
+            close@windowObj(progData, varargin{:});
         end
     end
     
@@ -226,10 +235,25 @@ classdef Progress < Window
             
             set(H.Text.BarText(idxBar), 'Position', textPos, 'String', newText);
             
-        end    
+        end
+        function UpdateTimeRemaining(H, pctComplete)
+            %UPDATETIMEREMAINING - Updates the estimated remaining time for the first bar to reach 100%.
+            currentTime = now;
+            iterTime = currentTime - H.Clock.LastTime;
+            numIterations = H.Clock.NumIterations + 1;
+            avgIterTime = (iterTime + H.Clock.NumIterations * H.Clock.Average) / numIterations;
+            itersRemaining = round(numIterations/pctComplete) - numIterations;
+            timeRemaining = avgIterTime * itersRemaining;
+            
+            H.Clock.NumIterations = numIterations;
+            H.Clock.LastTime = currentTime;
+            H.Clock.Average = avgIterTime;
+            H.Name = Progress.time2str(timeRemaining);
+        end     
     end
     
     methods (Access = private, Static)
+        % New progress bar elements
         function a = newAxes(f, position)
             %NEWAXES - Create new axes to contain the progress bar drawing.
             a = axes(...
@@ -244,13 +268,12 @@ classdef Progress < Window
         end
         function b = newBar(a)
             %NEWBAR - Create a new progress bar patch object.
-            theta1 = linspace(pi/2, 3*pi/2, 200);
+            theta1 = linspace(pi/2, 3*pi/2, 100);
             circleX1 = 3*cos(theta1);
-            circleY1 = 0.8*sin(theta1);
-
-            theta2 = linspace(-pi/2, pi/2, 200);
+            circleY1 = 0.85*sin(theta1);
+            theta2 = linspace(-pi/2, pi/2, 100);
             circleX2 = max(circleX1) + 3*cos(theta2);
-            circleY2 = 0.8*sin(theta2);
+            circleY2 = 0.85*sin(theta2);
             
             b = patch([circleX1, circleX2], [circleY1, circleY2], 1:length([circleX1, circleX2]),...
                 'FaceColor', 'interp',...
@@ -279,6 +302,28 @@ classdef Progress < Window
                 'Parent', a,...
                 'Position', [-3, 2.25],...
                 'String', str);
+        end
+        
+        % Other functions
+        function timeStr = time2str(timeNum)
+            %TIME2STR - Converts estimated time remaining into a string used for the window title.
+            warning('off', 'MATLAB:callback:error');
+            timeStr = datestr(timeNum, 'DDHHMMSS');
+            timeCell = {timeStr(1:2), 'days', timeStr(3:4), 'hrs', timeStr(5:6), 'min', timeStr(7:8), 's'};
+            
+            while true
+                if isempty(timeCell)
+                    timeStr = 'Done!';
+                    return;
+                elseif strcmpi(timeCell{1}, '00'); 
+                    timeCell(1:2) = [];
+                    continue;
+                else
+                    printStr = repmat('%s ', 1, length(timeCell));
+                    timeStr = sprintf([printStr 'Remaining'], timeCell{:});
+                    return;
+                end
+            end
         end
     end
     
