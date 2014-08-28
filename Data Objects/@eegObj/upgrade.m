@@ -28,7 +28,7 @@ function eegStruct = upgrade(eegStruct)
 dataVersion = eegStruct.SoftwareVersion;
 
 % Update from version 0 to version 1
-if dataVersion == '0'
+if dataVersion == 0
     eegStruct = humanObj.upgrade(eegStruct);
 end
 

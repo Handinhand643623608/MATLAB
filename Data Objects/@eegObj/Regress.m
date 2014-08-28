@@ -50,7 +50,7 @@ end
 
 % Ensure that the first column in the signals being regressed are ones
 if ~isequal(ones(size(signal, 1), 1), signal(:, 1))
-    signal = cat(2, ones(size(signal, 1)), signal);
+    signal = cat(2, ones(size(signal, 1), 1), signal);
 end
 
 
@@ -72,7 +72,7 @@ ephysData(~idsNaN, :) = regEphysData;
 
 % Store the regressed data in the object
 eegData.Data.EEG = ephysData;
-eegData.ZScored = false;
+eegData.IsZScored = false;
 
 end
 

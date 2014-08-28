@@ -44,7 +44,10 @@ classdef windowObj < hgsetget
     methods
         % Overload the default delete method (close the figure first)
         function close(windowHandle, varargin)
-            delete(windowHandle.FigureHandle)
+            for a = 1:numel(windowHandle)
+                if ~ishandle(windowHandle(a).FigureHandle); return; end
+                delete(windowHandle(a).FigureHandle)
+            end
             evalin('caller', ['clear ' inputname(1)]);
         end
         % A method for displaying the object

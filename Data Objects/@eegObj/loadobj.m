@@ -61,7 +61,7 @@ end
 output(size(input)) = eegObj;
 for a = 1:numel(input)
     if ~isfield(input(a), 'SoftwareVersion'); 
-        input(a).SoftwareVersion = '0';
+        input(a).SoftwareVersion = 0;
     end
     currentUpgrade = eegObj.upgrade(input(a));
     transferProperties(currentUpgrade, output(a));

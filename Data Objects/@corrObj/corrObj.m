@@ -176,6 +176,12 @@ classdef corrObj < relationObj
     % TODO: Implement coding for correlation between all possible modalities.
         
     
+    properties (Constant, Hidden)
+        LatestVersion = 0;
+    end
+    
+    
+    
     %% Constructor Method
     methods
         function corrData = corrObj(ccStruct)
@@ -207,6 +213,11 @@ classdef corrObj < relationObj
         store(corrData, varargin)
         % Threshold the data for significance
         threshold(meanCorrData, meanNullData)
+        
+        function [dataArray, legend] = ToArray(corrData, dataStr)
+            dataArray = [];
+            legend = [];
+        end
     end
     
     
@@ -214,6 +225,10 @@ classdef corrObj < relationObj
     methods (Static)
        % Fisher's normalized r-to-z transform
        z = transform(r, n);
+       
+       function output = loadobj(input)
+           output = input;
+       end
     end
     
     
