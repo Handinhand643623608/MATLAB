@@ -122,6 +122,8 @@ classdef Window < hgsetget
                 else
                     error('Window sizes can only be specified using two-element vectors or string shortcuts.');
                 end
+            else
+                error('Window size must be specified as either as WindowSize enumerator or a two-element numeric vector');
             end
             if ~isempty(H.PositionEnum); H.Position = H.PositionEnum; end
         end

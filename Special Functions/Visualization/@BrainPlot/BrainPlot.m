@@ -1,4 +1,4 @@
-classdef brainPlot < windowObj
+classdef BrainPlot < Window
 %BRAINPLOT Displays data in an EEG- or fMRI-style plot or montage of plots.
 %   This object displays EEG or MRI data in a montage. It accepts 3-4D MRI images and 2-3D EEG data arrays, as described
 %   below. For MRI data, data are displayed as color-coded images. EEG data is displayed as a color-coded scaled spatial
@@ -183,47 +183,52 @@ classdef brainPlot < windowObj
 
 
     %% Brain Plot Properties
+    
+    properties (Dependent)
+        AxesColor               % The color of the primary plot axes.
+        XLabel                  % The x-axis label string.
+        XTickLabel              % The individual x-axis tick labels.
+        YLabel                  % The y-axis label string.
+        YTickLabel              % The individual y-axis tick labels.
+    end
+    
+    
     properties (SetObservable, AbortSet)
         Anatomical              % A 3D array containing an anatomical brain image.
-        AxesColor               % The color of the primary plot axes.
         Channels                % A cell array of strings containing EEG channel labels.
         CLim                    % The [MIN, MAX] data values that are mapped to colormap extremes.
         ColorbarLabel           % A label string for the plot's colorbar.
         Threshold               % The [LOWER, UPPER] data thresholds.
         Title                   % The title string of the plot.
         XDim                    % The data dimension to be plotted along the x-axis.
-        XLabel                  % The x-axis label string.
-        XTickLabel              % The individual x-axis tick labels.
         YDim                    % The data dimension to be plotted along the y-axis.
-        YLabel                  % The y-axis label string.
-        YTickLabel              % The individual y-axis tick labels.
     end
 
     
     
     %% Constructor Method
     methods
-        function brainData = brainPlot(plotType, plotData, varargin)
+        function H = BrainPlot(plotType, plotData, varargin)
             %BRAINPLOT Constructs a window object & initializes the plotting environment.
             
             % Initialize a window object for displaying the data
-            brainData = brainData@windowObj(...
+            H = H@Window(...
                 'Color', 'k',...
                 'Colormap', jet(256),...
                 'MenuBar', 'off',...
                 'NumberTitle', 'off',...
-                'Position', 'center-center',...
-                'Size', 'fullscreen'); drawnow
+                'Position', WindowPositions.CenterCenter,...
+                'Size', WindowSizes.FullScreen); drawnow
 
             if nargin ~= 0
                 % Toggle listeners off during setup
-                ToggleListeners(brainData);
+                ToggleListeners(H);
                 % Initialize the plot environment
-                brainData = Initialize(brainData, plotType, plotData, varargin{:});
+                H = Initialize(H, plotType, plotData, varargin{:});
                 % Plot the data
-                Plot(brainData, plotType)
+                Plot(H, plotType)
                 % Toggle listeners back on
-                ToggleListeners(brainData);
+                ToggleListeners(H);
             end
         end
     end
@@ -247,9 +252,9 @@ classdef brainPlot < windowObj
     %% Protected Methods
     methods (Access = protected)
         % Add listeners for changes to property values
-        function createListeners(brainData)
-            createListeners@windowObj(brainData);
-            axesPropListener = addlistener(brainData, {...
+        function createListeners(H)
+            createListeners@windowObj(H);
+            axesPropListener = addlistener(H, {...
                 'AxesColor',...
                 'Color',...
                 'ColorbarLabel',...
@@ -260,8 +265,8 @@ classdef brainPlot < windowObj
                 'YDim',...
                 'YLabel',...
                 'YTickLabel'...
-                }, 'PostSet', @(src, evt) brainData.UpdateAxes(src, evt));
-            brainData.Listeners = [brainData.Listeners; axesPropListener];
+                }, 'PostSet', @(src, evt) H.UpdateAxes(src, evt));
+            H.Listeners = [H.Listeners; axesPropListener];
         end
         % Initialize the plot
         brainData = Initialize(brainData, plotType, plotData, varargin)
