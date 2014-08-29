@@ -1,16 +1,20 @@
-classdef brainViewer < windowObj
-    %BRAINVIEWER
-    %
-    %
-    %   Written by Josh Grooms on 20131208
-    
-    % TODO - Implement speed improvements
-    % TODO - Implement recalculation of slice paging indices for patch data whenever the isovalue is changed
-    % TODO - Implement speed improvements for switching slice planes while functional data is displayed
-    % TODO - GUI improvements
-    % TODO - Make documentation for this object
-    % TODO - Improve or remove the Colin Brain renderings
-    % TODO - Improve functional-anatomical image registration
+classdef brainViewer < Window
+%BRAINVIEWER
+%
+
+%% CHANGELOG
+%   Written by Josh Grooms on 20131208
+%       20140829:   Updated for compatibility with the WINDOW class updates (formerly WINDOWOBJ).
+
+%% TODOS
+% TODO - Implement speed improvements
+% TODO - Implement recalculation of slice paging indices for patch data whenever the isovalue is changed
+% TODO - Implement speed improvements for switching slice planes while functional data is displayed
+% TODO - GUI improvements
+% TODO - Make documentation for this object
+% TODO - Improve or remove the Colin Brain renderings
+% TODO - Improve functional-anatomical image registration
+
 
     
     %% Object Properties
@@ -31,13 +35,13 @@ classdef brainViewer < windowObj
         function brainData = brainViewer(varargin)
             %BRAINVIEWER Constructs a window object & display a 3D brain inside.
             % Initialize a window object for displaying the data
-            brainData = brainData@windowObj(...
+            brainData = brainData@Window(...
                 'Color', 'k',...
                 'Colormap', jet(256),...
                 'MenuBar', 'figure',...
                 'NumberTitle', 'off',...
-                'Position', 'upper-right',...
-                'Size', 'quarterscreen'); drawnow
+                'Position', WindowPositions.UpperRight,...
+                'Size', WindowSizes.QuarterScreen); drawnow
                         
             % Initialize modeling parameters
             initializeParameters(brainData, varargin{:});

@@ -62,6 +62,18 @@ classdef BrainPlot < Window
 %   'Colormap':             COLORMAP
 %                           The colormap being utilized by the figure.
 %                           DEFAULT: jet(256)
+%
+%   'MajorFontSize':        DOUBLE
+%                           The size in font units of the major text elements visible on the montage. This parameter
+%                           affects all title-like strings, including x- and y-axis labels, the plot title, and the
+%                           colorbar label.
+%                           DEFAULT: 25
+%
+%   'MinorFontSize':        DOUBLE
+%                           The size in font units of the minor text elements visible on the montage. This parameter
+%                           affects all tick labels, including those for the x- and y-axes as well as the colorbar tick
+%                           labels. 
+%                           DEFAULT: 20
 %   
 %   'Title':                STRING
 %                           The plot title string.
@@ -95,9 +107,7 @@ classdef BrainPlot < Window
 %   @Window
 %   
 %   assignInputs
-%   istrue
 %   scale2rgb
-%   str2rgb
 %   where
 
 %% CHANGELOG
@@ -150,8 +160,8 @@ classdef BrainPlot < Window
         ElementSize             % The [WIDTH, HEIGHT] of each montage element in pixels.
         MontageSize             % The [NUMROWS, NUMCOLS] of the whole montage.
         PlotType                % The BrainPlotType enumerator specifying the type of data being displayed.
-        XTick                   % 
-        YTick
+        XTick                   % The array of tick positions for the primary x-axis.
+        YTick                   % The array of tick positions for the primary y-axis.
     end
     
     
@@ -311,9 +321,10 @@ classdef BrainPlot < Window
     %% Static Methods
     methods (Static)
         
+        % Plot a colored spatial map of EEG electrodes
         PlotEEG(A, data, showLabels);
         % Generate fused functional & anatomical images
-        fusedImage = FuseImages(boldImage, anatomicalImage, clim)        
+        fusedImage = FuseImages(boldImage, anatomicalImage, clim)
         
     end
     
@@ -322,9 +333,8 @@ classdef BrainPlot < Window
     %% Private Methods
     methods (Access = private)
         
-        % Calculate montage element sizes
+        % Calculate the size of montage elements
         function CalculateElementSize(H)
-            %CALCULATEELEMENTSIZE - Calculates the size of montage elements and a new primary axes position/size vector.
             posAxes = get(H.Axes.Primary, 'Position');
             asize = posAxes(3:4);
             width = asize(1)/H.MontageSize(2);
@@ -337,7 +347,6 @@ classdef BrainPlot < Window
         end
         % Determine the spacing between X- & Y-axis ticks
         function CalculateAxesTickSpacing(H)
-            
             xSpacing = 1/H.MontageSize(2);
             ySpacing = 1/H.MontageSize(1);
             xHalfSpacing = 0.5*xSpacing;
@@ -345,9 +354,8 @@ classdef BrainPlot < Window
             H.XTick = linspace(xHalfSpacing, 1 - xHalfSpacing, H.MontageSize(2));
             H.YTick = linspace(yHalfSpacing, 1 - yHalfSpacing, H.MontageSize(1));
         end
-        % Determine number & aspect ratio of montage elements
+        % Determine montage size [NUMROWS, NUMCOLS] & the aspect ratio of montage elements
         function DetermineMontageDimensionality(H)
-            %DETERMINEMONTAGEDIMENSIONALITY - Calculates the montage size and element aspect ratio based on the data.
             switch (H.PlotType) 
                 case BrainPlotTypes.EEG
                     H.MontageSize = [size(H.Data, 3), size(H.Data, 2)];         % [numRows, numCols]
@@ -360,7 +368,6 @@ classdef BrainPlot < Window
         end
         % Fit the primary axes to the montage
         function FitPrimaryAxesToMontage(H)
-            
             posFig = getpixelposition(H.FigureHandle);
             apos = [0, 0, H.ElementSize .* [H.MontageSize(2) H.MontageSize(1)]];
             apos(1) = (posFig(1) + posFig(3) - apos(3)) / 2;
@@ -369,7 +376,6 @@ classdef BrainPlot < Window
         end
         % Create axes that contain & label the image montage
         function InitializePrimaryAxes(H)
-            %INTIALIZEPRIMARYAXES - Sets up the visible axes that surround and label the montage.
             H.Axes.Primary = axes(...
                 'Units', 'pixels',...
                 'Box', 'on',...
@@ -382,9 +388,8 @@ classdef BrainPlot < Window
                 'YLim', [0 1],...
                 'YTick', []);
         end
-        % Create an array of axes to serve as the montage elements
+        % Create an array of axes to serve as the individual montage elements
         function InitializeMontageAxes(H)
-            %INITIALIZEMONTAGEAXES - Initializes an array of axes that form the individual image montage elements.
             H.Axes.Montage = zeros(H.MontageSize);
             apos = get(H.Axes.Primary, 'Position');
             epos = [0, 0, H.ElementSize];
@@ -397,9 +402,8 @@ classdef BrainPlot < Window
             end
             H.Axes.Montage = flipdim(H.Axes.Montage, 1);    % Flipped so ordering starts from the upper left corner
         end
-        % Create individual montage element axes
+        % Create individual montage element axes at the specified position
         function A = NewElement(H, position)
-            %NEWELEMENT - Create a new montage element at the specified position and return a handle to it.
             A = axes(...
                 'Units', 'pixels',...
                 'Box', 'off',...
@@ -415,8 +419,6 @@ classdef BrainPlot < Window
         end
         % Plot the inputted data in the image montage
         function Plot(H)
-            %PLOT - Separates and displays the brain data within each montage element based on the type of data present.
-            
             switch (H.PlotType)
                 % Plot colored EEG electrode spatial maps
                 case BrainPlotTypes.EEG

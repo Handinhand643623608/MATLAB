@@ -53,8 +53,8 @@ function varargout = plot(corrData, varargin)
 %
 %   'YTickLabel':       The y-axis tick labels (same as the built-in axes property). 
 %                       DEFAULT: []
-%
-%
+
+%% CHANGELOG
 %   Written by Josh Grooms on 20130702
 %       20130711:   Implemented automatic plotting of correlation data for MRI-style plots. Reorganized defaults & 
 %                   settings structure. Simplified title string generation. Added error checking. Implemented ability to
@@ -64,6 +64,7 @@ function varargout = plot(corrData, varargin)
 %       20131126:   Implemented BOLD-RSN correlations to test how well ICA is doing its job. Implemented plotting of the
 %                   MNI Colin Brain as the anatomical underlay image for thresholded data.
 %       20131222:   Implemented BOLD-Motion nuisance parameter correlation plotting.
+%       20140829:   Updated for compatibility with the WINDOW class updates (formerly WINDOWOBJ).
 
 
 %% Initialize
@@ -145,14 +146,14 @@ switch lower(corrData(1, 1).Modalities)
         inStruct.YLabel = 'Motion Parameters';
         inStruct.YTickLabel = 1:6;
         plotVars = struct2var(inStruct, exclusionStrs);
-        montageData = brainPlot(plotType, motionData, plotVars{:});
+        montageData = BrainPlot(motionData, plotVars{:});
         
         % Plot the rest of the nuisance signals
         inStruct.Title = sprintf(titleStr, 'Nuisance Parameters', segCorrMods{2});
         inStruct.YLabel = 'Nuisance Parameters';
         inStruct.YTickLabel = dataStrs(2:end);
         plotVars = struct2var(inStruct, exclusionStrs);
-        montageData(2) = brainPlot(plotType, nuisanceData, plotVars{:});
+        montageData(2) = BrainPlot(nuisanceData, plotVars{:});
         
     case {'bold-eeg', 'bold-bold nuisance', 'bold-motion', 'bold-rsn', 'bold-global'}
         
@@ -179,7 +180,7 @@ switch lower(corrData(1, 1).Modalities)
             inStruct.YLabel = 'Slice Number';
             inStruct.YTickLabel = inStruct.Slices;
             plotVars = struct2var(inStruct, exclusionStrs);
-            montageData(a) = brainPlot(plotType, tempData, plotVars{:}, 'Anatomical', anatomicalImage);
+            montageData(a) = BrainPlot(tempData, plotVars{:}, 'Anatomical', anatomicalImage);
         end
         
     case 'rsn-eeg'
@@ -203,7 +204,7 @@ switch lower(corrData(1, 1).Modalities)
         inStruct.YLabel = 'Resting State Network';
         inStruct.YTickLabel = dataStrs;
         plotVars = struct2var(inStruct, exclusionStrs);
-        montageData = brainPlot(plotType, catData, plotVars{:});
+        montageData = BrainPlot(catData, plotVars{:});
 end
 
 % Generate outputs

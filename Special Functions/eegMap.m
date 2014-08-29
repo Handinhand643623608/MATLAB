@@ -56,7 +56,8 @@ function varargout = eegMap(data, varargin)
 %                       'fullscreen'    OR  'full'
 %                       'halfscreen'    OR  'half'
 %                       'quarterscreen' OR  'quarter'
-%
+
+%% CHANGELOG
 %   Written by Josh Grooms on 20130902
 %       20140109:   Major overhaul of function initialization to support a kind of "demo" mode where the user can
 %                   manually select electrodes to be highlighted on the plot. Implemented custom color selection of
@@ -64,6 +65,7 @@ function varargout = eegMap(data, varargin)
 %                   were infrequently changed before (edge, text, background colors). Implemented plotting to window
 %                   objects instead of figures. Implemented the optional output of the window object handle. Completely
 %                   re-wrote function documentation.
+%       20140829:   Updated for compatibility with the WINDOW class updates (formerly WINDOWOBJ).
 
 
 
@@ -78,7 +80,7 @@ inStruct = struct(...
     'Color', [0 0.25 1],...
     'Labels', 'on',...
     'ParentAxes', [],...
-    'Size', 'fullscreen');
+    'Size', WindowSizes.FullScreen);
 assignInputs(inStruct, varargin);
 
 % If no data is input, just display a colorless map
@@ -106,7 +108,7 @@ plotFig = [classPath '\eegPlot.fig'];
 
 % Generate a figure
 if isempty(ParentAxes)
-    windowHandle = windowObj('Size', Size, 'Color', 'w');
+    windowHandle = Window('Size', Size, 'Color', 'w');
     ParentAxes = axes(...
         'Box', 'off',...
         'Color', 'none',...
@@ -200,7 +202,7 @@ else
 end
 
 % Fill in output object data
-if isa(windowHandle, 'windowObj')
+if isa(windowHandle, 'Window')
     windowHandle.Text = plotHandles(:, 1);
     windowHandle.Data.Patch = plotHandles(:, 2);
     windowHandle.Data.Color = data;

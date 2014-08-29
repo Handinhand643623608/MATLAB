@@ -1,5 +1,5 @@
-function Store(brainData, varargin)
-%STORE Saves an image of the plot in the specified format.
+function Store(H, varargin)
+%STORE - Saves an image of the plot in the specified format.
 %   This function saves images BRAINPLOT objects in one or more formats as specified by the user. Each generated image
 %   is the same size as the MATLAB figure (default full-screen) and should appear exactly the same when opened up. Save
 %   to PDFs or FIG files to retain infinite resolution where applicable.
@@ -75,7 +75,7 @@ function Store(brainData, varargin)
 inStruct = struct(...
     'Ext', {{'png'}},...
     'Overwrite', false,...
-    'SaveName', {cell(size(brainData))},...
+    'SaveName', {cell(size(H))},...
     'SavePath', defaultPath);
 assignInputs(inStruct, varargin,...
     'compatibility', {'Ext', 'extension', 'format';
@@ -97,13 +97,13 @@ if ~iscell(SaveName); SaveName = {SaveName}; end;
 
 %% Generate a Name String if One is Not Provided
 % Loop through brainData array in case there are multiple plots
-for a = 1:numel(brainData)
+for a = 1:numel(H)
     for b = 1:length(Ext)
-        if isempty(SaveName{a}) && isempty(brainData(a).Title)
+        if isempty(SaveName{a}) && isempty(H(a).Title)
             % Use a random name if there is no plot title or user input
             fullSaveName{a}{b} = [SavePath '/' datestr(now, 'yyyymmddHHMMSSFFF') '.' Ext{b}];
         elseif isempty(SaveName{a})
-            fullSaveName{a}{b} = [SavePath '/' brainData(a).Title '.' Ext{b}];
+            fullSaveName{a}{b} = [SavePath '/' H(a).Title '.' Ext{b}];
         else
             fullSaveName{a}{b} = [SavePath '/' SaveName{a} '.' Ext{b}];
         end
@@ -112,7 +112,7 @@ end
 
 
 %% Store the Image(s)
-for a = 1:length(brainData)
+for a = 1:length(H)
     for b = 1:length(Ext)
         if exist(fullSaveName{a}{b}, 'file') && ~istrue(Overwrite)
             [filePath, fileName, ~] = fileparts(fullSaveName{a}{b});
@@ -121,6 +121,6 @@ for a = 1:length(brainData)
                    fileName,...
                    filePath);
         end
-        saveas(brainData(a).FigureHandle, fullSaveName{a}{b}, Ext{b});
+        saveas(H(a).FigureHandle, fullSaveName{a}{b}, Ext{b});
     end
 end
