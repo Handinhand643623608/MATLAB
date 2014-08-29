@@ -43,6 +43,7 @@ function Filter(eegData, varargin)
 %       20140714:   Rewrote this function so that it mirrors the BOLD data object FILTER method. Implemented zero-phase
 %                   FIR filtering of time series. Implemented a workaround for compatibility with the new MATFILE data
 %                   storage system. Updated documentation accordingly.
+%       20140829:   Cleaned up some of the code here.
 
 
 
@@ -61,17 +62,16 @@ windowParams = window(eval(['@' lower(Window)]), WindowLength+1);
 filterParams = fir1(WindowLength, Passband.*2./eegData(1, 1).Fs, windowParams);
 
 
+
 %% Filter the Data
 pbar = progress('Scans Filtered');
 for a = 1:numel(eegData)
     
     % Workaround for MATFILE data storage
-    if isa(eegData(a).Data, 'matlab.io.MatFile')
-        eegData(a).Data = load(eegData(a).Data.Properties.Source);
-    end
+    eegData(a).LoadData;
     
     % Gather the EEG data & transpose to column-major format
-    ephysData = ToArray(eegData(a));
+    ephysData = eegData(a).ToArray;
     ephysData = ephysData';
     
     % Filter the signals

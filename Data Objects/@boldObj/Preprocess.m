@@ -1,13 +1,10 @@
-function Preprocess(boldData, paramStruct)
-%PREPROCESS Preprocesses raw BOLD data & stores output in a BOLD human data object. 
+function Preprocess(paramStruct)
+%PREPROCESS - Preprocesses raw BOLD data & stores output in a BOLD human data object. 
 %
 %   SYNTAX:
-%   Preprocess(boldData, paramStruct)
+%   boldObj.Preprocess(paramStruct)
 %
 %   INPUT:
-%   boldData:       BOLDOBJ
-%                   A newly instantiated BOLD data object to be filled with raw data and preprocessed. 
-%
 %   paramStruct:    STRUCT
 %                   The preprocessing parameter structure, which is an aggregation of all parameters and user input
 %                   needed to autonomously import, preprocess, and store raw BOLD functional data. 
@@ -36,6 +33,7 @@ function Preprocess(boldData, paramStruct)
 %                   that step. STC will be an optional stage in the next revision of this software. This also allowed me
 %                   to delete the mean dicom generation function, since this is done in SPM motion correction
 %                   automatically.
+%       20140829:   Converted this function into a static method of the BOLD data object class.
 
 
 %% TODOS

@@ -52,6 +52,8 @@ function Store(dataObject, varargin)
 %       20140711:   Adapted from STORE functions that existed separately for both EEG and BOLD data objects. As time
 %                   passed, the functionality of these separate methods began to converge. At the time of this method's
 %                   creation, they were nearly identical, and so this superclass method was created to replace them.
+%       20140829:   Minor cleanup of some code in this function. Implemented optional MatFile storage based on a new
+%                   object property indicating the user's preference.
 
 
 
@@ -92,18 +94,13 @@ else
 end
 
 % Load any MATFILE data
-if isa(dataObject, 'matlab.io.MatFile')
-    dataObject.Data = load(dataObject.Data.Properties.Source);
-end
+LoadData(dataObject);
 
 % Create a name string if one is not provided
 if isempty(SaveName)
+    % Get information needed to construct a file name
     saveDate = datestr(now, 'yyyymmdd');
-    
-    % Get the scan state of the data
     saveState = dataObject.ScanState;
-    
-    % Get the subject of the data set being stored
     subject = dataObject.Subject;
     scan = dataObject.Scan;
     
@@ -131,9 +128,11 @@ if exist(SaveName, 'file') && ~istrue(Overwrite)
            fileName,...
            filePath);
 else
-    Data = dataObject.Data;
-    save(DataSaveName, '-struct', 'Data', '-v7.3');
-    dataObject.Data = matfile(DataSaveName);
+    if (dataObject.UseMatFileStorage)
+        data = dataObject.Data;
+        save(DataSaveName, '-struct', 'data', '-v7.3');
+        dataObject.Data = matfile(DataSaveName);
+    end
     eval([dataVarName ' = dataObject;']);
     save(SaveName, dataVarName, '-v7.3');
 end

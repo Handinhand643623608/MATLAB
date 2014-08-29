@@ -14,6 +14,8 @@ classdef (Abstract) humanObj < hgsetget
 %       20140714:   Implemented methods to upgrade older saved data objects after the class definitions here and in
 %                   any subclasses have changed (even if the changes are dramatic). Changed the FILTERED, GSR, and
 %                   ZSCORED property names to reflect newer coding standards for clarity (now prepended with IS).
+%       20140829:   Reorganized and cleaned up code for this class. Removed implementations for some incomplete methods 
+%                   that were going to be difficult to finish. 
     
 %% TODOS
 %   - Fix problems with implementation of MATFILE
@@ -23,34 +25,32 @@ classdef (Abstract) humanObj < hgsetget
 
     %% Properties Common to All Human Data
     
-    properties (Dependent)
-        
-        
-        
+    properties (AbortSet)
+        UseMatFileStorage = false;  % Boolean indicating whether MatFiles should be used when storing objects
     end
     
     
     properties (AbortSet, SetAccess = protected)
     
         % General
-        Data                % The data being stored within the object
-        Scan                % Integer indicating the scan number of a subject's data set
-        ScanState           % String indicating whether data is from resting or task states
-        Subject             % Integer indicating the subject number of the data set
+        Data                        % The data being stored within the object
+        Scan                        % Integer indicating the scan number of a subject's data set
+        ScanState                   % String indicating whether data is from resting or task states
+        Subject                     % Integer indicating the subject number of the data set
         
         % Acquisition & processing 
-        Acquisition         % All parameters related to the acquisition of raw data
-        Bandwidth           % The high and low-pass cutoffs for the filtered data (in Hz)
-        FilterShift         % Double indicating the the phase shift imposed by FIR filtering (in seconds)
-        IsFiltered          % Boolean indicating whether the data has been filtered
-        IsGlobalRegressed   % Boolean indicating whether the global signal has been regressed
-        IsZScored           % Boolean indicating whether the data is scaled to zero mean & unit variance
-        Preprocessing       % All parameters related to the preprocessing of raw data
+        Acquisition                 % All parameters related to the acquisition of raw data
+        Bandwidth                   % The high and low-pass cutoffs for the filtered data (in Hz)
+        FilterShift                 % Double indicating the the phase shift imposed by FIR filtering (in seconds)
+        IsFiltered                  % Boolean indicating whether the data has been filtered
+        IsGlobalRegressed           % Boolean indicating whether the global signal has been regressed
+        IsZScored                   % Boolean indicating whether the data is scaled to zero mean & unit variance
+        Preprocessing               % All parameters related to the preprocessing of raw data
         
         % Storage
-        SoftwareVersion     % The software version behind the data object construction
-        StorageDate         % Date string of data storage date
-        StoragePath         % Path string indicating where the data is stored
+        SoftwareVersion             % The software version behind the data object construction
+        StorageDate                 % Date string of data storage date
+        StoragePath                 % Path string indicating where the data is stored
         
     end
     
@@ -58,66 +58,104 @@ classdef (Abstract) humanObj < hgsetget
     properties (Abstract, Constant, Hidden)
         LatestVersion;
     end
+
+       
     
-    
-    
-    %% Universal Methods
-    
+    %% Object Conversion Methods
     methods
-        % Store a data object on the hard drive
-        Store(dataObject, varargin);
-        % Convert a data object into a data structure
-        dataStruct = ToStruct(dataObject);
-        % Z-Score the primary data inside the data object
-        ZScore(dataObject)
-        % Load MATFILE data from the hard drive
-        function LoadData(dataObject)
-            %LOADDATA - Loads MATFILE data archives referenced by the data object.
-            if isa(dataObject.Data, 'matlab.io.MatFile')
-                dataObject.Data = load(dataObject.Data.Properties.Source);
+        function dataStruct = ToStruct(dataObject)
+            %TOSTRUCT - Converts human data objects into data structures.
+            %   This function is used to convert data objects into data structures. Structures are a value-type in
+            %   MATLAB and as such are often easier and more intuitive to deal with in this language. Additionally, they
+            %   offer a lot more flexibility in terms of dynamic field creation and removal.
+            %
+            %   However, there are downsides to this conversion. While structures appear not to suffer from the code
+            %   bload that classes can have, most of the quality control benefits inherent to classes are lost. Examples
+            %   include: type-safe methods, subclassing, resticted access to fields/methods, and validation of field
+            %   modifications. Also, as a reference-type, the correct use of classes can eliminate some significant
+            %   computational overhead that is incurred when using a structure (this is especially apparent for large
+            %   data sets).
+            %
+            %   This method exists so that the user may freely work with a human data set without any restrictions or
+            %   the need to work with the specialized class methods.
+            %
+            %   SYNTAX:
+            %   dataStruct = ToStruct(dataObject)
+            %
+            %   OUTPUT:
+            %   dataStruct:     STRUCT
+            %                   A value-type human data structure in exactly the same apparent format as the inputted
+            %                   data object. This structure may be editted freely but can no longer be used with any of
+            %                   the methods that are associated with the original object's class.
+            %
+            %   INPUT:
+            %   dataObject:     HUMANOBJ
+            %                   A reference-type human data object that is typically generated by preprocessing raw
+            %                   data.
+            dataStruct(numel(dataObject)) = struct();
+            propNames = properties(dataObject(1));
+            for a = 1:numel(dataObject)
+                for b = 1:length(propNames)
+                    dataStruct(a).(propNames{b}) = dataObject(a).(propNames{b});
+                end
             end
-        end
-        
+            dataStruct = reshape(dataStruct, size(dataObject));
+        end           % Convert a data object into a data structure
     end
     
-    methods (Static, Access = protected)
-        % Get the current software version
+    methods (Abstract)
+        [dataArray, legend] = ToArray(dataObject, dataStr);     % Pull important data out of a data object
+    end
+    
+    methods (Abstract, Static)
+        output = loadobj(input)                                 % Control the loading of older data objects
+    end
+    
+    methods (Static, Access = protected)    
+        dataStruct = upgrade(dataStruct)                        % Upgrade an older loaded data object
+        
         function version = currentSoftwareVersion 
             humanMeta = ?humanObj;
             propNames = {humanMeta.PropertyList.Name}';
             version = humanMeta.PropertyList(strcmpi(propNames, 'LatestVersion')).DefaultValue;
         end
-        % Upgrade a loaded data object for compatibility with current software
-        dataStruct = upgrade(dataStruct)
     end
     
     
     
-    %% Abstract Methods
-    
-    % Data object generation & updating
+    %% Signal Processing Methods
     methods (Abstract)
-        % Pull important data out of a data object
-        [dataArray, legend] = ToArray(dataObject, dataStr);
+        
+        Detrend(dataObject, varargin)               % Linear or quadratic temporal detrending
+        Filter(dataObject, varargin)                % Temporal filtering
+        Preprocess(dataObject, paramStruct)         % Preprocess human data objects from raw data files
+        Regress(dataObject, signal)                 % Regress one or more signals from the primary object data
+        Resample(dataObject, fs)
+        ZScore(dataObject)                          % Z-Score the primary data inside the data object
+        
     end
     
-    % Image & signal processing
+    
+    
+    %% Universal Methods
     methods
-        % Linear or quadratic temporal detrending
-        Detrend(dataObject, varargin)
-        % Temporal filtering
-        Filter(dataObject, varargin)
-        % Preprocess human data objects from raw data files
-        Preprocess(dataObject, paramStruct)        
+        
+        Store(dataObject, varargin);                    % Store a data object on the hard drive
+        
+        function AssertSingleObject(dataObject)
+            %ASSERTSINGLEOBJECT - Throws an error if an array of multiple data objects is detected.
+            if numel(dataObject) > 1
+                error('Only one data object may be inputted at a time');
+            end
+        end
+        
+        function LoadData(dataObject)
+            %LOADDATA - Loads MATFILE data archives referenced by the data object.
+            if isa(dataObject.Data, 'matlab.io.MatFile')
+                dataObject.Data = load(dataObject.Data.Properties.Source);
+            end
+        end        
+        
     end
-    
-    methods (Abstract, Static)
-        % Manually create a human data object
-%         dataObject = create(varargin);
-        % Control the loading of older data objects
-        output = loadobj(input)
-    end
-    
-    
-    
+   
 end

@@ -21,15 +21,24 @@ classdef eegObj < humanObj
 %                   HUMANOBJ have changed (even if the changes are dramatic). Implemented standardized checks and error
 %                   messages for single object inputs and for checking input types. Updated the code in several class
 %                   methods.
+%       20140829:   Cleaned up the code here in the class definition file and improved the documentation. Converted the
+%                   Preprocess function to a static method. Rewrote the constructor method so that it's now capable of
+%                   creating full EEG data objects from user inputs.
 
 %% DEPENDENCIES
-%   REQUIRED ADDITIONAL CODE
-%       @spectralObj
-%       File Management Package
+%
+%   File Management Package
+%
+%   @BrainPlot
+%   @humanObj
+%   @Progress
+%   @spectralObj
+%   @Window
 %       
-%       assignInputs
-%       fileNames
-%       sigFig
+%   assignInputs
+%   fileNames
+%   sigFig
+%   where
 
     
 
@@ -48,13 +57,37 @@ classdef eegObj < humanObj
     %% Constructor Method
     methods
         function eegData = eegObj(varargin)
-            %EEGOBJ Constructs the EEG data object using the various input parameters or an input data structure.
+            %EEGOBJ - Constructs an EEG data object for storing and analyzing electrophysiological data.
             
             % Fill in object properties depending on input types
-            if nargin ~= 0
-                eegData = assignProperties(eegData, varargin{:});
+            if (nargin == 0); return
+            elseif (nargin == 1) && (isstruct(varargin{1}))
+                eegData = eegObj(struct2var(varargin{1}));
+            else
+                inStruct = struct(...
+                    'Acquisition', [],...
+                    'Bandwidth', [],...
+                    'Channels', [],...
+                    'Data', [],...
+                    'FilterShift', [],...
+                    'Fs', [],...
+                    'IsFiltered', [],...
+                    'IsGlobalRegressed', [],...
+                    'IsZScored', [],...
+                    'Preprocessing', [],...
+                    'Scan', [],...
+                    'ScanState', [],...
+                    'Subject', [],...
+                    'UseMatFileStorage', false);
+                assignInputs(inStruct, varargin, 'structOnly');
+                
+                propNames = fieldnames(inStruct);
+                for a = 1:length(propNames)
+                    if ~isempty(inStruct.(propNames{a}))
+                        eegData.(propNames{a}) = inStruct.(propNames{a});
+                    end
+                end
             end
-            
         end
     end
     
@@ -64,18 +97,97 @@ classdef eegObj < humanObj
     methods
         % Identify frequently anticorrelated EEG electrodes
         varargout = anticorrChannels(eegData, tolerance)
-        % Standardize the EEG data matrices
-        standardize(eegData)
         
         H = Plot(eegData, varargin)
+        
+        function GenerateClusterSignals(eegData, maxNumClusters)
+            %GENERATECLUSTERSIGNALS - Generates average signals by clustering EEG time series.
+            %   This function produces and stores a set of average EEG signals using hierarchical clustering. Signals
+            %   are grouped according to how well their time series correlate with one another. A single user input
+            %   provides optional control over the number of individual clusters that are allowed to form.
+            %
+            %   Identifying average signals may be useful when trying to reduce the dimensionality of an EEG data set or
+            %   when trying to identify common mode components. Either case relies on the fact that electrophysiological
+            %   recordings often contain redundant information, especially when acquired from surface electrodes.
+            %   Identifying such components can be critical to certain analyses and removing them can reduce
+            %   computational demands.
+            %
+            %   SYNTAX:
+            %   GenerateClusterSignals(eegData)
+            %
+            %   INPUT:
+            %   eegData:            EEGOBJ
+            %                       A single EEG data object.
+            %
+            %   OPTIONAL INPUT:
+            %   maxNumClusters:     INTEGER
+            %                       The maximum number of clusters that will be allowed to form. 
+            %                       DEFAULT: 5
+            
+            % Error check
+            if nargin == 1; maxNumClusters = 5; end
+            eegData.AssertSingleObject;
+            
+            % Pull the EEG data from the object & remove dead channels
+            ephysData = eegData.ToArray;
+            idsNaN = isnan(ephysData(:, 1));
+            ephysData(idsNaN, :) = [];
+
+            % Set up & run the hierarchical clustering procedure
+            linkParams = linkage(ephysData, 'average', 'correlation');
+            idsCluster = nan(length(idsNaN), 1);
+            idsCluster(~idsNaN) = cluster(linkParams, 'maxclust', maxNumClusters);
+            
+            % Average together EEG signals that were grouped into the same cluster
+            clusterSigs = zeros(max(idsCluster), size(ephysData, 2));
+            for a = 1:max(idsCluster)
+                clusterSigs(a, :) = nanmean(ephysData(idsCluster == a, :), 1);
+            end
+            
+            % Store the average signals in the data object
+            eegData.Data.Global = clusterSigs;
+        end
+                
+        function Standardize(eegData)
+            %STANDARDIZE Makes the size of all EEG data matrices consistent.
+            %   Certain subjects in the collected data set have a non-standard number of electrodes. This function adds
+            %   rows of NaNs to the EEG data matrix where electrodes are missing in order to standardize the matrix
+            %   layout across all data.
+            %
+            %   SYNTAX:
+            %   Standardize(eegData)
+            %
+            %   INPUTS:
+            %   eegData:    EEGOBJ
+            %               A single, unstandardized EEG data object.
+            
+            % Prepare the data
+            eegData.AssertSingleObject;
+            eegData.LoadData;
+            ephysData = eegData.ToArray;
+            
+            % Locate a list of all possible EEG channels
+            classPath = where('BrainPlot.m');
+            load([classPath '/eegInfo.mat'], 'channels');
+            
+            % Standardize the EEG data array
+            stdData = zeros(length(channels), size(ephysData, 2));
+            idsMember = ismember(channels, eegData.Channels);
+            stdData(~idsMember, :) = NaN;
+            stdData(idsMember, :) = ephysData;
+            
+            % Store the array in the data object
+            eegData.Data.EEG = stdData;
+            eegData.Channels = channels;
+        end
+            
     end
     
     
     
     %% Object Conversion Methods
     methods
-        % Convert specific EEG data to a 2D array format
-        [eegArray, legend] = ToArray(eegData, dataStr)
+        [eegArray, legend] = ToArray(eegData, dataStr)      % Convert specific EEG data to a 2D array format
     end
     
     
@@ -83,20 +195,23 @@ classdef eegObj < humanObj
     %% Signal Processing Methods
     methods
         
+                
+        Detrend(eegData, order)
+        Filter(eegData, varargin)               % FIR filter EEG data
+        Regress(eegData, signal)                % Regress a set of signals from EEG time series
+        ZScore(eegData)                         % Scale data to zero mean & unit variance
+        Resample(eegData, fs)
         
-        
-        % FIR filter EEG data
-        Filter(eegData, varargin)
         % Generate power spectra
         powerSpectra(eegData, varargin)
-        % Regress a set of signals from EEG time series
-        Regress(eegData, signal)
+        
+        
         % Regress cluster signals
         regressCluster(eegData)
         % Resample the EEG data
         resample(eegData, varargin)
-        % Scale data to zero mean & unit variance
-        zscore(eegData)
+        
+        
     end
     
     
@@ -104,18 +219,19 @@ classdef eegObj < humanObj
     
     %% Preprocessing Methods
     methods
-        Preprocess(eegData)
         
         PrepImportCNT(eegData)
         
-        
     end
     
+    methods (Static) 
+        Preprocess(paramStruct)                 % Preprocess raw EEG data & create new data objects
+    end
     
     
     %% Static Utility Methods
     methods (Static)
-        % 
+        
         eegObj = loadobj(objFromFile)
         
     end
@@ -123,27 +239,6 @@ classdef eegObj < humanObj
     
     
     %% Class-Specific Methods
-    
-    methods (Access = protected)
-        % Assign properties based on manual inputs
-        eegData = assignProperties(eegData, varargin);
-        % Check for z-scored data
-        checkZScore(eegData)
-        % Allow only single EEG object input arguments
-        function CheckSingleObject(eegData)
-            if numel(eegData) > 1
-                error('Only one EEG object may be inputted at a time.');
-            end
-        end
-        % Allow only EEG data object types as an input
-        function CheckCorrectObject(eegData)
-            if ~isa(eegData, 'eegObj')
-                error('Inputted data must be of type "eegObj".');
-            end
-        end
-    end
-    
-    
     
     methods (Static, Access = protected)
         % Upgrade a loaded data object for compatibility with current software

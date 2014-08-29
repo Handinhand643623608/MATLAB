@@ -47,7 +47,7 @@ for a = 1:numel(boldData)
     if ~exist(currentSaveFolder, 'dir'); mkdir(currentSaveFolder); end
     
     % Pull the functional data from the object & write IMG files
-    boldObj.toIMG(ToArray(boldData(a), currentSaveFolder));
+    boldObj.ArrayToIMG(ToArray(boldData(a), currentSaveFolder));
     
     update(pbar, a/numel(boldData));
 end

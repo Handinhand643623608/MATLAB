@@ -26,20 +26,18 @@ function Regress(eegData, signal)
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20140617
+%       20140829:   Cleaned up some code here. Implemented compatibility with the MATFILE storage system.
 
 
 
-%% Error Checking
-
-if numel(eegData) > 1
-    error('EEG data objects must be inputted one at a time. Arrays of objects are not supported');
-end
+%% Initialize
+eegData.AssertSingleObject;
 
 % Check that the signals being regressed are correctly oriented & are the right size
 szSignal = size(signal);
 szEEG = size(eegData.Data.EEG);
 if ~ismatrix(signal)
-    error('The signals being regressed from BOLD data must be in a 1- or 2-dimensional array only');
+    error('The signals being regressed from EEG data must be in a 1- or 2-dimensional array only');
 elseif szSignal(1) ~= szEEG(2)
     if szSignal(2) == szEEG(2)
         signal = signal';
@@ -53,10 +51,14 @@ if ~isequal(ones(size(signal, 1), 1), signal(:, 1))
     signal = cat(2, ones(size(signal, 1), 1), signal);
 end
 
+% Load any MATFILE data
+eegData.LoadData;
+
+
 
 %% Regress Signals from EEG Data
 % Get the EEG data array
-ephysData = eegData.Data.EEG;
+ephysData = eegData.ToArray;
 
 % Remove any dead channels
 idsNaN = isnan(ephysData(:, 1));

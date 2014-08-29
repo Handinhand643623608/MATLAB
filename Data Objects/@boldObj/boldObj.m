@@ -53,10 +53,10 @@ classdef boldObj < humanObj
 %   MATLAB Image Processing Toolbox
 %   SPM
 %   
-%   @brainPlot
+%   @BrainPlot
 %   @humanObj
-%   @progress
-%   @windowObj
+%   @Progress
+%   @Window
 %
 %   assignInputs
 %   assignOutputs
@@ -65,8 +65,6 @@ classdef boldObj < humanObj
 %   str2rgb
 %   struct2var
 %   writeimg
-%
-%   colinBrain.mat
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130318
@@ -96,6 +94,9 @@ classdef boldObj < humanObj
 %                   functionality with EEG data objects.
 %       20140720:   Implemented LOADOBJ and UPGRADE functions so that old data objects can be made compatible with
 %                   recent changes to human data object classes.
+%       20140829:   Cleaned up the code here in the class definition file and improved the documentation. Converted the
+%                   Preprocess function into a static method that creates new data objects. Rewrote the constructor
+%                   method so that it's now capable of creating full BOLD data objects from user inputs.
 
 %% TODOS
 % Immediate Todos
@@ -128,15 +129,36 @@ classdef boldObj < humanObj
     
     %% Constructor Method
     methods
-        function boldData = boldObj(paramStruct)
-            %BOLDOBJ Imports, preprocesses, & stores BOLD data as a data object.
+        function boldData = boldObj(varargin)
+            %BOLDOBJ - Constructs a BOLD data object for storing and analyzing functional MRI data.
             
-            % If a parameter structure is given, preprocess raw BOLD data. Otherwise, create an empty object.
-            if nargin ~= 0
-                if isstruct(paramStruct)
-                    Preprocess(boldData, paramStruct);
-                else
-                    error('Input must be a structure specifying the preprocessing parameters');
+            % Construct a new BOLD data object based on the parameters provided
+            if (nargin == 0); return
+            elseif nargin == 1 && isstruct(varargin{1})
+                boldData = boldObj(struct2var(varargin{1}));
+            else
+                inStruct = struct(...
+                    'Acquisition', [],...
+                    'Bandwidth', [],...
+                    'Data', [],...
+                    'FilterShift', [],...
+                    'IsFiltered', [],...
+                    'IsGlobalRegressed', [],...
+                    'IsZScored', [],...
+                    'Preprocessing', [],...
+                    'Scan', [],...
+                    'ScanState', [],...
+                    'Subject', [],...
+                    'TE', [],...
+                    'TR', [],...
+                    'UseMatFileStorage', false);
+                assignInputs(inStruct, varargin, 'structOnly');
+                
+                propNames = fieldnames(inStruct);
+                for a = 1:length(propNames)
+                    if ~isempty(inStruct.(propNames{a}))
+                        boldData.(propNames{a}) = inStruct.(propNames{a});
+                    end
                 end
             end
         end
@@ -146,98 +168,83 @@ classdef boldObj < humanObj
     
     %% General Utilities
     methods
-        boldData = Create(varargin)
-        % Generate & store nuisance signals
-        GenerateNuisance(boldData)
-        % Mask BOLD data
-        varargout = Mask(boldData, maskData, confPct, replaceWith)
-        % Get data object preprocessing parameters
-        paramStruct = Parameters(boldData)
-        % Plot BOLD data as an image montage
-        varargout = Plot(boldData, varargin)
+        GenerateNuisance(boldData)                                      % Generate & store nuisance signals
+        varargout   = Mask(boldData, maskData, confPct, replaceWith)    % Mask BOLD data
+        paramStruct = Parameters(boldData)                              % Get data object preprocessing parameters
+        varargout   = Plot(boldData, varargin)                          % Plot BOLD data as an image montage
     end
     
     
     
     %% Object Conversion Methods
     methods
-        % Extract data from a data object & return it as an array
-        varargout = ToArray(boldData, dataStr)
-        % Convert BOLD matrix data to IMG files (useful for ICA)
-        ToIMG(boldData, savePath)
-        % Extract the BOLD functional data & flatten it to a 2D array
-        [boldMatrix, idsNaN] = ToMatrix(boldData, removeNaNs)
-        % Convert BOLD data objects into data structures
-        boldStruct = ToStruct(boldData)
+        varargout = ToArray(boldData, dataStr)                  % Extract data from a data object & return it as an array
+        ToIMG(boldData, savePath)                               % Convert BOLD matrix data to IMG files (useful for ICA)
+        [boldMatrix, idsNaN] = ToMatrix(boldData, removeNaNs)   % Extract the BOLD functional data & flatten it to a 2D array
+    end
+    
+    methods (Static)
+        function ArrayToIMG(boldArray, savePath)
+            %ARRAYTOIMG - Converts 4D functional data arrays to NIFTI .img files.
+            %
+            %   SYNTAX:
+            %   boldObj.ArrayToIMG(array, savePath)
+            %
+            %   INPUTS:
+            %   array:      4D ARRAY
+            %               A 4-dimensional data array (space x time formatted as [X Y Z T]) representing 3D functional 
+            %               images over time. Each outputted IMG file corresponds with a volume at a single time point.
+            %
+            %   savePath:   STRING
+            %               A string indicating the top-level directory where all IMG files will be stored.
+            szBOLD = size(boldArray);
+            for a = 1:szBOLD(4)
+                currentSaveStr = sprintf('%s/%03d.img', savePath, a);
+                writeimg(currentSaveStr, boldArray(:, :, :, b), 'double', [2 2 2], szBOLD(1:3));
+            end
+        end
     end
     
     
     
     %% Image & Signal Processing Methods
     methods
-        % Spatial Gaussian blurring
-        Blur(boldData, hsize, sigma)
-        % Detrend the BOLD data time series
-        Detrend(boldData, order)
-        % FIR Filter the BOLD data time series
-        Filter(boldData, varargin)
-        % Regress signals from the BOLD data
-        Regress(boldData, signal)
-        % Z-Score the BOLD data time series
-        ZScore(boldData)
+        Blur(boldData, hsize, sigma)            % Spatial Gaussian blurring
+        Detrend(boldData, order)                % Detrend the BOLD data time series
+        Filter(boldData, varargin)              % FIR Filter the BOLD data time series
+        Regress(boldData, signal)               % Regress signals from the BOLD data
+        Resample(boldData, fs)
+        ZScore(boldData)                        % Z-Score the BOLD data time series
     end    
     
     
     
     %% Preprocessing Methods
     methods
-        % Preprocess new BOLD data
-        Preprocess(boldData, paramStruct)                               
-        % Initialize a BOLD data object for preprocessing
-        PrepInitialize(boldData, varargin)
-        % Create a mean functional DICOM & IMG file
-        PrepMean(boldData)
-        % Segment the anatomical image
-        PrepSegment(boldData, varargin)
-        % Correct for motion & slice timing using AFNI
-        PrepMotionSliceTime(boldData)
-        % Convert BRIK files into NIFTI format
-        PrepBRIK2NIFTI(boldData)
-        % Register functional images to anatomical images
-        PrepRegister(boldData, varargin)
-        % Normalize the data to MNI space
-        PrepNormalize(boldData, varargin)
-        % Import IMG files to the MATLAB workspace
-        PrepImport(boldData)
-        % Condition the BOLD signals for analysis
-        PrepCondition(boldData, varargin)
+        PrepInitialize(boldData, varargin)      % Initialize a BOLD data object for preprocessing
+        PrepMean(boldData)                      % Create a mean functional DICOM & IMG file
+        PrepSegment(boldData, varargin)         % Segment the anatomical image
+        PrepMotionSliceTime(boldData)           % Correct for motion & slice timing using AFNI
+        PrepBRIK2NIFTI(boldData)                % Convert BRIK files into NIFTI format
+        PrepRegister(boldData, varargin)        % Register functional images to anatomical images
+        PrepNormalize(boldData, varargin)       % Normalize the data to MNI space
+        PrepImport(boldData)                    % Import IMG files to the MATLAB workspace
+        PrepCondition(boldData, varargin)       % Condition the BOLD signals for analysis
     end
     
-        
+    methods (Static)
+        Preprocess(paramStruct)                 % Preprocess raw BOLD data & create new data objects
+    end
+       
+    
     
     %% Static Methods
     methods (Static)
-        % Convert 4D functional data to IMG files
-        function toIMG(boldArray, savePath)
-            %TOIMG Converts functional data over time to NIFTI .img files.
-            szBOLD = size(boldArray);
-            for a = 1:szBOLD(4)
-                currentSaveStr = sprintf('%s/%03d.img', savePath, a);
-                writeimg(currentSaveStr, boldArray(:, :, :, b), 'double', [2 2 2], szBOLD(1:3));
-            end
-            
-        end
-        % Allow older incompatible stored data objects to be loaded
-        output = loadobj(input)
+        output = loadobj(input)                 % Allow older incompatible stored data objects to be loaded
     end
     
-    
-    
-    %% Static Preprocessing Methods
     methods (Static, Access = protected)
-        % Clean out raw data folders during preprocessing
-        CleanRawFolders(inPath, varargin)
-        
+        CleanRawFolders(inPath, varargin)       % Clean out raw data folders during preprocessing
         boldStruct = upgrade(boldStruct)
     end
 end
