@@ -42,11 +42,10 @@ classdef Progress < Window
 %                   update. Implemented the ability to dynamically add and remove bars from an existing window. Rewrote
 %                   and cleaned up basically every method and placed them here in the definition file. Removed several
 %                   methods and added several new ones. Removed all use of property change listeners.
+%       20140829:   Bug fix for the close method still calling WINDOWOBJ instead of WINDOW. Implemented a default bar
+%                   title when adding new bars dynamically to prevent erroring out. 
 
-%% TODOS
-%   - Re-implement the clock/timer function
 
-    
 
     %% Progress Bar Properties
     properties (AbortSet)
@@ -103,6 +102,7 @@ classdef Progress < Window
         % Class methods
         function AddBar(H, barTitle)
             %ADDBAR - Add a new progress bar to the window.
+            if nargin == 1; barTitle = 'Progress'; end
             innerFigPos = get(H.FigureHandle, 'Position');
             if isempty(H.Axes)
                 newAxPos = [0.01*innerFigPos(3), 0.01*innerFigPos(4), 0.88*innerFigPos(3), 0.5*innerFigPos(4)];
@@ -169,7 +169,7 @@ classdef Progress < Window
         % Overloaded MATLAB methods
         function close(progData, varargin)
             evalin('caller', ['clear ' inputname(1)]);
-            close@windowObj(progData, varargin{:});
+            close@Window(progData, varargin{:});
         end
     end
     
