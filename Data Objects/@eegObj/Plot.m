@@ -36,6 +36,7 @@ function varargout = Plot(eegData, varargin)
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20140716
+%       20140829:   Updated for compatibility with the WINDOW class updates (formerly WINDOWOBJ).
 
 
 
@@ -63,7 +64,7 @@ for a = 1:numel(eegData)
     if eegData(a).IsZScored; cbarLabel = 'Z-Scores'; end
     
     % Plot the image montage
-    brainData(a) = brainPlot('eeg', ephysData,...
+    brainData(a) = BrainPlot(ephysData,...
         'CLim', CLim,...
         'ColorbarLabel', cbarLabel,...
         'Title', titleStr,...

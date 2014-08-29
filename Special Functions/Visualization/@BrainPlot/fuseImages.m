@@ -66,5 +66,5 @@ idsNaN = isnan(boldImage(:));
 anatomicalImage = reshape(anatomicalImage, [], 3);
 fusedImage = reshape(fusedImage, [], 3);
 fusedImage(idsNaN, :) = anatomicalImage(idsNaN, :);
-fusedImage = reshape(fusedImage, size(boldImage));
+fusedImage = reshape(fusedImage, [size(boldImage), 3]);
 

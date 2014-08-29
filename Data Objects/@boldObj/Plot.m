@@ -1,5 +1,5 @@
 function varargout = Plot(boldData, varargin)
-%PLOT Plots BOLD functional data to an image montage.
+%PLOT - Plots BOLD functional data to an image montage.
 %
 %   SYNTAX:
 %   Plot(boldData)
@@ -60,6 +60,7 @@ function varargout = Plot(boldData, varargin)
 %                   brain volume as the default anatomical underlay. Updated the documentation for this function.
 %       20140626:   Updated to use linspace to generate the default time points to be plotted. Implemented a conversion
 %                   of zeros to NaNs for the plot in case that hasn't already been done.
+%       20140829:   Updated for compatibility with the WINDOW class updates (formerly WINDOWOBJ).
 
 
 
@@ -106,7 +107,7 @@ for a = 1:numel(boldData)
     if boldData(a).IsZScored; cbarLabel = 'Z-Scores'; end
         
     % Plot the image montage
-    brainData(a) = brainPlot('mri', funData,...
+    brainData(a) = BrainPlot(funData,...
         'Anatomical', colinBrain,...
         'CLim', CLim,...
         'ColorbarLabel', cbarLabel,...

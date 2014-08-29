@@ -17,9 +17,11 @@ function Store(brainData, varargin)
 %                   A string or cell array of strings indicating the format that the images are to be stored in. If
 %                   multiple formats are desired, input a cell array containing the format strings.
 %                   DEFAULT: 'png'
+%
 %                   EXAMPLE:
 %                            Store(brainData, 'ext', 'png');             % Store image in PNG format only
 %                            Store(brainData, 'ext', {'fig', 'png'})     % Store image in both PNG & FIG formats
+%
 %                   OPTIONS: Any MATLAB-native format from the SAVEAS function.
 %                           'bmp'
 %                           'eps'
@@ -34,6 +36,7 @@ function Store(brainData, varargin)
 %                   brainData array), input individual ordered plot titles as a cell array. The default value of this
 %                   parameter is a string representing the exact time that the save occurred for each image. 
 %                   DEFAULT: datestr(now, 'yyyymmddHHMMSSFFF')
+%
 %                   EXAMPLE:
 %                            % If brainData is a single BRAINPLOT object, store a single image
 %                            Store(brainData, 'Name', 'Brain Image');
