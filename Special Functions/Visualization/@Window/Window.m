@@ -18,12 +18,18 @@ classdef Window < hgsetget
 %       20140805:   Implemented a wrapping property and get/set methods for window background color. Removed the DISP
 %                   function now that native figure properties are no longer accessible through this class.
 %       20140807:   Implemented a wrapping property and get/set methods for the window title bar name string.
-    
+%       20140828:   Implemented a property controlling the figure color mapping.
+
+%% TODOS
+%   - Change access permissions for the COLORBAR (shouldn't be able to set it publicly)
+
+
     
 
     %% Window Object Properties
     properties (Dependent)
         Color                   % The background color of the window.
+        Colormap                % The color mapping used to display colorized data.
         Name                    % The string displayed in the window title bar.
         Position                % The position of the window on-screen in pixels.
         Size                    % The size of the window on-screen in pixels.
@@ -72,6 +78,9 @@ classdef Window < hgsetget
         function color      = get.Color(H)
             color = get(H.FigureHandle, 'Color');
         end
+        function cmap       = get.Colormap(H)
+            cmap = get(H.FigureHandle, 'Colormap');
+        end
         function name       = get.Name(H)
             name = get(H.FigureHandle, 'Name');
         end
@@ -93,6 +102,9 @@ classdef Window < hgsetget
                 color = color.ToArray;
             end    
             set(H.FigureHandle, 'Color', color);
+        end
+        function set.Colormap(H, cmap)
+            set(H.FigureHandle, 'Colormap', cmap);
         end
         function set.Name(H, name)
             set(H.FigureHandle, 'Name', name);
