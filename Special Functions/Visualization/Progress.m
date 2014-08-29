@@ -16,6 +16,7 @@ classdef Progress < Window
 %   SYNTAX:
 %   H = Progress(barTitle)
 %   H = Progress(barTitle1, barTitle2,...)
+%   H = Progress('-fast',...)
 %
 %   OUTPUT:
 %   H:                  PROGRESS
@@ -23,7 +24,14 @@ classdef Progress < Window
 %                       variable name in the console or, for more advanced properties, use the GET command on the
 %                       object.
 %
-%   OPTIONAL INPUT:
+%   OPTIONAL INPUTS:
+%   '-fast':            VERBATIM
+%                       If the first input in the call to create a new progress bar is the string '-fast' (exactly as
+%                       shown here), then the animation that appears to smoothly advance the progress bar will be turned
+%                       off. This may be helpful in situations where you are unsure of the required time for a process
+%                       or you wish to monitor the progress of a fairly rapid procedure. In such cases, the animation
+%                       can introduce a considerable delay to your program and should be disabled.
+%   
 %   barTitle:           STRING or STRINGS
 %                       A string (or multiple strings separated by commas) represeting the label to be applied to
 %                       individual progress bars. The number of bar titles corresponds to the number of bars that are
@@ -42,8 +50,10 @@ classdef Progress < Window
 %                   update. Implemented the ability to dynamically add and remove bars from an existing window. Rewrote
 %                   and cleaned up basically every method and placed them here in the definition file. Removed several
 %                   methods and added several new ones. Removed all use of property change listeners.
-%       20140829:   Bug fix for the close method still calling WINDOWOBJ instead of WINDOW. Implemented a default bar
-%                   title when adding new bars dynamically to prevent erroring out. 
+%       20140829:   Bug fix for the close method still calling WINDOWOBJ instead of WINDOW. Bug fix for fast progress
+%                   bar (i.e. with animation turned off) not working. Removed some unnecessary code. Implemented a
+%                   default bar title when adding new bars dynamically to prevent erroring out. Updated documentation to
+%                   discuss the '-fast' option.
 
 
 
@@ -84,9 +94,9 @@ classdef Progress < Window
             if nargin == 0; barTitle = {'Progress'};
             else 
                 barTitle = varargin;
-                if strcmpi(barTitle{end}, 'fast')
+                if strcmpi(barTitle{1}, '-fast')
                     H.UseAnimation = false;
-                    barTitle(end) = [];
+                    barTitle(1) = [];
                 end
             end
             
@@ -102,6 +112,7 @@ classdef Progress < Window
         % Class methods
         function AddBar(H, barTitle)
             %ADDBAR - Add a new progress bar to the window.
+            
             if nargin == 1; barTitle = 'Progress'; end
             innerFigPos = get(H.FigureHandle, 'Position');
             if isempty(H.Axes)
@@ -110,7 +121,7 @@ classdef Progress < Window
                 newAxPos = get(H.Axes(end), 'Position');
                 innerFigPos(4) = (innerFigPos(4)/length(H.Axes)) + innerFigPos(4);
                 set(H.FigureHandle, 'Position', innerFigPos);
-                TranslateBarPositions(H, 2*newAxPos(4));
+                H.TranslateBarPositions(2*newAxPos(4));
             end
             
             H.Axes = cat(1, H.Axes, Progress.newAxes(H.FigureHandle, newAxPos));
@@ -178,26 +189,20 @@ classdef Progress < Window
     %% Private Methods
     methods (Access = private)
         function TranslateBarPositions(H, deltaY)
-            %TRANSLATEBAR - Translates positions of progress bars and associated text up or down in the window.
             for a = 1:length(H.Axes)
                 newBarPos = get(H.Axes(a), 'Position');
-                newTitlePos = get(H.Text.BarTitle(a), 'Position');
-                newTextPos = get(H.Text.BarText(a), 'Position');
                 newBarPos(2) = newBarPos(2) + deltaY;
-                newTitlePos(2) = newTitlePos(2) + deltaY;
-                newTextPos(2) = newTextPos(2) + deltaY;
                 set(H.Axes(a), 'Position', newBarPos);
-%                 set(H.Text.BarTitle(a), 'Position', newTitlePos);
-%                 set(H.Text.BarText(a), 'Position', newTextPos);
             end
         end
         function UpdateAnimated(H, idxBar, pctComplete)
-            
+            % Calculate how far to advance the progress bar
             textPos = get(H.Text.BarText(idxBar), 'Position');
             xVertices = get(H.Patch(idxBar), 'XData');
             idxCap2 = 0.5*length(xVertices) + 1;
             diffPos = round(pctComplete*100) - xVertices(idxCap2);
             
+            % Smoothly advance the progress bar & associated text
             movements = gausswin(50, 1/0.4);
             movements = movements.*(diffPos/sum(movements));
             for a = 1:length(movements)
@@ -214,27 +219,21 @@ classdef Progress < Window
                 set(H.Text.BarText(idxBar), 'Position', textPos, 'String', newText);
                 pause(0.0001);
             end
-            
-            
         end
         function UpdateInstantly(H, idxBar, pctComplete)
-            
+            % Calculate how far to advance the progress bar
             xVertices = get(H.Patch(idxBar), 'XData');
             idxCap2 = 0.5*length(xVertices) + 1;
             diffPos = round(pctComplete*100) - xVertices(idxCap2);
             xVertices(idxCap2:end) = xVertices(idxCap2:end) + diffPos;
             
+            % Advance the progress bar & associated text
             set(H.Patch(idxBar), 'XData', xVertices);
-            
             textPos = get(H.Text.BarText(idxBar), 'Position');
             textPos(1) = textPos(1) + diffPos;
-            
-            newText = num2str(pctComplete*100); 
-            newText = newText(1:4);
+            newText = sprintf('%3.1f%%', pctComplete*100);
             if newText(end) == '.'; newText(end) = []; end
-            
             set(H.Text.BarText(idxBar), 'Position', textPos, 'String', newText);
-            
         end
         function UpdateTimeRemaining(H, pctComplete)
             %UPDATETIMEREMAINING - Updates the estimated remaining time for the first bar to reach 100%.
