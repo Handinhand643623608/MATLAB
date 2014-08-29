@@ -1,45 +1,46 @@
-classdef arkanoid < windowObj
-    %ARKANOID A simple, retro-style block breaking game.
-    %   This game is coded in a simple OOP format and runs quickly in the MATLAB environment. The
-    %   goal of this game is to destroy all blocks by reflecting the constantly moving ball off of
-    %   the user controlled paddle. If the ball falls beneath the paddle, the game is lost. 
-    %
-    %   WARNING: This game is still under development and is currently only intended as a demo.
-    %
-    %   SYNTAX:
-    %   arkanoid
-    %   arkData = arkanoid
-    %
-    %   OUTPUT:
-    %   (arkData):    An optional output that contains the entire game object and associated
-    %                 properties.
-    %
-    %   REQUIRED ADDITIONAL CODE
-    %       @windowObj
-    %
-    %       assignInputs
-    %       colorScheme
-    %       sigFig
-    %
-    %   Written by Josh Grooms on 20130516
-    %       20130520:   Added a GUI element for settings
-    %       20130521:   Implemented a scoring & high scoring system. Improved the "reset" function.
-    %                   Implemented Photoshop textures for bricks & paddle. Added some todos.
-    %       20130527:   Implemented a level reset function in preparation for multiple lives.
-    %                   Implemented randomized ball launches. Improved collision detection &
-    %                   reaction with bricks.
-    %       20130531:   Bug fix for ball launches with downward velocity. Implemented Photoshop
-    %                   texturing for the ball. Removed some unnecessary code. 
-    %       20130601:   Implemented multiple lives into the game & a display for them. Changed
-    %                   ordering & color scheme of HUD elements.
-    %       20130802:   Improvements in code. Updated for compatibility with WINDOWOBJ re-write.
-    
-    % TODO: Fix bug where ball can get in between adjacent bricks
-    % TODO: Implement a game pause. 
-    % TODO: Implement keyboard controls for paddles
-    % TODO: Implement powerups for the paddle
-    % TODO: Optimize CPU utilization & game speed
-    % TODO: Implement customizable ball speed
+classdef arkanoid < Window
+%ARKANOID - A simple, retro-style block breaking game.
+%   This game is coded in a simple OOP format and runs quickly in the MATLAB environment. The goal of this game is to
+%   destroy all blocks by reflecting the constantly moving ball off of the user controlled paddle. If the ball falls
+%   beneath the paddle, the game is lost.
+%
+%   WARNING: This game is still under development and is currently only intended as a demo.
+%
+%   SYNTAX:
+%   arkanoid
+%   arkData = arkanoid
+%
+%   OUTPUT:
+%   (arkData):    An optional output that contains the entire game object and associated properties.
+%
+%   REQUIRED ADDITIONAL CODE
+%       @Window
+%
+%       assignInputs
+%       colorScheme
+%       sigFig
+
+%% CHANGELOG
+%   Written by Josh Grooms on 20130516
+%       20130520:   Added a GUI element for settings
+%       20130521:   Implemented a scoring & high scoring system. Improved the "reset" function. Implemented Photoshop
+%                   textures for bricks & paddle. Added some todos.
+%       20130527:   Implemented a level reset function in preparation for multiple lives. Implemented randomized ball 
+%                   launches. Improved collision detection & reaction with bricks.
+%       20130531:   Bug fix for ball launches with downward velocity. Implemented Photoshop texturing for the ball. 
+%                   Removed some unnecessary code. 
+%       20130601:   Implemented multiple lives into the game & a display for them. Changed ordering & color scheme of 
+%                   HUD elements.
+%       20130802:   Improvements in code. Updated for compatibility with WINDOWOBJ re-write.
+%       20140829:   Updated for compatibility with the WINDOW class updates (formerly WINDOWOBJ).
+
+%% TODOS
+% TODO: Fix bug where ball can get in between adjacent bricks
+% TODO: Implement a game pause. 
+% TODO: Implement keyboard controls for paddles
+% TODO: Implement powerups for the paddle
+% TODO: Optimize CPU utilization & game speed
+% TODO: Implement customizable ball speed
     
     properties
         Ball                % A ball object, with its own properties & methods
@@ -58,7 +59,7 @@ classdef arkanoid < windowObj
         function arkData = arkanoid
             %ARKANOID A retro brick-breaking game.
             % Initialize a window object
-            arkData = arkData@windowObj(...
+            arkData = arkData@Window(...
                 'Color', 'k',...
                 'Colorbar', 'off',...                   
                 'Colormap', jet(128),...
