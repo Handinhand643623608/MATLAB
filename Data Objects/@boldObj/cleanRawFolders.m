@@ -27,8 +27,7 @@ function CleanRawFolders(inPath, varargin)
 %% CHANGELOG
 %   Written by Josh Grooms on 20130619
 %       20130707:   Updated defaults for use on my home computer
-%       20130711:   Changed input variable names to ones that actually make sense. Some small bug
-%                   fixes.
+%       20130711:   Changed input variable names to ones that actually make sense. Some small bug fixes.
 
 
 

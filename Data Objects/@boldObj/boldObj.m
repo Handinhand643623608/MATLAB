@@ -45,7 +45,7 @@ classdef boldObj < humanObj
 %   algorithm can find the data. Some kind of string that identifies these folders needs to be supplied to the parameter
 %   structure so that the correct data are used. 
 
-%% OBJECT DEPENDENCIES
+%% DEPENDENCIES
 %
 %   AFNI
 %   File Management Package
@@ -96,7 +96,8 @@ classdef boldObj < humanObj
 %                   recent changes to human data object classes.
 %       20140829:   Cleaned up the code here in the class definition file and improved the documentation. Converted the
 %                   Preprocess function into a static method that creates new data objects. Rewrote the constructor
-%                   method so that it's now capable of creating full BOLD data objects from user inputs.
+%                   method so that it's now capable of creating full BOLD data objects from user inputs. Moved the
+%                   Blur, Detrend, ToIMG, and ZScore methods to this class definition file.
 
 %% TODOS
 % Immediate Todos
@@ -179,8 +180,37 @@ classdef boldObj < humanObj
     %% Object Conversion Methods
     methods
         varargout = ToArray(boldData, dataStr)                  % Extract data from a data object & return it as an array
-        ToIMG(boldData, savePath)                               % Convert BOLD matrix data to IMG files (useful for ICA)
         [boldMatrix, idsNaN] = ToMatrix(boldData, removeNaNs)   % Extract the BOLD functional data & flatten it to a 2D array
+        
+        function ToIMG(boldData, savePath)
+            %TOIMG Converts BOLD data matrices to NIFTI .img format.
+            %   This function converts the functional images in BOLD data objects to IMG files that are used by other
+            %   programs, such as GIFT. It extracts the 4-dimensional numerical array (functional volumes over time) and
+            %   creates one IMG file for every time point available.
+            %
+            %   The outputted IMG files are numbered sequentially according to the time point their volume represents.
+            %   They are stored in folders organized by subject and scan numbers (the preferred format for GIFT). All of
+            %   these subject and scan folders can be found inside one top-level folder called "Preprocessed IMG Files",
+            %   which is placed in either a user-specified directory or wherever BOLD objects were stored after
+            %   preprocessing.
+            %
+            %   INPUT
+            %   boldData:       BOLDOBJ
+            %                   A single BOLD data object containing functional data that should be converted to IMG 
+            %                   files.
+            %
+            %   OPTIONAL INPUT:
+            %   savePath:       STRING
+            %                   A string indicating the directory where all IMG files will be stored. If no path string
+            %                   is provided, this location will default to wherever the inputted data objects were
+            %                   stored after preprocessing was performed.
+            %
+            %                   DEFAULT: boldData.Preprocessing.Parameters.General.OutputPath
+            
+            % Error check & convert
+            boldData.AssertSingleObject;
+            boldObj.ArrayToIMG(boldData.ToArray, savePath);
+        end
     end
     
     methods (Static)
@@ -197,6 +227,8 @@ classdef boldObj < humanObj
             %
             %   savePath:   STRING
             %               A string indicating the top-level directory where all IMG files will be stored.
+            
+            if ~exist(savePath, 'dir'); mkdir(savePath); end
             szBOLD = size(boldArray);
             for a = 1:szBOLD(4)
                 currentSaveStr = sprintf('%s/%03d.img', savePath, a);
@@ -209,12 +241,120 @@ classdef boldObj < humanObj
     
     %% Image & Signal Processing Methods
     methods
-        Blur(boldData, hsize, sigma)            % Spatial Gaussian blurring
-        Detrend(boldData, order)                % Detrend the BOLD data time series
         Filter(boldData, varargin)              % FIR Filter the BOLD data time series
         Regress(boldData, signal)               % Regress signals from the BOLD data
         Resample(boldData, fs)
-        ZScore(boldData)                        % Z-Score the BOLD data time series
+        
+        function Blur(boldData, hsize, sigma)
+            %BLUR - Spatially Gaussian blur BOLD image series.
+            %
+            %   SYNTAX:
+            %   Blur(boldData, hsize, sigma)
+            %
+            %   INPUTS:
+            %   boldData:       BOLDOBJ
+            %                   A single BOLD data object.
+            %
+            %   hsize:          INTEGER or [INTEGER, INTEGER]
+            %                   An integer or 2-element vector of integers representing the size (in [HEIGHT, WIDTH]
+            %                   pixels) of the Gaussian used to blur the data. A single scalar input generates a
+            %                   symmetric Gaussian.
+            %
+            %   sigma:          DOUBLE
+            %                   The standard deviation (in pixels) of the Gaussian used to blur the data. This must be a
+            %                   single double-precision value.
+            
+            % Error check
+            boldData.AssertSingleObject;
+            boldData.LoadData;
+            
+            % Blur the functional data
+            funData = boldData.ToArray;
+            fspec = fpsecial('gaussian', hsize, sigma);
+            for a = 1:size(boldData, 4)
+                funData(:, :, :, a) = imfilter(funData(:, :, :, a), fspec);
+            end
+            
+            % Blur the segment images
+            segmentStrs = fieldnames(boldData.Data.Segments);
+            for a = 1:length(segmentStrs)
+                boldData.Data.Segments.(segmentStrs{a}) = imfilter(boldData.Data.Segments.(segmentStrs{a}), fspec);
+            end
+            
+            % Store the blurred data
+            boldData.Data.Functional = funData;
+            boldData.IsZScored = false;
+        end
+        function Detrend(boldData, order)
+            %DETREND - Detrend BOLD data time series using a polynomial of the specified order.
+            %
+            %   SYNTAX:
+            %   Detrend(boldData, order)
+            %
+            %   INPUTS:
+            %   boldData:   BOLDOBJ
+            %               A BOLD data object containing a functional image time series to be detrended.
+            %
+            %   order:      INTEGER
+            %               Any positive integer representing the order of the polynomial used for detrending. 
+            %               EXAMPLES:
+            %                   1 - Linear detrend
+            %                   2 - Quadratic detrend
+            %                   3 - Cubic detrend
+            %                   .
+            %                   .
+            %                   .
+            
+            % Error check
+            boldData.AssertSingleObject;
+            boldData.LoadData;
+            
+            % Get & flatten the functional data
+            [funData, idsNaN] = boldData.ToMatrix;
+            szBOLD = size(boldData.Data.Functional);
+            
+            % Detrend the functional time series
+            for a = 1:size(funData, 2)
+                polyCoeffs = polyfit(1:szBOLD(end), funData(a, :), order);
+                funData(a, :) = funData(a, :) - polyval(polyCoeffs, 1:szBOLD(end));
+            end
+            
+            % Restore the volume array & store it in the data object
+            volData = nan(length(idsNaN), szBOLD(end));
+            volData(~idsNaN, :) = funData;
+            boldData.Data.Functional = reshape(volData, szBOLD);
+            boldData.Data.IsZScored = false;
+        end
+        function ZScore(boldData)
+            %ZSCORE Scales BOLD voxel time courses to zero mean and unit variance.
+            %   This function converts BOLD voxel time series with arbitrary amplitude units to standard scores.
+            %   Standard scoring re-expresses data as a fraction of the data's standard deviation. In this case, for any
+            %   given BOLD voxel data point, the average amplitude over all time is subtracted away and the data point
+            %   is then divided by the standard deviation of the voxel signal.
+            %
+            %
+            %   SYNTAX:
+            %   ZScore(boldData)
+            %
+            %   INPUT:
+            %   boldData:       BOLDOBJ
+            %                   A BOLD data object with functional time series to be standard scored.
+            
+            % Error check
+            boldData.AssertSingleObject;
+            boldData.LoadData;
+            
+            % Pull the functional data from the data object
+            [funData, idsNaN] = boldData.ToMatrix;
+            szBOLD = size(boldData.Data.Functional);
+            
+            % Z-Score the data & store it in the data object
+            funData = zscore(funData, 0, 2);
+            volData = nan(length(idsNaN), szBOLD(end));
+            volData(~idsNaN, :) = funData;
+            boldData.Data.Functional = reshape(volData, szBOLD);
+            boldData.IsZScored = true;
+        end
     end    
     
     

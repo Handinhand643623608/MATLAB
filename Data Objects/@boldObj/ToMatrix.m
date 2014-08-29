@@ -1,5 +1,5 @@
 function [boldMatrix, idsNaN] = ToMatrix(boldData, removeNaNs)
-%TOMATRIX Extracts BOLD functional data and flattens it to a two dimensional matrix.
+%TOMATRIX - Extracts BOLD functional data and flattens it to a two dimensional matrix.
 %
 %   SYNTAX:
 %   boldMatrix = ToMatrix(boldData)
@@ -58,17 +58,13 @@ function [boldMatrix, idsNaN] = ToMatrix(boldData, removeNaNs)
 %% Extract & Flatten the Functional Data
 % Fill in missing inputs
 if nargin == 1
-    if nargout == 1
-        removeNaNs = false;
-    else
-        removeNaNs = true;
+    if (nargout == 1); removeNaNs = false;
+    else removeNaNs = true;
     end
 end
 
 % Ensure that only one object is converted at a time
-if numel(boldData) > 1
-    error('BOLD data objects must be inputted one at a time. Arrays of objects are not supported');
-end
+boldData.AssertSingleObject;
 
 % Pull functional data from the object & flatten it to two dimensions
 boldMatrix = boldData.Data.Functional;
@@ -76,6 +72,4 @@ boldMatrix = reshape(boldMatrix, [], size(boldMatrix, 4));
 
 % Remove NaNs from the data matrix, if called for
 idsNaN = isnan(boldMatrix(:, 1));
-if istrue(removeNaNs)
-    boldMatrix(idsNaN, :) = [];
-end
+if istrue(removeNaNs); boldMatrix(idsNaN, :) = []; end

@@ -34,9 +34,7 @@ function Regress(boldData, signal)
 
 %% Error Checking
 % Prevent arrays of BOLD data objects from being inputted
-if numel(boldData) > 1
-    error('BOLD data objects must be inputted one at a time. Arrays of objects are not supported');
-end
+boldData.AssertSingleObject;
 
 % Check that the signals being regressed are correctly oriented & are the right size
 szSignal = size(signal);
@@ -57,7 +55,7 @@ if ~isequal(ones(size(signal, 1), 1), signal(:, 1))
 end
 
 % Load any MATFILE data
-LoadData(boldData);
+boldData.LoadData;
 
     
 

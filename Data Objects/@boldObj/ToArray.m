@@ -61,9 +61,7 @@ if nargin == 1
 end
 
 % Ensure that only one data object has been inputted
-if numel(boldData) > 1
-    error('Only one BOLD data object may be converted to an array at a time. Multiple objects are not supported');
-end
+boldData.AssertSingleObject;
 
 % Gather the correct data set
 legend = {};

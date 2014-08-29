@@ -1,5 +1,5 @@
 function Filter(boldData, varargin)
-%FILTER Filters BOLD data to the desired passband.
+%FILTER - Filters BOLD data to the desired passband.
 %   This function temporally filters BOLD voxel data according to the input parameters. Currently, this process is
 %   limited to using FIR1 filters only. Phase shifts imposed by the filter are automatically cropped out of the signals,
 %   unless zero-phase filtering is used.
@@ -40,15 +40,11 @@ function Filter(boldData, varargin)
 %                           The length of the window (in seconds) for the FIR filter.
 %                           DEFAULT: 45
 
-
-
 %% CHANGELOG
 %   Written by Josh Grooms on 20130818
 %       20140612:   Updated the documentation for this method.
 %       20140707:   Implemented zero-phase FIR filtering. Updated this method for compatibility with the new MATFILE
 %                   storage system. Updated documentation accordingly.
-
-
 
 %% TODOS
 % Immediate Todos

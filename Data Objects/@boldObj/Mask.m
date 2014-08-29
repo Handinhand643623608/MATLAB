@@ -66,7 +66,7 @@ elseif nargin == 3
 end
 
 maskDataStr = '';
-if ischar(maskData); maskDataStr = maskData; end   
+if ischar(maskData); maskDataStr = maskData; end
 
 
 
