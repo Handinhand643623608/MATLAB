@@ -180,6 +180,11 @@ classdef BrainPlot < Window
 %                   WINDOWOBJ.
 %       20140625:   Removed dependencies on my personal file structure. Updated documentation. Changed some default 
 %                   settings of the Store function and implemented file overwrite protection. 
+%       20140828:   Major reorganization and update to this class (essentially a re-write). Updated for compatibility
+%                   with major updates to the WINDOW class (formerly WINDOWOBJ). Moved the code for several methods here
+%                   to the class definition file and eliminated some superfluous methods altogether. Compeletely
+%                   reorganized the class properties and changed the way users/programs interface with them. Implemented
+%                   several new features, in particular some relating to plot labeling (e.g. tick labels, titles, etc.).
 
 %% TODOS
 %   - Merge PLOTEEG static method & the separate EEGMAP function.
