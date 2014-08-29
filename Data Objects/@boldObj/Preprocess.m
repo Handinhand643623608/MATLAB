@@ -40,6 +40,8 @@ function Preprocess(paramStruct)
 % Immediate Todos
 % - Implement skipping of unnecessary anatomical segmentations
 % - Hide SPM & AFNI echoing
+% - Implement ability to choose AFNI or SPM for motion correction
+%   > Save reference to motion parameters file for use in PrepCondition
 %
 % Future Todos
 % - Implement parallel data preprocessing
@@ -51,7 +53,7 @@ function Preprocess(paramStruct)
 assignInputs(paramStruct.General, 'varsOnly');
 
 % Clean out files from raw folders
-boldData.CleanRawFolders(paramStruct.Initialization.DataPath,...
+boldObj.CleanRawFolders(paramStruct.Initialization.DataPath,...
     'AnatomicalFolderStr', paramStruct.Initialization.AnatomicalFolderStr,...
     'FunctionalFolderStr', paramStruct.Initialization.FunctionalFolderStr,...
     'SubjectFolderStr', paramStruct.Initialization.SubjectFolderStr);
@@ -87,7 +89,7 @@ for a = Subjects
                 
         % Convert DICOM functional files to NIFTI format
         progBar.BarTitle{3} = 'Converting DICOM Images to NIFTI Format';
-        PrepDICOM2NIFTI(boldData);
+        PrepDCMToIMG(boldData);
         update(progBar, 3, 2/numSteps);
         
         % Segment the anatomical image
@@ -112,7 +114,7 @@ for a = Subjects
         
         % Import IMG files to MATLAB workspace
         progBar.BarTitle{3} = 'Importing IMG Files into MATLAB Workspace';
-        PrepImport(boldData);
+        PrepImportIMG(boldData);
         update(progBar, 3, 7/numSteps);
         
         % Store temporary files at this point so alterations in conditioning can easily occur later

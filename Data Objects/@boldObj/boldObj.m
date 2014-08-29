@@ -221,15 +221,17 @@ classdef boldObj < humanObj
     
     %% Preprocessing Methods
     methods
+        PrepBRIKToIMG(boldData)                 % Convert BRIK files into NIFTI format
+        PrepCondition(boldData, varargin)       % Condition the BOLD signals for analysis
+        PrepDCMToIMG(boldData)
+        PrepImportIMG(boldData)                 % Import IMG files to the MATLAB workspace
         PrepInitialize(boldData, varargin)      % Initialize a BOLD data object for preprocessing
         PrepMean(boldData)                      % Create a mean functional DICOM & IMG file
-        PrepSegment(boldData, varargin)         % Segment the anatomical image
+        PrepMotion(boldData)                    % Correct for motion using SPM
         PrepMotionSliceTime(boldData)           % Correct for motion & slice timing using AFNI
-        PrepBRIK2NIFTI(boldData)                % Convert BRIK files into NIFTI format
-        PrepRegister(boldData, varargin)        % Register functional images to anatomical images
         PrepNormalize(boldData, varargin)       % Normalize the data to MNI space
-        PrepImport(boldData)                    % Import IMG files to the MATLAB workspace
-        PrepCondition(boldData, varargin)       % Condition the BOLD signals for analysis
+        PrepRegister(boldData, varargin)        % Register functional images to anatomical images
+        PrepSegment(boldData, varargin)         % Segment the anatomical image
     end
     
     methods (Static)

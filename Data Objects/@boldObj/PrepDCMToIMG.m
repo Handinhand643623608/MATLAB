@@ -1,12 +1,11 @@
-function PrepDICOM2NIFTI(boldData)
-%PREPDICOM2NIFTI - Converts DICOM image files into NIFTI format for SPM to use.
+function PrepDCMToIMG(boldData)
+%PREPDCMTOIMG - Converts DICOM image files into NIFTI format for SPM to use.
 %   This function uses SPM's batch processing system to convert a series of DICOM image files into the NIFTI file
 %   format, which is what SPM works with pretty much exclusively. Both anatomical and functional DICOM images are
 %   converted by default.
 %
 %   SYNTAX:
-%   PrepDICOM2NIFTI(boldData)
-%   boldData.PrepDICOM2NIFTI
+%   PrepDCMToIMG(boldData)
 %
 %   INPUT:
 %   boldData:       BOLDOBJ

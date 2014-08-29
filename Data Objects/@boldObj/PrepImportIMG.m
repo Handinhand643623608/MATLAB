@@ -1,12 +1,11 @@
-function PrepImport(boldData)
-%PREPIMPORT Imports IMG files into numerical arrays that MATLAB can use.
-%   This function imports anatomical, functional, mean, and segment .img files and stores them in
-%   numerical data arrays inside the human data structure. All data are converted to type "double"
-%   during the import process. This function requires the full preprocessing procedure through
-%   normalization to be completed.
+function PrepImportIMG(boldData)
+%PREPIMPORTIMG - Imports IMG files into numerical arrays that MATLAB can use.
+%   This function imports anatomical, functional, mean, and segment .img files and stores them in numerical data arrays
+%   inside the human data structure. All data are converted to type "double" during the import process. This function
+%   requires the full preprocessing procedure through normalization to be completed.
 %
 %   SYNTAX:
-%   PrepImport(boldData)
+%   PrepImportIMG(boldData)
 %
 %   INPUT:
 %   boldData:       BOLDOBJ

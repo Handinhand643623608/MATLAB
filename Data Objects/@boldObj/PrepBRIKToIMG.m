@@ -1,11 +1,11 @@
-function PrepBRIK2NIFTI(boldData)
-%PREPBRIK2NIFTI Converts BRIK images from AFNI into the SPM-compatible NIFTI format.
-%   This function uses AFNI to convert images from BRIK format into ANALYZE format, which is
-%   compatible with the SPM preprocessing used in later steps. Because this function uses AFNI, it
-%   is only compatible with computers running the Linux operating system.
+function PrepBRIKToIMG(boldData)
+%PREPBRIKTOIMG - Converts BRIK images from AFNI into the SPM-compatible NIFTI format.
+%   This function uses AFNI to convert images from BRIK format into ANALYZE format, which is compatible with the SPM
+%   preprocessing used in later steps. Because this function uses AFNI, it is only compatible with computers running the
+%   Linux operating system.
 %
 %   SYNTAX:
-%   PrepBRIK2NIFTI(boldData)
+%   PrepBRIKToIMG(boldData)
 %
 %   INPUT:
 %   boldData:       BOLDOBJ
