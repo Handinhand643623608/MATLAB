@@ -2,6 +2,21 @@ classdef eegObj < humanObj
 %EEGOBJ Generates a standardized EEG data object containing various properties. 
 %   This object is a subclass of the "humanData" abstract class and contains EEG-specific data, attributes, and methods.
 
+%% DEPENDENCIES
+%
+%   File Management Package
+%
+%   @BrainPlot
+%   @humanObj
+%   @Progress
+%   @spectralObj
+%   @Window
+%       
+%   assignInputs
+%   fileNames
+%   sigFig
+%   where
+
 %% CHANGELOG
 %   Written by Josh Grooms on 20130202
 %       20130318:   Moved several construction elements to "assignProperties" function. Added new property for scan 
@@ -28,24 +43,14 @@ classdef eegObj < humanObj
 %       20140902:   Implemented some status properties that take their values from standardized preprocessing parameter
 %                   log entries (mostly in the human object superclass). Implemented a data cache to store data loaded
 %                   from MatFiles. Implemented a ToMatrix method that behaves similarly to the equivalent BOLD data 
-%                   object method. Updated the version number of this software to 2 to reflect these (breaking) changes.
+%                   object method. Moved the Regress method code here to the class definition file. Updated the version 
+%                   number of this software to 2 to reflect these changes.
 
-%% DEPENDENCIES
-%
-%   File Management Package
-%
-%   @BrainPlot
-%   @humanObj
-%   @Progress
-%   @spectralObj
-%   @Window
-%       
-%   assignInputs
-%   fileNames
-%   sigFig
-%   where
+%% TODOS
+%   - Rewrite the power spectrum generation methods.
+%   - Test all rewritten functionality.
 
-    
+
 
     %% EEG Object Properties
     properties (SetAccess = protected)
@@ -256,7 +261,8 @@ classdef eegObj < humanObj
     
     %% Signal Processing Methods
     methods
-                
+        Filter(eegData, varargin)               % FIR filter EEG data
+        
         function Detrend(eegData, order)
             %DETREND - Detrend EEG data time series using a polynomial of the specified order.
             %
@@ -300,6 +306,100 @@ classdef eegObj < humanObj
             eegData.IsZScored = false;
             
         end
+        function Resample(eegData, fs)
+            %RESAMPLE - Resamples EEG temporal data to a new sampling frequency.
+            %
+            %   SYNTAX:
+            %   Resample(eegData, fs)
+            %
+            %   INPUT:
+            %   eegData:    EEGOBJ        
+            %               A single EEG data object.
+            %
+            %   fs:         DOUBLE
+            %               The new sampling frequency (in Hertz) for the EEG time series.
+            
+            % Error check
+            eegData.AssertSingleObject;
+            eegData.LoadData;
+            
+            % Get the EEG data matrix
+            ephysData = eegData.ToMatrix;
+            szEEG = size(ephysData);
+            
+            % Calculate the number of time points the resampled series will have
+            numPoints = floor(szEEG(2) * (fs / eegData.Fs));
+            rsEphysData = nan(szEEG(1), numPoints);
+            
+            % Resample the EEG data
+            for a = 1:szEEG(1);
+                if ~isnan(ephysData(a, 1))
+                    rsEphysData(a, :) = resample(ephysData, numPoints, szEEG(2));
+                end
+            end
+            
+            % Resample any existing BCG data
+            if ~isempty(eegData.Data.BCG); 
+                eegData.Data.BCG = resample(eegData.Data.BCG, numPoints, szEEG(2));
+            end
+            
+            % Resample any existing global data
+            if ~isempty(eegData.Data.Global)
+                szGlobal = size(eegData.Data.Global);
+                rsGlobal = zeros(szGlobal(1), numPoints);
+                for a = 1:szGlobal(1)
+                    rsGlobal(a, :) = resample(eegData.Data.Global(c, :), numPoints, szGlobal(2));
+                end
+                eegData.Data.Global = rsGlobal;
+            end
+            
+            % Store the results in the data object
+            eegData.Data.EEG = rsEphysData;
+            Resample@humanObj(eegData, eegData.Fs, fs);
+            eegData.Fs = fs;
+            eegData.IsZScored = false;
+        end
+        function Regress(eegData, signal)
+            %REGRESS - Linearly regress signals from EEG time series.
+            %   This function performs a simple linear regression between a set of signals and all EEG channel time
+            %   series, finding the best fit (in the least-squares sense) for the signals to the data. It then scales
+            %   the signals according to the fitting parameters and subtracts them from the EEG time series. Thus, the
+            %   EEG data that exists after this method is called are the residual time series left over from the
+            %   regression.
+            %
+            %   Linear regression is currently a popular method of removing artifacts from the EEG data and accounting
+            %   for signals that are not likely to be neuronal in origin. Partial correlation, for instance, uses this
+            %   approach to control for a set of variables while estimating how two other data sets covary.
+            %
+            %   However, assuming simple linear relationships between complicated data (i.e. physiological data) is
+            %   rarely exactly correct. Care must be taken to ensure that the data fitting is approximately valid. If it
+            %   is not, more complex methods of regression may be called for.
+            %
+            %   SYNTAX:
+            %   Regress(eegData, signal)
+            %
+            %   INPUTS:
+            %   eegData:    EEGOBJ
+            %               A single EEG data object.
+            %
+            %   signal:     1D ARRAY or 2D ARRAY
+            %               A vector or array of signals to be regressed from the EEG channel data. This argument must
+            %               be provided in the format [SIGNALS x TIME], where time points span the columns of the
+            %               matrix. The number of signals (i.e. number of rows) here can be any number, but the number
+            %               of time points must equal the number of time points in the EEG data.
+            %
+            %               It is not necessary to provide a signal of all ones in this array (i.e. to account for
+            %               constant terms), although you may provide one if you wish. This function automatically adds
+            %               in a constant signal if one is not present.
+            
+            % Error check
+            eegData.AssertSingleObject;
+            eegData.LoadData;
+            
+            % Perform the regression & store the residuals
+            eegData.Data.EEG = humanObj.RegressTimeSeries(eegData.Data.EEG, signal);
+            eegData.IsZScored = false;
+        end
         function ZScore(eegData)
             %ZSCORE - Scales EEG channel time courses to zero mean and unit variance.
             %
@@ -320,21 +420,6 @@ classdef eegObj < humanObj
             eegData.Data.EEG = ephysData;
             eegData.IsZScored = true;
         end
-            
-        Filter(eegData, varargin)               % FIR filter EEG data
-        Regress(eegData, signal)                % Regress a set of signals from EEG time series
-        Resample(eegData, fs)
-        
-        % Generate power spectra
-        powerSpectra(eegData, varargin)
-        
-        
-        % Regress cluster signals
-        regressCluster(eegData)
-        % Resample the EEG data
-        resample(eegData, varargin)
-        
-        
     end
     
     
@@ -342,11 +427,9 @@ classdef eegObj < humanObj
     
     %% Preprocessing Methods
     methods
-        
         PrepCondition(eegData)
         PrepInitialize(eegData)
         PrepImportCNT(eegData)
-        
     end
     
     methods (Static) 

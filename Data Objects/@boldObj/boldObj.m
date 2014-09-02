@@ -99,9 +99,9 @@ classdef boldObj < humanObj
 %                   method so that it's now capable of creating full BOLD data objects from user inputs. Moved the
 %                   Blur, Detrend, ToIMG, and ZScore methods to this class definition file.
 %       20140902:   Implemented some status properties that take their values from standardized preprocessing parameter
-%                   log entries. Implemented a data cache to store data loaded from MatFiles. Moved the ToMatrix method 
-%                   code here to the class definition file. Updated the version number of this software to 2 to reflect 
-%                   these (breaking) changes.
+%                   log entries. Implemented a data cache to store data loaded from MatFiles. Moved the ToMatrix and 
+%                   Regress method code here to the class definition file. Updated the version number of this software 
+%                   to 2 to reflect these changes.
 
 %% TODOS
 % Immediate Todos
@@ -113,6 +113,7 @@ classdef boldObj < humanObj
 %   > Remove the need for instantiating a parameter structure before preprocessing
 % - Fix hard-coded preprocessing dependency on IMG folder name.
 %   > Maybe just hard-code all folders like this to simplify the parameter structure?
+% - Test all rewritten functionality.
 %
 % Future Todos
 % - Automate the ICA process
@@ -122,9 +123,7 @@ classdef boldObj < humanObj
     
     %% Set the Object Properties
     properties (Dependent)
-        
         IsBlurred
-        
     end
     
     properties (SetAccess = protected)
@@ -335,7 +334,6 @@ classdef boldObj < humanObj
     %% Image & Signal Processing Methods
     methods
         Filter(boldData, varargin)              % FIR Filter the BOLD data time series
-        Regress(boldData, signal)               % Regress signals from the BOLD data
         Resample(boldData, fs)
         
         function Blur(boldData, hsize, sigma)
@@ -426,6 +424,48 @@ classdef boldObj < humanObj
             % Change data object preprocessing parameters
             Detrend@humanObj(boldData, order);
             boldData.Data.IsZScored = false;
+        end
+        function Regress(boldData, signal)
+            %REGRESS - Linearly regress signals from BOLD functional time series.
+            %   This function performs a simple linear regression between a set of signals and all BOLD voxel time
+            %   series, finding the best fit (in the least-squares sense) for the signals to the data. It then scales
+            %   the signals according to the fitting parameters and subtracts them from the BOLD time series. Thus, the
+            %   BOLD data that exists after this method is called are the residual time series left over from the
+            %   regression.
+            %
+            %   Linear regression is currently a popular method of removing artifacts from the BOLD data and accounting
+            %   for signals that are not likely to be neuronal in origin. Partial correlation, for instance, uses this
+            %   approach to control for a set of variables while estimating how two other data sets covary.
+            %
+            %   However, assuming simple linear relationships between complicated data (i.e. physiological data) is
+            %   rarely exactly correct. Care must be taken to ensure that the data fitting is approximately valid. If it
+            %   is not, more complex methods of regression may be called for.
+            %
+            %
+            %   SYNTAX:
+            %   Regress(boldData, signal)
+            %
+            %   INPUTS:
+            %   boldData:       BOLDOBJ
+            %                   A single BOLD data object.
+            %
+            %   signal:     1D ARRAY or 2D ARRAY
+            %               A vector or array of signals to be regressed from the BOLD functional data. This argument
+            %               must be provided in the format [SIGNALS x TIME], where time points span the columns of the
+            %               matrix. The number of signals (i.e. number of rows) here can be any number, but the number
+            %               of time points must equal the number of time points in the BOLD data.
+            %
+            %               It is not necessary to provide a signal of all ones in this array (i.e. to account for
+            %               constant terms), although you may provide one if you wish. This function automatically adds
+            %               in a constant signal if one is not present.
+            
+            % Error check
+            boldData.AssertSingleObject;
+            boldData.LoadData;
+            
+            % Perform the regression & store the residuals
+            boldData.Data.Functional = humanObj.RegressTimeSeries(boldData.Data.Functional, signal);
+            boldData.IsZScored = false;
         end
         function ZScore(boldData)
             %ZSCORE - Scales BOLD voxel time courses to zero mean and unit variance.

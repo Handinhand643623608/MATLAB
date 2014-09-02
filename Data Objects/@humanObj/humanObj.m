@@ -23,6 +23,7 @@ classdef (Abstract) humanObj < hgsetget
 %   - Fix problems with implementation of MATFILE
 %       > Expand indexing capabilities inside of .mat files
 %       > Implement dynamic data loading to allow seamless data modification without overwriting the original
+%   - Test all rewritten functionality.
 
 
     %% Properties Common to All Human Data
@@ -73,10 +74,8 @@ classdef (Abstract) humanObj < hgsetget
     
     %% General Utilities
     methods (Abstract)
-        
         paramStruct = Parameters(dataObject)
         varargout   = Plot(dataObject, varargin)
-        
     end
     
     
@@ -146,7 +145,6 @@ classdef (Abstract) humanObj < hgsetget
     
     %% Signal Processing Methods
     methods 
-        
         function Detrend(dataObject, order)
             %DETREND - Saves detrending parameters to the data object preprocessing parameter log.
             %
@@ -206,14 +204,97 @@ classdef (Abstract) humanObj < hgsetget
                 'WindowLength', windowLength,...
                 'ZeroPhaseFiltered', useZeroPhaseFilter);
         end
+        function Resample(dataObject, oldFs, newFs)
+            %RESAMPLE - Saves resampling parameters to the data object preprocessing parameter log.
+            %
+            %   SYNTAX:
+            %   Resample(dataObject, oldFs, newFs)
+            %
+            %   INPUTS:
+            %   dataObject:     HUMANOBJ
+            %                   A human data object containing time series that were just resampled.
+            %
+            %   oldFs:          DOUBLE
+            %                   The old sampling frequency (in Hertz) of the data. This is the sampling frequency that
+            %                   the data had just prior to running the RESAMPLE function.
+            %
+            %   newFs:          DOUBLE
+            %                   The new sampling frequency (in Hertz) of the data. This is the sampling frequency that
+            %                   was just applied using the RESAMPLE function on the data object time series.
             
+            dataObject.Preprocessing.Parameters.Resampling = struct(...
+                'NewFs', newFs,...
+                'OldFs', oldFs);
+        end
     end
     
     methods (Abstract)
         Preprocess(dataObject, paramStruct)         % Preprocess human data objects from raw data files
         Regress(dataObject, signal)                 % Regress one or more signals from the primary object data
-        Resample(dataObject, fs)
         ZScore(dataObject)                          % Z-Score the primary data inside the data object
+    end
+    
+    methods (Static)
+        function dataMatrix = RegressTimeSeries(dataMatrix, signal)
+            %REGRESS - Linearly regress signals from a data object time series matrix.
+            %   This function performs a simple linear regression between a set of signals and a data time series array,
+            %   finding the best fit (in the least-squares sense) for the signals to the data. It then scales the
+            %   signals according to the fitting parameters and subtracts them from the data time series. Thus, the data
+            %   that exists after calling this method are the residual time series left over from the regression.
+            %
+            %   Linear regression is currently a popular method of removing artifacts from data and accounting for
+            %   signals that are not likely to be neuronal in origin. Partial correlation, for instance, uses this
+            %   approach to control for a set of variables while estimating how two other data sets covary.
+            %
+            %   However, assuming simple linear relationships between complicated data (i.e. physiological data) is
+            %   rarely exactly correct. Care must be taken to ensure that the data fitting is approximately valid. If it
+            %   is not, more complex methods of regression may be called for.
+            %
+            %   SYNTAX:
+            %   dataMatrix = RegressTimeSeries(dataMatrix, signal)
+            %
+            %   INPUTS:
+            %   dataMatrix:     2D ARRAY
+            %                   A 2-dimensional array (matrix) of time series data formatted as [SIGNALS x TIME], where
+            %                   time points span the columns of the matrix. While the number of signals in this array
+            %                   can be any number, the number of time points (i.e. columns) must equal the number of
+            %                   time points in the SIGNAL argument exactly.
+            %
+            %   signal:         1D ARRAY or 2D ARRAY
+            %                   A vector or array of signals to be regressed from the data matrix. This argument must be 
+            %                   provided in the format [SIGNALS x TIME], where time points span the columns of the
+            %                   matrix. Just like the DATAMATRIX argument, the number of signals here can be any number,
+            %                   but the number of time points must equal the number that the data matrix contains.
+            %
+            %                   It is not necessary to provide a signal of all ones in this array (i.e. to account for
+            %                   constant terms), although you may provide one if you wish. This function automatically
+            %                   adds in a constant signal if one is not present.
+            
+            % Error check
+            szSignal = size(signal);
+            szData = size(dataMatrix);
+            if (~ismatrix(signal) || ~ismatrix(dataMatrix))
+                error('Inputted data must be a 2-dimensional array (matrix) only.');
+            elseif (szData(2) ~= szSignal(2))
+                error('The signals being regressed must span the same number of time points (i.e. columns) as the data');
+            end
+            if ~isequal(ones(1, szSignal(2)), signal(1, :))
+                signal = cat(2, ones(1, szSignal(2)), signal);
+            end
+            
+            % Remove any dead time series from the data
+            idsNaN = isnan(dataMatrix(:, 1));
+            regData = dataMatrix(~idsNaN, :);
+            
+            % Transpose the data & perform the regression
+            regData = regData';
+            signal = signal';
+            regData = regData - signal*(signal \ regData);
+            regData = regData';
+            
+            % Return the residuals from the regression
+            dataMatrix(~idsNaN, :) = regData;
+        end
     end
     
     
@@ -259,6 +340,6 @@ classdef (Abstract) humanObj < hgsetget
         end
     end
     
-    
+        
    
 end
