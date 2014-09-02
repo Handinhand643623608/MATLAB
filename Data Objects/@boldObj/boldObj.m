@@ -464,7 +464,8 @@ classdef boldObj < humanObj
             boldData.LoadData;
             
             % Perform the regression & store the residuals
-            boldData.Data.Functional = humanObj.RegressTimeSeries(boldData.Data.Functional, signal);
+            funData = humanObj.RegressTimeSeries(boldData.ToMatrix, signal);
+            boldData.Data.Functional = reshape(funData, size(boldData.Data.Functional));
             boldData.IsZScored = false;
         end
         function ZScore(boldData)

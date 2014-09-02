@@ -69,13 +69,14 @@ for a = 1:length(corrFiles)
     end
     
     pbar.Update(a/length(corrFiles));
+    
 end
 pbar.close;
 
 
 for a = 1:length(channels)
     
-    meanCorrData.(channels{b}) = nanmean(meanCorrData.(channels{b}), 5);
+    meanCorrData.(channels{a}) = nanmean(meanCorrData.(channels{a}), 5);
     
 end
 
@@ -87,8 +88,79 @@ save(sprintf(dataSaveName, analysisStamp), 'meanCorrData', '-v7.3');
 %% 0850 - Imaging the Average Correlation Above
 % Today's parameters
 timeStamp = '201409020850';
-analysisStamp = 
-dataSaveName = 'E:/Graduate Studies/Lab Work/Data Sets/Today Data/20140902/201409020850 - '
+analysisStamp = 'BOLD-%s Average Cross Correlation';
+savePath = 'E:/Graduate Studies/Lab Work/Data Sets/Today Data/20140902';
+dataSaveName = '201409020850 - %s';
+
+for a = 1:length(channels)
+    brainData = BrainPlot(meanCorrData.(channels{a})(:, :, 48:4:64, :),...
+        'CLim', [-3 3],...
+        'ColorbarLabel', 'Z-Score',...
+        'Title', sprintf(analysisStamp, channels{a}),...
+        'XLabel', 'Time Shift (s)',...
+        'XTickLabel', [-20:2:20],...
+        'YLabel', 'Slice Number',...
+        'YTickLabel', 48:4:64);
+    
+    currentSaveName = sprintf(dataSaveName, sprintf(analysisStamp, channels{a}));
+    brainData.Store('Name', currentSaveName, 'Path', savePath, 'Ext', {'png', 'fig'});
+    brainData.close;
+end
+
+
+
+%% 1349 - Creating Empirical Distribution in Preparation for Significance Tests
+% Today's parameters
+timeStamp = '201409021349';
+analysisStamp = 'BOLD-EEG Null Cross Correlation';
+dataSaveName = 'E:/Graduate Studies/Lab Work/Data Sets/Today Data/20140902/201409021349-%02d-%02d - %s.mat'
+
+channels = {'AF7', 'C3', 'FPz', 'PO8', 'PO10'};
+maxLag = 10;
 
 boldFiles = GetBOLD(Paths);
 eegFiles = GetEEG(Paths);
+
+scans = [1:8, 14:17];
+pairings = nchoosek(scans, 2);
+
+currentBOLDFile = '';
+
+pbar = Progress('Generating Empirical Null Distribution', 'Channels Completed');
+for a = 1:size(pairings, 1)
+    
+    if (~strcmp(boldFiles{pairings(a, 1)}, currentBOLDFile))
+        currentBOLDFile = boldFiles{pairings(a, 1)};
+        load(currentBOLDFile);
+        
+        nuisance = boldData.Data.Nuisance;
+        nuisanceSigs = [nuisance.Motion; nuisance.WM; nuisance.CSF];
+        boldData.Regress(nuisanceSigs);
+        
+        [funData, idsNaN] = boldData.ToMatrix;
+        boldData.ZScore;
+        szBOLD = size(boldData.Data.Functional);
+    end
+    
+    load(eegFiles{pairings(a, 2)});
+    
+    pbar.Reset(2)
+    for b = 1:length(channels)
+        ephysData = eegData.ToArray(channels{b});
+        tempCorr = xcorrArr(funData, ephysData, 'MaxLag', maxLag);
+        
+        tempVolData = nan(length(idsNaN), size(tempCorr, 2));
+        tempVolData(~idsNaN, :) = tempCorr;
+        corrData.(channels{b}) = reshape(tempVolData, [szBOLD(1:3), size(tempCorr, 2)]);
+       
+        pbar.Update(2, b/length(channels));
+    end
+    
+    currentSaveName = sprintf(dataSaveName, pairings(a, 1), pairings(a, 2), analysisStamp);
+    save(currentSaveName, 'corrData', '-v7.3');
+    
+    pbar.Update(1, a/length(boldFiles));
+end
+pbar.close;
+    
+

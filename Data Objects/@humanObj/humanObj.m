@@ -279,7 +279,7 @@ classdef (Abstract) humanObj < hgsetget
                 error('The signals being regressed must span the same number of time points (i.e. columns) as the data');
             end
             if ~isequal(ones(1, szSignal(2)), signal(1, :))
-                signal = cat(2, ones(1, szSignal(2)), signal);
+                signal = cat(1, ones(1, szSignal(2)), signal);
             end
             
             % Remove any dead time series from the data

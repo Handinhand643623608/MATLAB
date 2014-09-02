@@ -14,8 +14,8 @@ maxLag = 10;
 channels = {'AF7', 'C3', 'FPz', 'PO8', 'PO10'};
 ignoreScans = [9:13];
 
-boldFiles = GetBOLD(Paths);
-eegFiles = GetEEG(Paths);
+boldFiles = GetBOLD(Paths);         % 20140630 Infraslow BOLD data objects
+eegFiles = GetEEG(Paths);           % 20140630 Infraslow EEG data objects
 
 pbar = Progress('Cross-Correlating BOLD & EEG Signals', 'Channels Completed');
 for a = 1:length(boldFiles)
