@@ -45,6 +45,9 @@ function Filter(boldData, varargin)
 %       20140612:   Updated the documentation for this method.
 %       20140707:   Implemented zero-phase FIR filtering. Updated this method for compatibility with the new MATFILE
 %                   storage system. Updated documentation accordingly.
+%       20140902:   Implemented throwing of an error if the user tries to apply anything other than a Hamming window.
+%                   Certain other windows may work out alright, but it's not safe to try for now. Made this function
+%                   compatible with new data object status properties.
 
 %% TODOS
 % Immediate Todos
@@ -61,6 +64,11 @@ inStruct = struct(...
     'WindowLength', 45);
 assignInputs(inStruct, varargin);
 
+% Error check
+if ~strcmpi(Window, 'hamming')
+    error('Filter windows other than the Hamming window have not been implemented yet');
+end
+
 % Build filter parameters
 TR = boldData(1).TR/1000;
 WindowLength = round(WindowLength/TR);
@@ -70,7 +78,7 @@ filterParams = fir1(WindowLength, Passband.*2.*TR, windowParams);
 
 
 %% Filter the Data
-pbar = progress('Scans Filtered');
+pbar = Progress('Scans Filtered');
 for a = 1:numel(boldData)
     
     % Load the full object data set, because modifications to core data are occurring
@@ -120,10 +128,9 @@ for a = 1:numel(boldData)
 
     % Fill in object properties
     boldData(a).Bandwidth = Passband;
-    boldData(a).Filtered = true;
-    boldData(a).FilterShift = filterShift;
-    boldData(a).ZScored = false;
+    Filter@humanObj(boldData(a), Passband, filterShift, UseZeroPhaseFilter, Window, WindowLength);
+    boldData(a).IsZScored = false;
     
-    update(pbar, a/numel(boldData));
+    pbar.Update(a/numel(boldData));
 end
-close(pbar);
+pbar.close;

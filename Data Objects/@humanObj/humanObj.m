@@ -15,7 +15,9 @@ classdef (Abstract) humanObj < hgsetget
 %                   any subclasses have changed (even if the changes are dramatic). Changed the FILTERED, GSR, and
 %                   ZSCORED property names to reflect newer coding standards for clarity (now prepended with IS).
 %       20140829:   Reorganized and cleaned up code for this class. Removed implementations for some incomplete methods 
-%                   that were going to be difficult to finish. 
+%                   that were going to be difficult to finish.
+%       20140902:   Implemented some status properties that take their values from standardized preprocessing parameter 
+%                   log entries. Implemented a data cache to store data loaded from MatFiles.
     
 %% TODOS
 %   - Fix problems with implementation of MATFILE
@@ -29,6 +31,13 @@ classdef (Abstract) humanObj < hgsetget
         UseMatFileStorage = false;  % Boolean indicating whether MatFiles should be used when storing objects
     end
     
+    properties (Dependent)
+        
+        IsDetrended                 % Boolean indicating whether the data time series has been detrended
+        IsFiltered                  % Boolean indicating whether the data time series has been filtered
+        IsResampled                 % Boolean indicating whether the data time series has been resampled
+        
+    end
     
     properties (AbortSet, SetAccess = protected)
     
@@ -41,8 +50,6 @@ classdef (Abstract) humanObj < hgsetget
         % Acquisition & processing 
         Acquisition                 % All parameters related to the acquisition of raw data
         Bandwidth                   % The high and low-pass cutoffs for the filtered data (in Hz)
-        FilterShift                 % Double indicating the the phase shift imposed by FIR filtering (in seconds)
-        IsFiltered                  % Boolean indicating whether the data has been filtered
         IsGlobalRegressed           % Boolean indicating whether the global signal has been regressed
         IsZScored                   % Boolean indicating whether the data is scaled to zero mean & unit variance
         Preprocessing               % All parameters related to the preprocessing of raw data
@@ -54,12 +61,25 @@ classdef (Abstract) humanObj < hgsetget
         
     end
     
+    properties (Access = protected, Abstract, Hidden)
+        DataCache
+    end
     
     properties (Abstract, Constant, Hidden)
-        LatestVersion;
+        LatestVersion
     end
 
        
+    
+    %% General Utilities
+    methods (Abstract)
+        
+        paramStruct = Parameters(dataObject)
+        varargout   = Plot(dataObject, varargin)
+        
+    end
+    
+    
     
     %% Object Conversion Methods
     methods
@@ -104,7 +124,8 @@ classdef (Abstract) humanObj < hgsetget
     end
     
     methods (Abstract)
-        [dataArray, legend] = ToArray(dataObject, dataStr);     % Pull important data out of a data object
+        [dataArray, legend] = ToArray(dataObject, dataStr)      % Pull important data out of a data object
+        [dataMatrix, idsNaN] = ToMatrix(dataObject, removeNaNs) % Flatten primary data to a matrix & remove NaNs
     end
     
     methods (Abstract, Static)
@@ -124,22 +145,81 @@ classdef (Abstract) humanObj < hgsetget
     
     
     %% Signal Processing Methods
-    methods (Abstract)
+    methods 
         
-        Detrend(dataObject, varargin)               % Linear or quadratic temporal detrending
-        Filter(dataObject, varargin)                % Temporal filtering
+        function Detrend(dataObject, order)
+            %DETREND - Saves detrending parameters to the data object preprocessing parameter log.
+            %
+            %   SYNTAX:
+            %   Detrend(dataObject, order)
+            %
+            %   INPUTS:
+            %   dataObject:     HUMANOBJ
+            %                   A human data object containing time series that were just detrended.
+            %
+            %   order:          INTEGER
+            %                   Any positive integer representing the order of the polynomial used for detrending. 
+            %                   EXAMPLES:
+            %                       1 - Linear detrend
+            %                       2 - Quadratic detrend
+            %                       3 - Cubic detrend
+            %                       .
+            %                       .
+            %                       .
+            
+            dataObject.Preprocessing.Parameters.Detrending = struct(...
+                'DetrendOrder', order,...
+                'IsDetrended', true);
+        end
+        function Filter(dataObject, passband, phaseDelay, useZeroPhaseFilter, window, windowLength)
+            %FILTER - Saves filtering parameters to the data object preprocessing parameter log.
+            %
+            %   SYNTAX:
+            %   Filter(dataObject, passband, phaseDelay, useZeroPhaseFilter, window, windowLength)
+            %
+            %   INPUT:
+            %   dataObject:             HUMANOBJ
+            %                           A human data object containing time series that were just filtered.
+            %
+            %   OPTIONAL INPUTS:
+            %   passband:               [DOUBLE, DOUBLE]
+            %                           The passband (in Hertz) that is desired. This is specified as a two-element
+            %                           vector in the form [HIGHPASS LOWPASS].
+            %
+            %   useZeroPhaseFilter:     BOOLEAN
+            %                           A Boolean indicating whether or not to use a zero-phase distorting filter. Using
+            %                           this kind of filter means that no phase delay was imposed on the data set and
+            %                           thus no samples needed to be cropped out.
+            %
+            %   window:                 STRING
+            %                           The name of the window used in filtering of the time series data. This input is
+            %                           specified as a string.
+            %
+            %   windowLength:           INTEGER
+            %                           The length of the window (in seconds) for the FIR filter.
+            
+            dataObject.Preprocessing.Parameters.Filtering = struct(...
+                'IsFiltered', true,...
+                'Passband', passband,...
+                'PhaseDelay', phaseDelay,...
+                'Window', window,...
+                'WindowLength', windowLength,...
+                'ZeroPhaseFiltered', useZeroPhaseFilter);
+        end
+            
+    end
+    
+    methods (Abstract)
         Preprocess(dataObject, paramStruct)         % Preprocess human data objects from raw data files
         Regress(dataObject, signal)                 % Regress one or more signals from the primary object data
         Resample(dataObject, fs)
         ZScore(dataObject)                          % Z-Score the primary data inside the data object
-        
     end
     
     
     
     %% Universal Methods
     methods
-        
         Store(dataObject, varargin);                    % Store a data object on the hard drive
         
         function AssertSingleObject(dataObject)
@@ -148,14 +228,37 @@ classdef (Abstract) humanObj < hgsetget
                 error('Only one data object may be inputted at a time');
             end
         end
-        
         function LoadData(dataObject)
             %LOADDATA - Loads MATFILE data archives referenced by the data object.
             if isa(dataObject.Data, 'matlab.io.MatFile')
                 dataObject.Data = load(dataObject.Data.Properties.Source);
             end
-        end        
-        
+        end 
     end
+    
+    methods
+        function isDetrended    = get.IsDetrended(dataObject)
+            isDetrended = dataObject.IsPreprocessed('Detrending', 'IsDetrended');
+        end
+        function isFiltered     = get.IsFiltered(dataObject)
+            isFiltered = dataObject.IsPreprocessed('Filtering', 'IsFiltered');
+        end
+        function isResampled    = get.IsResampled(dataObject)
+            isResampled = dataObject.IsPreprocessed('Resampling', 'IsResampled');
+        end
+    end
+    
+    methods (Access = protected)
+        function isPreprocessed = IsPreprocessed(dataObject, stageName, statusName)
+            isPreprocessed = false;
+            if (isfield(dataObject.Preprocessing.Parameters, stageName))
+                if (dataObject.Preprocessing.Parameters.(statusName))
+                    isPreprocessed = true;
+                end
+            end
+        end
+    end
+    
+    
    
 end

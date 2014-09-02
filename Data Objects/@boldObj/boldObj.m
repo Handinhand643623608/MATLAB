@@ -98,6 +98,10 @@ classdef boldObj < humanObj
 %                   Preprocess function into a static method that creates new data objects. Rewrote the constructor
 %                   method so that it's now capable of creating full BOLD data objects from user inputs. Moved the
 %                   Blur, Detrend, ToIMG, and ZScore methods to this class definition file.
+%       20140902:   Implemented some status properties that take their values from standardized preprocessing parameter
+%                   log entries. Implemented a data cache to store data loaded from MatFiles. Moved the ToMatrix method 
+%                   code here to the class definition file. Updated the version number of this software to 2 to reflect 
+%                   these (breaking) changes.
 
 %% TODOS
 % Immediate Todos
@@ -117,13 +121,23 @@ classdef boldObj < humanObj
 
     
     %% Set the Object Properties
+    properties (Dependent)
+        
+        IsBlurred
+        
+    end
+    
     properties (SetAccess = protected)
         TE                      % The echo time of the scan session (in milliseconds).
         TR                      % The repetition time of the scan session (in milliseconds).
     end
     
+    properties (Access = protected)
+        DataCache
+    end
+    
     properties (Constant, Hidden)
-        LatestVersion = 1;      % The current software version behind BOLD data objects.
+        LatestVersion = 2;      % The current software version behind BOLD data objects.
     end
     
     
@@ -175,12 +189,20 @@ classdef boldObj < humanObj
         varargout   = Plot(boldData, varargin)                          % Plot BOLD data as an image montage
     end
     
+    methods
+        function isBlurred = get.IsBlurred(boldData)
+            isBlurred = false;
+            if boldData.IsPreprocessed('Blurring', 'IsBlurred')
+                isBlurred = true;
+            end
+        end
+    end
+    
     
     
     %% Object Conversion Methods
     methods
         varargout = ToArray(boldData, dataStr)                  % Extract data from a data object & return it as an array
-        [boldMatrix, idsNaN] = ToMatrix(boldData, removeNaNs)   % Extract the BOLD functional data & flatten it to a 2D array
         
         function ToIMG(boldData, savePath)
             %TOIMG Converts BOLD data matrices to NIFTI .img format.
@@ -210,6 +232,74 @@ classdef boldObj < humanObj
             % Error check & convert
             boldData.AssertSingleObject;
             boldObj.ArrayToIMG(boldData.ToArray, savePath);
+        end
+        function [boldMatrix, idsNaN] = ToMatrix(boldData, removeNaNs)
+            %TOMATRIX - Extracts a flattened BOLD functional data matrix and removes dead voxels, if called for.
+            %
+            %   SYNTAX:
+            %   boldMatrix = ToMatrix(boldData)
+            %   boldMatrix = ToMatrix(boldData, removeNaNs);
+            %   [boldMatrix, idsNaN] = ToMatrix(...);
+            %
+            %   OUTPUT:
+            %   boldMatrix:     2D ARRAY
+            %                   The functional image data stored inside the BOLD data object flattened into a
+            %                   two-dimensional array. This array is formatted as [VOXELS x TIME]. Each row represents a
+            %                   single voxel. Each column represents a single time point. To restore the original
+            %                   functional data array, use RESHAPE with the original data dimensions as the size input.
+            %
+            %                   EXAMPLE:
+            %                       % Create a 2D array out of the functional data
+            %                       funData = ToMatrix(boldData);
+            %                       % Restore the original array
+            %                       funData = reshape(funData, [91, 109, 91, 218]);
+            %
+            %   OPTIONAL OUTPUT:
+            %   idsNaN:         [BOOLEANS]
+            %                   The indices of NaN voxels. This parameter is a vector of Booleans of length equal to the
+            %                   number of rows of the flattened functional data matrix (before NaN time series removal).
+            %                   Elements of this vector are true when corresponding elements in the first column of the
+            %                   BOLD matrix are NaN. If this output is requested without providing a value for the
+            %                   'removeNaNs' argument, then that argument defaults to true and NaNs are automatically
+            %                   removed from the data.
+            %
+            %                   The primary use of this variable is to restore the original size of the flattened data
+            %                   matrix, which is a necessary step prior to reshaping it into a volume array (see the
+            %                   example above).
+            %
+            %   INPUT:
+            %   boldData:       BOLDOBJ
+            %                   A single BOLD data object. Arrays of BOLD objects are not supported.
+            %
+            %   OPTIONAL INPUT:
+            %   removeNaNs:     BOOLEAN
+            %                   Remove any voxels with time series composed entirely of NaNs. These frequently represent
+            %                   non-brain space in volume (such as the volume surrounding the brain or the ventricles).
+            %                   Removing these filler values significantly reduces the size of the data array. If this
+            %                   parameter is not supplied as an input argument, then it defaults to true only if the
+            %                   'idsNaN' output is requested by the caller. Otherwise, if only one output is requested
+            %                   ('boldMatrix'), this defaults to false and NaNs are not removed from the data matrix.
+            %                   Manually specifying this argument overrides these default behaviors. DEFAULT:
+            %                       true    - If two outputs are requested (i.e. including idsNaN)
+            %                       false   - If only one output is requested
+            
+            % Deal with missing inputs
+            if nargin == 1
+                if (nargout == 1); removeNaNs = false;
+                else removeNaNs = true;
+                end
+            end
+
+            % Ensure that only one object is converted at a time
+            boldData.AssertSingleObject;
+
+            % Pull functional data from the object & flatten it to two dimensions
+            boldMatrix = boldData.ToArray;
+            boldMatrix = reshape(boldMatrix, [], size(boldMatrix, 4));
+
+            % Remove NaNs from the data matrix if called for
+            idsNaN = isnan(boldMatrix(:, 1));
+            if istrue(removeNaNs); boldMatrix(idsNaN, :) = []; end
         end
     end
     
@@ -286,6 +376,12 @@ classdef boldObj < humanObj
             
             % Store the blurred data
             boldData.Data.Functional = funData;
+            
+            % Change data object preprocessing parameters
+            boldData.Preprocessing.Parameters.Blurring = struct(...
+                'IsBlurred', true,...
+                'Size', hsize,...
+                'Sigma', sigma);
             boldData.IsZScored = false;
         end
         function Detrend(boldData, order)
@@ -326,6 +422,9 @@ classdef boldObj < humanObj
             volData = nan(length(idsNaN), szBOLD(end));
             volData(~idsNaN, :) = funData;
             boldData.Data.Functional = reshape(volData, szBOLD);
+            
+            % Change data object preprocessing parameters
+            Detrend@humanObj(boldData, order);
             boldData.Data.IsZScored = false;
         end
         function ZScore(boldData)
@@ -383,7 +482,7 @@ classdef boldObj < humanObj
        
     
     
-    %% Static Methods
+    %% Static Utility Functions
     methods (Static)
         output = loadobj(input)                 % Allow older incompatible stored data objects to be loaded
     end
@@ -392,4 +491,7 @@ classdef boldObj < humanObj
         CleanRawFolders(inPath, varargin)       % Clean out raw data folders during preprocessing
         boldStruct = upgrade(boldStruct)
     end
+    
+    
+    
 end

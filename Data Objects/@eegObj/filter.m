@@ -44,6 +44,9 @@ function Filter(eegData, varargin)
 %                   FIR filtering of time series. Implemented a workaround for compatibility with the new MATFILE data
 %                   storage system. Updated documentation accordingly.
 %       20140829:   Cleaned up some of the code here.
+%       20140902:   Implemented throwing of an error if the user tries to apply anything other than a Hamming window.
+%                   Certain other windows may work out alright, but it's not safe to try for now. Made this function
+%                   compatible with new data object status properties.
 
 
 
@@ -56,6 +59,11 @@ inStruct = struct(...
     'WindowLength', 45);
 assignInputs(inStruct, varargin);
 
+% Error check
+if ~strcmpi(Window, 'hamming')
+    error('Filter windows other than the Hamming window have not been implemented yet');
+end
+
 % Build filter parameters
 WindowLength = round(WindowLength.*eegData(1).Fs);
 windowParams = window(eval(['@' lower(Window)]), WindowLength+1);
@@ -64,7 +72,7 @@ filterParams = fir1(WindowLength, Passband.*2./eegData(1, 1).Fs, windowParams);
 
 
 %% Filter the Data
-pbar = progress('Scans Filtered');
+pbar = Progress('Scans Filtered');
 for a = 1:numel(eegData)
     
     % Workaround for MATFILE data storage
@@ -91,10 +99,9 @@ for a = 1:numel(eegData)
     
     % Fill in object properties
     eegData(a).Bandwidth = Passband;
-    eegData(a).IsFiltered = true;
-    eegData(a).FilterShift = filterShift;
+    Filter@humanObj(eegData(a), Passband, filterShift, UseZeroPhaseFilter, Window, WindowLength);
     eegData(a).IsZScored = false;
     
-    update(pbar, a/numel(eegData));
+    pbar.Update(a/numel(eegData));
 end
-close(pbar);
+pbar.close;

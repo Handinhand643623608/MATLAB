@@ -1,21 +1,21 @@
 %% 20140901 
 
 
-%% 2332 - 
+%% 2332 - Rerunning BOLD-EEG Cross Correlation (No Nuisance Regression from EEG)
+% Reviewers of the manuscript didn't like that we regressed BOLD nuisance parameters from EEG. Also, this analyiss will
+% exclude subjects 5 & 6 because their EEG data was found to have some unknown high-frequency artifacts.
+
 % Today's parameters
 timeStamp = '201409012332';
 analysisStamp = 'BOLD-EEG Cross Correlation';
-dataSaveName = 'E:/Graduate Studies/Lab Work/Data Sets/Today Data/20140901/201409012332-%d - %s.mat'
-
+dataSaveName = 'E:/Graduate Studies/Lab Work/Data Sets/Today Data/20140901/201409012332-%02d - %s.mat'
 
 maxLag = 10;
 channels = {'AF7', 'C3', 'FPz', 'PO8', 'PO10'};
 ignoreScans = [9:13];
 
-
 boldFiles = GetBOLD(Paths);
 eegFiles = GetEEG(Paths);
-
 
 pbar = Progress('Cross-Correlating BOLD & EEG Signals', 'Channels Completed');
 for a = 1:length(boldFiles)
@@ -46,7 +46,8 @@ for a = 1:length(boldFiles)
     end
     
     currentSaveName = sprintf(dataSaveName, a, analysisStamp);
+    save(currentSaveName, 'corrData', '-v7.3');
     
     pbar.Update(1, a/length(boldFiles));
 end
-pbar.Close;
+pbar.close;

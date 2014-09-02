@@ -25,6 +25,10 @@ classdef eegObj < humanObj
 %                   Preprocess function to a static method. Rewrote the constructor method so that it's now capable of
 %                   creating full EEG data objects from user inputs.
 %       20140901:   Implemented a detrending method. Moved the code for z-scoring to this class definition file.
+%       20140902:   Implemented some status properties that take their values from standardized preprocessing parameter
+%                   log entries (mostly in the human object superclass). Implemented a data cache to store data loaded
+%                   from MatFiles. Implemented a ToMatrix method that behaves similarly to the equivalent BOLD data 
+%                   object method. Updated the version number of this software to 2 to reflect these (breaking) changes.
 
 %% DEPENDENCIES
 %
@@ -49,8 +53,12 @@ classdef eegObj < humanObj
         Fs                      % The sampling frequency (in Hz) of the EEG data.
     end
     
+    properties (Access = protected)
+        DataCache
+    end
+    
     properties (Constant, Hidden)
-        LatestVersion = 1;      % The current software version behind BOLD EEG objects.
+        LatestVersion = 2;      % The current software version behind EEG data objects.
     end
     
     
@@ -95,11 +103,9 @@ classdef eegObj < humanObj
     
     
     %% General Utilities
-    methods
-        % Identify frequently anticorrelated EEG electrodes
-        varargout = anticorrChannels(eegData, tolerance)
-        
-        H = Plot(eegData, varargin)
+    methods        
+        varargout   = Plot(eegData, varargin)
+        paramStruct = Parameters(eegData)
         
         function GenerateClusterSignals(eegData, maxNumClusters)
             %GENERATECLUSTERSIGNALS - Generates average signals by clustering EEG time series.
@@ -188,6 +194,62 @@ classdef eegObj < humanObj
     %% Object Conversion Methods
     methods
         [eegArray, legend] = ToArray(eegData, dataStr)      % Convert specific EEG data to a 2D array format
+        
+        function [eegMatrix, idsNaN] = ToMatrix(eegData, removeNaNs)
+            %TOMATRIX - Extracts EEG channel data and automatically removes dead channels, if called for.
+            %
+            %   SYNTAX:
+            %   eegMatrix = ToMatrix(eegData)
+            %   eegMatrix = ToMatrix(eegData, removeNaNs);
+            %   [eegMatrix, idsNaN] = ToMatrix(...);
+            %
+            %   OUTPUT:
+            %   eegMatrix:      2D ARRAY
+            %                   The channel data stored inside the EEG data object with or without dead channels
+            %                   removed, depending on the REMOVENANS argument value. 
+            %
+            %   OPTIONAL OUTPUT:
+            %   idsNaN:         [BOOLEANS]
+            %                   The indices of NaN voxels. This parameter is a vector of Booleans of length equal to the
+            %                   number of channels that the full EEG data array contains (before NaN time series
+            %                   removal). Elements of this vector are true when corresponding elements in the first
+            %                   column of the EEG matrix are NaN. If this output is requested without providing a value
+            %                   for the REMOVENANS argument, then that argument defaults to TRUE and NaNs are
+            %                   automatically removed from the data.
+            %
+            %   INPUT:
+            %   eegData:        EEGOBJ
+            %                   A single EEG data object. Arrays of EEG objects are not supported.
+            %
+            %   OPTIONAL INPUT:
+            %   removeNaNs:     BOOLEAN
+            %                   Remove any channels with time series composed entirely of NaNs. These frequently
+            %                   represent dead channels in the data array. If this parameter is not supplied as an input
+            %                   argument, then it defaults to true only if the IDSNAN output is requested by the
+            %                   caller. Otherwise, if only one output is requested (EEGMATRIX), this defaults to
+            %                   FALSE and NaNs are not removed from the data matrix. Manually specifying this argument
+            %                   overrides these default behaviors. 
+            %                   DEFAULT:
+            %                       true    - If two outputs are requested (i.e. including idsNaN)
+            %                       false   - If only one output is requested
+            
+            % Deal with missing inputs
+            if nargin == 1
+                if (nargout == 2); removeNaNs = true;
+                else removeNaNs = false;
+                end
+            end
+            
+            % Error check
+            eegData.AssertSingleObject;
+            
+            % Pull the EEG data matrix from the object
+            eegMatrix = eegData.ToArray;
+            
+            % Identify & remove dead channel entries if called for
+            idsNaN = isnan(eegMatrix(:, 1));
+            if (removeNaNs); eegMatrix(idsNaN, :) = []; end
+        end
     end
     
     
@@ -232,7 +294,11 @@ classdef eegObj < humanObj
             
             % Store the detrended data set in the data object
             eegData.Data.EEG = ephysData;
+            
+            % Change data object preprocessing parameters
+            Detrend@humanObj(eegData, order);
             eegData.IsZScored = false;
+            
         end
         function ZScore(eegData)
             %ZSCORE - Scales EEG channel time courses to zero mean and unit variance.
@@ -277,6 +343,8 @@ classdef eegObj < humanObj
     %% Preprocessing Methods
     methods
         
+        PrepCondition(eegData)
+        PrepInitialize(eegData)
         PrepImportCNT(eegData)
         
     end
@@ -286,21 +354,19 @@ classdef eegObj < humanObj
     end
     
     
-    %% Static Utility Methods
+    
+    %% Static Utility Functions
     methods (Static)
-        
-        eegObj = loadobj(objFromFile)
-        
+        eegObj = loadobj(objFromFile)    
     end
-    
-    
-    
-    %% Class-Specific Methods
     
     methods (Static, Access = protected)
         % Upgrade a loaded data object for compatibility with current software
         eegStruct = upgrade(eegStruct);
     end
+    
+    
+    
 end
 
 
