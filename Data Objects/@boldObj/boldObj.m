@@ -230,10 +230,13 @@ classdef boldObj < humanObj
             
             if ~exist(savePath, 'dir'); mkdir(savePath); end
             szBOLD = size(boldArray);
+            pbar = Progress('-fast', 'Converting BOLD Array to IMG Files');
             for a = 1:szBOLD(4)
                 currentSaveStr = sprintf('%s/%03d.img', savePath, a);
                 writeimg(currentSaveStr, boldArray(:, :, :, b), 'double', [2 2 2], szBOLD(1:3));
+                pbar.Update(a/szBOLD(4));
             end
+            pbar.close;
         end
     end
     
@@ -314,7 +317,7 @@ classdef boldObj < humanObj
             szBOLD = size(boldData.Data.Functional);
             
             % Detrend the functional time series
-            for a = 1:size(funData, 2)
+            for a = 1:size(funData, 1)
                 polyCoeffs = polyfit(1:szBOLD(end), funData(a, :), order);
                 funData(a, :) = funData(a, :) - polyval(polyCoeffs, 1:szBOLD(end));
             end
@@ -326,7 +329,7 @@ classdef boldObj < humanObj
             boldData.Data.IsZScored = false;
         end
         function ZScore(boldData)
-            %ZSCORE Scales BOLD voxel time courses to zero mean and unit variance.
+            %ZSCORE - Scales BOLD voxel time courses to zero mean and unit variance.
             %   This function converts BOLD voxel time series with arbitrary amplitude units to standard scores.
             %   Standard scoring re-expresses data as a fraction of the data's standard deviation. In this case, for any
             %   given BOLD voxel data point, the average amplitude over all time is subtracted away and the data point

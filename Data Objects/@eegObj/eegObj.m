@@ -24,6 +24,7 @@ classdef eegObj < humanObj
 %       20140829:   Cleaned up the code here in the class definition file and improved the documentation. Converted the
 %                   Preprocess function to a static method. Rewrote the constructor method so that it's now capable of
 %                   creating full EEG data objects from user inputs.
+%       20140901:   Implemented a detrending method. Moved the code for z-scoring to this class definition file.
 
 %% DEPENDENCIES
 %
@@ -147,7 +148,6 @@ classdef eegObj < humanObj
             % Store the average signals in the data object
             eegData.Data.Global = clusterSigs;
         end
-                
         function Standardize(eegData)
             %STANDARDIZE Makes the size of all EEG data matrices consistent.
             %   Certain subjects in the collected data set have a non-standard number of electrodes. This function adds
@@ -194,12 +194,69 @@ classdef eegObj < humanObj
     
     %% Signal Processing Methods
     methods
-        
                 
-        Detrend(eegData, order)
+        function Detrend(eegData, order)
+            %DETREND - Detrend EEG data time series using a polynomial of the specified order.
+            %
+            %   SYNTAX:
+            %   Detrend(eegData, order)
+            %
+            %   INPUTS:
+            %   eegData:    EEGOBJ
+            %               An EEG data object containing electrode time series to be detrended.
+            %
+            %   order:      INTEGER
+            %               Any positive integer representing the order of the polynomial used for detrending. 
+            %               EXAMPLES:
+            %                   1 - Linear detrend
+            %                   2 - Quadratic detrend
+            %                   3 - Cubic detrend
+            %                   .
+            %                   .
+            %                   .
+            
+            % Error check
+            eegData.AssertSingleObject;
+            eegData.LoadData;
+            
+            % Get the EEG data array
+            ephysData = eegData.ToArray;
+            
+            % Detrend the EEG time series
+            for a = 1:size(ephysData, 1)
+                if ~isnan(ephysData(a, 1))
+                    polyCoeffs = polyfit(1:size(ephysData, 2), ephysData(a, :), order);
+                    ephysData(a, :) = ephysData(a, :) - polyval(polyCoeffs, 1:size(ephysData, 2));
+                end
+            end
+            
+            % Store the detrended data set in the data object
+            eegData.Data.EEG = ephysData;
+            eegData.IsZScored = false;
+        end
+        function ZScore(eegData)
+            %ZSCORE - Scales EEG channel time courses to zero mean and unit variance.
+            %
+            %   SYNTAX:
+            %   ZScore(eegData)
+            %
+            %   INPUT:
+            %   eegData:    EEGOBJ
+            %               A single EEG data object.
+            
+            % Error check
+            eegData.AssertSingleObject;
+            eegData.LoadData;
+            
+            % Z-Score & store the data
+            ephysData = eegData.ToArray;
+            ephysData = zscore(ephysData, 0, 2);
+            eegData.Data.EEG = ephysData;
+            eegData.IsZScored = true;
+        end
+            
         Filter(eegData, varargin)               % FIR filter EEG data
         Regress(eegData, signal)                % Regress a set of signals from EEG time series
-        ZScore(eegData)                         % Scale data to zero mean & unit variance
         Resample(eegData, fs)
         
         % Generate power spectra
