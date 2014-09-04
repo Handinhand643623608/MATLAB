@@ -84,6 +84,7 @@ function varargout = threshold(realData, nullData, varargin)
 %       20131030:   Bug fix for not outputting a NaN no upper significance cutoff is found during
 %                   two-tailed tests.
 %       20140127:   Implemented GPU processing for SGoF and a faster CPU version of it as well.
+%       20140902:   Updated for compatibility with changes to Progress code.
 
 % TODO: Implement Bonferonni correction
 % TODO: Implement alternative statistical tests
@@ -129,7 +130,7 @@ pvals = zeros(2, length(realData));
 switch lower(CDFMethod)
     case 'arbitrary'
         % Convert data into arbitrary p-values
-        progBar = progress('Calculating Arbitrary PDF');
+        progBar = Progress('-fast', 'Calculating Arbitrary PDF');
         
         switch lower(Parallel)
             case 'gpu'
@@ -183,32 +184,59 @@ switch lower(CDFMethod)
 %                 % Final GPU garbage collection
 %                 clear nullData;
 
+% ======================================================================================================================
 
-                % Run p-value generation on the GPU (fastest)
-                realData = gpuArray(realData); %lenReal = gpuArray(length(realData));
-                nullData = gpuArray(nullData); %lenNull = gpuArray(length(nullData));
-                pvals = gpuArray(pvals);
+%                 % Run p-value generation on the GPU (fastest)
+%                 realData = gpuArray(single(realData)); %lenReal = gpuArray(length(realData));
+%                 nullData = gpuArray(single(nullData)); %lenNull = gpuArray(length(nullData));
+%                 pvals = gpuArray(pvals);
+%                 
+%                 % Calculate upper & lower tails
+%                 if any(strcmpi(Tails, {'lower', 'l', 'both', 'all'}))
+%                     progBar.Reset; 
+%                     progBar.Title(1, 'Calculating Lower Tail');
+%                     for a = 1:lenReal
+%                         pvals(1, a) = sum(nullData <= realData(a))/lenNull;
+%                         progBar.Update(a/lenReal)
+%                     end
+%                 end
+%                 if any(strcmpi(Tails, {'upper', 'higher', 'h', 'both', 'all'}))
+%                     progBar.Reset; 
+%                     progBar.Title(1, 'Calculating Upper Tail');
+%                     for a = 1:lenReal
+%                         pvals(2, a) = sum(nullData >= realData(a))/lenNull;
+%                         progBar.Update(a/lenReal)
+%                     end
+%                 end
+%                 
+%                 % Pull data off of the GPU
+%                 pvals = gather(pvals));
+%                 realData = gather(realData);
+%                 nullData = gather(nullData);
                 
-                % Calculate upper & lower tails
-                if any(strcmpi(Tails, {'lower', 'l', 'both', 'all'}))
-                    reset(progBar); progBar.BarTitle = 'Calculating Lower Tail';
+%=======================================================================================================================
+
+                gpuReal = gpuArray(single(realData));
+                gpuNull = gpuArray(single(nullData));
+                gpuPVals = gpuArray(single(pvals));
+                
+                if strcmpi(Tails, 'both')
+                    progBar.Reset;
+                    progBar.Title(1, 'Calculating Distribution Tails');
+                    
                     for a = 1:lenReal
-                        pvals(1, a) = sum(nullData <= realData(a))/lenNull;
-                        update(progBar, a/lenReal)
+                        gpuPVals(1, a) = sum(gpuNull <= gpuReal(a)) / lenNull;
+                        gpuPVals(2, a) = sum(gpuNull >= gpuReal(a)) / lenNull;
+                        progBar.Update(1, a/lenReal);
                     end
-                end
-                if any(strcmpi(Tails, {'upper', 'higher', 'h', 'both', 'all'}))
-                    reset(progBar); progBar.BarTitle = 'Calculating Upper Tail';
-                    for a = 1:lenReal
-                        pvals(2, a) = sum(nullData >= realData(a))/lenNull;
-                        update(progBar, a/lenReal)
-                    end
+                    
+                else error('Single distribution tails are not yet implemented.');
                 end
                 
-                % Pull data off of the GPU
-                pvals = gather(pvals);
-                realData = gather(realData);
-                nullData = gather(nullData);
+                pvals = double(gather(gpuPVals));
+                garbage = gather(gpuReal);
+                garbage = gather(gpuNull);
+                clear garbage;
                 
             case {'cpu', 'on'}
                 

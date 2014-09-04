@@ -234,6 +234,7 @@ classdef Progress < Window
             newText = sprintf('%3.1f%%', pctComplete*100);
             if newText(end) == '.'; newText(end) = []; end
             set(H.Text.BarText(idxBar), 'Position', textPos, 'String', newText);
+            drawnow;
         end
         function UpdateTimeRemaining(H, pctComplete)
             %UPDATETIMEREMAINING - Updates the estimated remaining time for the first bar to reach 100%.

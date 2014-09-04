@@ -159,8 +159,77 @@ for a = 1:size(pairings, 1)
     currentSaveName = sprintf(dataSaveName, pairings(a, 1), pairings(a, 2), analysisStamp);
     save(currentSaveName, 'corrData', '-v7.3');
     
-    pbar.Update(1, a/length(boldFiles));
+    pbar.Update(1, a/size(pairings, 1));
 end
 pbar.close;
     
 
+
+%% 1550 - 
+% Today's parameters
+timeStamp = '201409021550';
+analysisStamp = 'BOLD-EEG Average Null Cross Correlation';
+dataSaveName = 'E:/Graduate Studies/Lab Work/Data Sets/Today Data/20140902/201409021550 - %s.mat';
+
+scans = [1:8, 14:17];
+channels = {'AF7', 'C3', 'FPz', 'PO8', 'PO10'};
+
+nullFiles = search('E:/Graduate Studies/Lab Work/Data Sets/Today Data/20140902', 'BOLD-EEG Null Cross Correlation');
+nullFiles = nullFiles(randperm(length(nullFiles)));
+
+meanNullData = struct('AF7', [], 'C3', [], 'FPz', [], 'PO8', [], 'PO10', []);
+catData = struct('AF7', [], 'C3', [], 'FPz', [], 'PO8', [], 'PO10', []);
+
+pbar = Progress('Averaging Empirical Null Data', 'Channels Completed');
+for a = 1:length(nullFiles)
+    
+    load(nullFiles{a});
+    
+    pbar.Reset(2);
+    for b = 1:length(channels)
+        currentCorr = corrObj.transform(corrData.(channels{b}), 218);
+        catData.(channels{b}) = cat(5, catData.(channels{b}), currentCorr);
+        if (size(catData.(channels{b}), 5) == length(scans))
+            meanNullData.(channels{b}) = cat(5, meanNullData.(channels{b}), nanmean(catData.(channels{b}), 5));
+            catData.(channels{b}) = [];
+        end
+        pbar.Update(2, b/length(channels));
+    end
+    pbar.Update(1, a/length(nullFiles));
+end
+pbar.close;
+        
+save(sprintf(dataSaveName, analysisStamp), 'meanNullData', '-v7.3');
+    
+
+
+%% 1710 - 
+% Today's parameters
+timeStamp = '201409021710';
+channels = {'AF7', 'C3', 'FPz', 'PO8', 'PO10'};
+
+reset(gpuDevice);
+
+meanFile = search('E:/Graduate Studies/Lab Work/Data Sets/Today Data/20140902', 'BOLD-EEG Average Cross Correlation');
+nullFile = search('E:/Graduate Studies/Lab Work/Data Sets/Today Data/20140902', 'BOLD-EEG Average Null Cross Correlation');
+load(meanFile{1});
+load(nullFile{1});
+
+pbar = Progress('Thresholding Average BOLD-EEG Correlations');
+for a = 1:length(channels)
+    
+    currentCorr = meanCorrData.(channels{a});
+    currentNull = meanNullData.(channels{a});
+    
+    [pvals, lowerCutoff, upperCutoff] = threshold(currentCorr, currentNull,...
+        'AlphaVal', 0.05,...
+        'CDFMethod', 'arbitrary',...
+        'FWERMethod', 'sgof',...
+        'Parallel', 'gpu',...
+        'Tails', 'both');
+    
+    meanCorrData.PVals.(channels{a}) = pvals;
+    meanCorrData.Cutoffs.(channels{a}) = [lowerCutoff, upperCutoff];
+    
+    save(meanFiles{1}, 'meanCorrData', '-v7.3');
+end
