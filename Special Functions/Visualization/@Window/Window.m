@@ -68,6 +68,11 @@ classdef Window < hgsetget
     %% Overloaded MATLAB Methods
     methods
 
+        function Store(H, filename)
+            saveas(H.FigureHandle, filename);
+        end
+        
+        
         function close(H, varargin)
             %CLOSE - Close the window and delete the associated variable in the calling workspace.
             delete(H.FigureHandle)

@@ -66,36 +66,39 @@ function varargout = eegMap(data, varargin)
 %                   objects instead of figures. Implemented the optional output of the window object handle. Completely
 %                   re-wrote function documentation.
 %       20140829:   Updated for compatibility with the WINDOW class updates (formerly WINDOWOBJ).
+%       20140904:   Bug fixes for compatibility with new COLOR class (required renaming a variable) and for deleting the
+%                   list of EEG channels that this function used to reference (these data are now a part of the
+%                   BRAINPLOT class).
 
 
 
 %% Initialize
 % Load data stored elsewhere
-[chanPath, ~, ~] = fileparts(which('eegObj.m'));
-load([chanPath '/AllChannels.mat']);
+chanPath = where('BrainPlot.m');
+load([chanPath '/eegInfo.mat'], 'channels');
 load eegSpatialCoordinates.mat;
 
 % Initialize defaults & settings
 inStruct = struct(...
-    'Color', [0 0.25 1],...
+    'FillColor', [0 0.25 1],...
     'Labels', 'on',...
     'ParentAxes', [],...
     'Size', WindowSizes.FullScreen);
-assignInputs(inStruct, varargin);
+assignInputs(inStruct, varargin, 'compatibility', {'FillColor', 'color'});
 
 % If no data is input, just display a colorless map
 if nargin == 0 || isempty(data)
-    data = allChannels;
+    data = channels;
 end
 
 % If running in demo mode (just seleting channels to be labeled), color the input channels
 if ischar(data); data = {data}; end
 if iscell(data)
     channelsToColor = data;
-    data = zeros(length(allChannels), 3);
-    if ischar(Color); Color = str2rgb(Color); end
+    data = zeros(length(channels), 3);
+    if ischar(FillColor); FillColor = str2rgb(FillColor); end
     for a = 1:length(channelsToColor)
-        data(strcmpi(allChannels, channelsToColor{a}), :) = Color;
+        data(strcmpi(channels, channelsToColor{a}), :) = FillColor;
     end
 end
 
@@ -129,7 +132,7 @@ if exist(plotFig, 'file')
     loadStruct = struct('Parent', ParentAxes);
     [plotHandles, ~] = hgload(plotFig, loadStruct);
     plotHandles = reshape(plotHandles, [0.5*size(plotHandles, 1), 2]);
-    for a = 1:length(allChannels)
+    for a = 1:length(channels)
         set(plotHandles(a, 2),...
             'FaceColor', data(a, :),...
             'EdgeColor', 'w');
@@ -146,16 +149,16 @@ if exist(plotFig, 'file')
 else
     %% Generate a Spatial EEG Map
     % Produce the spatial maps
-    plotHandles = zeros(length(allChannels), 2);
-    szLabels = zeros(length(allChannels), 4);
-    eegCoords = zeros(length(allChannels), 2);
+    plotHandles = zeros(length(channels), 2);
+    szLabels = zeros(length(channels), 4);
+    eegCoords = zeros(length(channels), 2);
 
-    for a = 1:length(allChannels)
+    for a = 1:length(channels)
         % Get the electrode spatial coordinates
-        eegCoords(a, :) = eegCoordinates.(allChannels{a});
+        eegCoords(a, :) = eegCoordinates.(channels{a});
 
         % Draw the text on the plot & set properties
-        plotHandles(a, 1) = text(eegCoords(a, 1), eegCoords(a, 2), allChannels{a}, 'Parent', ParentAxes);
+        plotHandles(a, 1) = text(eegCoords(a, 1), eegCoords(a, 2), channels{a}, 'Parent', ParentAxes);
         set(plotHandles(a, 1),...
             'HorizontalAlignment', 'center',...
             'VerticalAlignment', 'middle',...
@@ -188,7 +191,7 @@ else
 
         % Delete & refresh the text data (so it's on top of the circle)
         delete(plotHandles(a, 1));
-        plotHandles(a, 1) = text(eegCoords(a, 1), eegCoords(a, 2), allChannels{a}, 'Parent', ParentAxes);
+        plotHandles(a, 1) = text(eegCoords(a, 1), eegCoords(a, 2), channels{a}, 'Parent', ParentAxes);
         set(plotHandles(a, 1),...
             'HorizontalAlignment', 'center',...
             'VerticalAlignment', 'middle',...

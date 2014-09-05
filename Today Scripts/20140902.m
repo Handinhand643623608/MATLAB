@@ -165,7 +165,7 @@ pbar.close;
     
 
 
-%% 1550 - 
+%% 1550 - Averaging Null Data Distribution
 % Today's parameters
 timeStamp = '201409021550';
 analysisStamp = 'BOLD-EEG Average Null Cross Correlation';
@@ -203,7 +203,7 @@ save(sprintf(dataSaveName, analysisStamp), 'meanNullData', '-v7.3');
     
 
 
-%% 1710 - 
+%% 1710 - Thresholding the BOLD-EEG Correlations for Significance
 % Today's parameters
 timeStamp = '201409021710';
 channels = {'AF7', 'C3', 'FPz', 'PO8', 'PO10'};

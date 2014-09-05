@@ -28,6 +28,11 @@ function varargout = Plot(boldData, varargin)
 %                   The default value of this parameter is what I typically use when examining z-scored BOLD data.
 %                   DEFAULT: [-3, 3]
 %
+%   'PixelsToCrop': DOUBLE
+%                   The number of pixels to crop from the top, bottom, left, and right sides of images plotted to the 
+%                   montage.
+%                   DEFAULT: 0
+%
 %   'Slices':       INTEGER VECTOR
 %                   A vector of slice numbers to include in the plot. The elements of this vector must be integers, must
 %                   be greater than zero, and must be less than the total size of the functional array in the Z
@@ -61,6 +66,7 @@ function varargout = Plot(boldData, varargin)
 %       20140626:   Updated to use linspace to generate the default time points to be plotted. Implemented a conversion
 %                   of zeros to NaNs for the plot in case that hasn't already been done.
 %       20140829:   Updated for compatibility with the WINDOW class updates (formerly WINDOWOBJ).
+%       20140904:   Implemented the ability to crop plotted BOLD images by a specified number of pixels.
 
 
 
@@ -69,6 +75,7 @@ function varargout = Plot(boldData, varargin)
 numTime = size(boldData(1).Data.Functional, 4);
 inStruct = struct(...
     'CLim', [-3 3],...
+    'PixelsToCrop', 0,...
     'Slices', [48:4:64],...
     'Threshold', [],...
     'Times', round(linspace(1, numTime, 21)));
@@ -80,10 +87,15 @@ if ~isempty(Threshold)
     colinBrain = colinBrain(:, :, Slices);
     colinMask = colinMask(:, :, Slices);
     colinBrain(colinMask == 0) = 0;
-    colinBrain(colinBrain > 5e6) = 4.5e6;
-    colinBrain(colinBrain > 4e6) = colinBrain(colinBrain > 4e6) + 5e5;
+    colinBrain(colinBrain > 5e6) = 4.5e6;                               % <-- Remove high intensity outlier voxels
+    colinBrain(colinBrain > 4e6) = colinBrain(colinBrain > 4e6) + 5e5;  % <-- Increase intensity of these data (gray & white matter)
 else
     colinBrain = [];
+end
+
+% Crop the anatomical underlay image
+if (PixelsToCrop ~= 0)
+    colinBrain = cropImage(colinBrain, PixelsToCrop);
 end
 
 for a = 1:numel(boldData)
@@ -102,9 +114,14 @@ for a = 1:numel(boldData)
         funData(funData > Threshold(1) & funData < Threshold(2)) = NaN;
     end
     
+    % Crop the BOLD data image
+    if (PixelsToCrop ~= 0)
+        funData = cropImage(funData, PixelsToCrop);
+    end
+    
     % Create a colorbar label
     cbarLabel = 'Arbitrary Units';
-    if boldData(a).IsZScored; cbarLabel = 'Z-Scores'; end
+    if (boldData(a).IsZScored); cbarLabel = 'Z-Scores'; end
         
     % Plot the image montage
     brainData(a) = BrainPlot(funData,...
@@ -119,3 +136,23 @@ for a = 1:numel(boldData)
 end
 
 assignOutputs(nargout, brainData)
+end
+
+
+
+%% Nested Functions
+function img = cropImage(img, numPixelsToCrop)
+    if (ndims(img) == 3)
+        img(1:numPixelsToCrop, :, :) = [];
+        img(end-numPixelsToCrop:end, :, :) = [];
+        img(:, 1:numPixelsToCrop, :) = [];
+        img(:, end-numPixelsToCrop:end, :) = [];
+    elseif (ndims(img) == 4)
+        img(1:numPixelsToCrop, :, :, :) = [];
+        img(end-numPixelsToCrop:end, :, :, :) = [];
+        img(:, 1:numPixelsToCrop, :, :) = [];
+        img(:, end-numPixelsToCrop:end, :, :) = [];
+    else
+        error('Image being cropped must be either a 3D or 4D array.');
+    end
+end

@@ -45,27 +45,6 @@ classdef boldObj < humanObj
 %   algorithm can find the data. Some kind of string that identifies these folders needs to be supplied to the parameter
 %   structure so that the correct data are used. 
 
-%% DEPENDENCIES
-%
-%   AFNI
-%   File Management Package
-%   IMG Utilities
-%   MATLAB Image Processing Toolbox
-%   SPM
-%   
-%   @BrainPlot
-%   @humanObj
-%   @Progress
-%   @Window
-%
-%   assignInputs
-%   assignOutputs
-%   istrue
-%   sigFig
-%   str2rgb
-%   struct2var
-%   writeimg
-
 %% CHANGELOG
 %   Written by Josh Grooms on 20130318
 %       20130324:   Added function to construct masks using RSNs isolated by ICA.
@@ -103,6 +82,27 @@ classdef boldObj < humanObj
 %                   Regress method code here to the class definition file. Updated the version number of this software 
 %                   to 2 to reflect these changes.
 
+%% DEPENDENCIES
+%
+%   AFNI
+%   File Management Package
+%   IMG Utilities
+%   MATLAB Image Processing Toolbox
+%   SPM
+%   
+%   @BrainPlot
+%   @humanObj
+%   @Progress
+%   @Window
+%
+%   assignInputs
+%   assignOutputs
+%   istrue
+%   sigFig
+%   str2rgb
+%   struct2var
+%   writeimg
+
 %% TODOS
 % Immediate Todos
 % - Implement SPM slice timing correction
@@ -114,6 +114,7 @@ classdef boldObj < humanObj
 % - Fix hard-coded preprocessing dependency on IMG folder name.
 %   > Maybe just hard-code all folders like this to simplify the parameter structure?
 % - Test all rewritten functionality.
+% - Implement data reorientation (i.e. sagittal, coronal, transverse views)
 %
 % Future Todos
 % - Automate the ICA process
@@ -122,8 +123,12 @@ classdef boldObj < humanObj
 
     
     %% Set the Object Properties
+    properties
+        Orientation             % The orientation of the functional data array.
+    end
+    
     properties (Dependent)
-        IsBlurred
+        IsBlurred               % Boolean indicating whether the functional data has been spatially blurred.
     end
     
     properties (SetAccess = protected)
@@ -131,7 +136,7 @@ classdef boldObj < humanObj
         TR                      % The repetition time of the scan session (in milliseconds).
     end
     
-    properties (Access = protected)
+    properties (Access = protected, Hidden)
         DataCache
     end
     
@@ -189,11 +194,18 @@ classdef boldObj < humanObj
     end
     
     methods
-        function isBlurred = get.IsBlurred(boldData)
+        function isBlurred      = get.IsBlurred(boldData)
             isBlurred = false;
             if boldData.IsPreprocessed('Blurring', 'IsBlurred')
                 isBlurred = true;
             end
+        end
+        function orientation    = get.Orientation(boldData)
+            error('This functionality has not yet been implemented.');
+        end
+        
+        function set.Orientation(boldData, orientation)
+            error('This functionality has not yet been implemented.');
         end
     end
     
@@ -203,7 +215,7 @@ classdef boldObj < humanObj
     methods
         varargout = ToArray(boldData, dataStr)                  % Extract data from a data object & return it as an array
         
-        function ToIMG(boldData, savePath)
+        function ToIMG(boldData, outputPath)
             %TOIMG Converts BOLD data matrices to NIFTI .img format.
             %   This function converts the functional images in BOLD data objects to IMG files that are used by other
             %   programs, such as GIFT. It extracts the 4-dimensional numerical array (functional volumes over time) and
@@ -221,7 +233,7 @@ classdef boldObj < humanObj
             %                   files.
             %
             %   OPTIONAL INPUT:
-            %   savePath:       STRING
+            %   outputPath:     STRING
             %                   A string indicating the directory where all IMG files will be stored. If no path string
             %                   is provided, this location will default to wherever the inputted data objects were
             %                   stored after preprocessing was performed.
@@ -230,7 +242,7 @@ classdef boldObj < humanObj
             
             % Error check & convert
             boldData.AssertSingleObject;
-            boldObj.ArrayToIMG(boldData.ToArray, savePath);
+            boldObj.ArrayToIMG(boldData.ToArray, outputPath);
         end
         function [boldMatrix, idsNaN] = ToMatrix(boldData, removeNaNs)
             %TOMATRIX - Extracts a flattened BOLD functional data matrix and removes dead voxels, if called for.
@@ -303,25 +315,26 @@ classdef boldObj < humanObj
     end
     
     methods (Static)
-        function ArrayToIMG(boldArray, savePath)
+        function ArrayToIMG(boldArray, outputPath)
             %ARRAYTOIMG - Converts 4D functional data arrays to NIFTI .img files.
             %
             %   SYNTAX:
             %   boldObj.ArrayToIMG(array, savePath)
             %
             %   INPUTS:
-            %   array:      4D ARRAY
-            %               A 4-dimensional data array (space x time formatted as [X Y Z T]) representing 3D functional 
-            %               images over time. Each outputted IMG file corresponds with a volume at a single time point.
+            %   array:          4D ARRAY
+            %                   A 4-dimensional data array ([Space x Time] formatted as [X Y Z T]) representing 3D
+            %                   functional images over time. Each outputted IMG file corresponds with a volume at a
+            %                   single time point.
             %
-            %   savePath:   STRING
-            %               A string indicating the top-level directory where all IMG files will be stored.
+            %   outputPath:     STRING
+            %                   A string indicating the top-level directory where all IMG files will be stored.
             
-            if ~exist(savePath, 'dir'); mkdir(savePath); end
+            if ~exist(outputPath, 'dir'); mkdir(outputPath); end
             szBOLD = size(boldArray);
             pbar = Progress('-fast', 'Converting BOLD Array to IMG Files');
             for a = 1:szBOLD(4)
-                currentSaveStr = sprintf('%s/%03d.img', savePath, a);
+                currentSaveStr = sprintf('%s/%03d.img', outputPath, a);
                 writeimg(currentSaveStr, boldArray(:, :, :, b), 'double', [2 2 2], szBOLD(1:3));
                 pbar.Update(a/szBOLD(4));
             end
@@ -498,7 +511,11 @@ classdef boldObj < humanObj
             boldData.Data.Functional = reshape(volData, szBOLD);
             boldData.IsZScored = true;
         end
-    end    
+    end
+    
+    methods (Static)
+        StartICA(icaParams)
+    end
     
     
     
