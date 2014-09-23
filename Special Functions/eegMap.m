@@ -69,14 +69,15 @@ function varargout = eegMap(data, varargin)
 %       20140904:   Bug fixes for compatibility with new COLOR class (required renaming a variable) and for deleting the
 %                   list of EEG channels that this function used to reference (these data are now a part of the
 %                   BRAINPLOT class).
+%       20140923:   Bug fix for deleting the structure of EEG electrode scalp coordinates that this function used to
+%                   reference (these data are now a part of the BRAINPLOT class).
 
 
 
 %% Initialize
 % Load data stored elsewhere
 chanPath = where('BrainPlot.m');
-load([chanPath '/eegInfo.mat'], 'channels');
-load eegSpatialCoordinates.mat;
+load([chanPath '/eegInfo.mat']);
 
 % Initialize defaults & settings
 inStruct = struct(...
@@ -155,7 +156,7 @@ else
 
     for a = 1:length(channels)
         % Get the electrode spatial coordinates
-        eegCoords(a, :) = eegCoordinates.(channels{a});
+        eegCoords(a, :) = coords.(channels{a});
 
         % Draw the text on the plot & set properties
         plotHandles(a, 1) = text(eegCoords(a, 1), eegCoords(a, 2), channels{a}, 'Parent', ParentAxes);
