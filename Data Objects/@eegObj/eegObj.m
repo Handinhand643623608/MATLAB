@@ -45,6 +45,8 @@ classdef eegObj < humanObj
 %                   from MatFiles. Implemented a ToMatrix method that behaves similarly to the equivalent BOLD data 
 %                   object method. Moved the Regress method code here to the class definition file. Updated the version 
 %                   number of this software to 2 to reflect these changes.
+%       20140925:   Implemented a subscript reference function for this class so that EEG channel data can be extracted
+%                   quickly and easily. Channels can now be inputted as if they were matrix indices of the object.
 
 %% TODOS
 %   - Rewrite the power spectrum generation methods.
@@ -191,7 +193,14 @@ classdef eegObj < humanObj
             eegData.Data.EEG = stdData;
             eegData.Channels = channels;
         end
+        
+        function data = subsref(eegData, s)
+            % SUBSREF - Subscript reference shortcut to extract data from the EEG data object.
             
+            if isequal(s(1).type, '()'); data = eegData.ToArray(s.subs);
+            else data = builtin('subsref', eegData, s);
+            end
+        end
     end
     
     

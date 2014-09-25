@@ -48,15 +48,8 @@ function [eegArray, legend] = ToArray(eegData, dataStr)
 % Fill in missing inputs
 if nargin == 1; dataStr = 'EEG'; end
    
-% Ensure that the input is an EEG data object
-if ~isa(eegData, 'eegObj')
-    error('Input data object is not of class "eegObj" and cannot be stored using this function');
-end
-
-% Ensure that only single data objects are inputted
-if numel(eegData) > 1
-    error('Data can only be extracted from one data object at a time');
-end
+% Error check
+eegData.AssertSingleObject;
 
 % Convert the data string to a cell, if necessary
 if ~iscell(dataStr); dataStr = {dataStr}; end
