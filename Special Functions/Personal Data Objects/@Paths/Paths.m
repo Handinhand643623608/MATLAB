@@ -20,10 +20,19 @@ classdef Paths < hgsetget
 %       20140804:   Updated the working code directory across my computers, which received a much needed update today.
 %                   Calling the working directory "svnSandbox" no longer makes sense; I haven't used SVN seriously in a
 %                   very long time.
+%       20140929:   Removed the GetEEG and GetBOLD methods and created new dependent object properties to take over
+%                   their functionality. Reorganized class a bit.
 
    
     
     %% Important Paths
+    properties (Dependent)
+        
+        InfraslowBOLD       % A list of paths to all current infraslow BOLD data objects.
+        InfraslowEEG        % A list of paths to all current infraslow EEG data objects.
+        
+    end
+    
     properties
        
         BOLD                % The path to all BOLD data objects.
@@ -38,6 +47,7 @@ classdef Paths < hgsetget
         TodayData           % The path to where all today script data sets are saved.
         
     end
+    
     
     
     %% Constructor Method
@@ -80,60 +90,52 @@ classdef Paths < hgsetget
             myPaths.BOLD = [myPaths.DataObjects '/BOLD'];
             myPaths.EEG = [myPaths.DataObjects '/EEG'];
         end
-    end
+    end    
     
     
     
     %% Data File Retrieval & Query Methods
-    methods
-        % Get a list of paths to all folder contents
-        pathList = Contents(myPaths, folder)
-        % Search through a folder for specific files
-        pathList = Search(myPaths, folder, searchStr, varargin)
-    end
-    
+    methods 
+        pathList = Contents(myPaths, folder)                        % Get a list of paths to all folder contents
+        pathList = Search(myPaths, folder, searchStr, varargin)     % Search through a folder for specific files 
+    end    
+        
     
     
     %% Shortcut Methods
     methods
-        % Shortcut method for changing the working directory
         function CD(myPaths, folder)
             %CD - Quickly change the MATLAB working directory to a folder in the PATHS object.
             cd(get(myPaths, folder));
-        end
-        % Shortcut method for getting current BOLD data object paths (infraslow data)
-        function pathList = GetBOLD(myPaths, searchStr)
-            %GETBOLD - Returns a list of paths to all current infraslow BOLD data objects.
-            if nargin == 1; searchStr = []; end
-            pathList = Search(myPaths, 'BOLD', ['boldObject.*' searchStr '.*'], 'Ext', '.mat'); 
-        end
-        % Shortcut method for getting current EEG data object paths (infraslow data)
-        function pathList = GetEEG(myPaths, searchStr)
-            %GETEEG - Returns a list of paths to all current infraslow EEG data objects.
-            if nargin == 1; searchStr = []; end
-            pathList = Search(myPaths, 'EEG', ['eegObject.*' searchStr '.*'], 'Ext', '.mat');
         end
     end
     
     
     
     %% Get & Set Methods
-    methods
+    methods    
+        function boldFiles = get.InfraslowBOLD(myPaths)
+            boldFiles = Search(myPaths, 'BOLD', 'boldObject.*', 'Ext', '.mat');
+        end
+        function eegFiles = get.InfraslowEEG(myPaths)
+            eegFiles = myPaths.Search('EEG', 'eegObject.*', 'Ext', '.mat');
+        end
+        
         % Return a path to a date-specific data folder for today scripts (creating one if it doesn't exist)
         function todayDataPath = get.TodayData(myPaths)
             todayDataPath = [myPaths.TodayData '/' datestr(now, 'yyyymmdd')];
             if ~exist(todayDataPath, 'dir'); mkdir(todayDataPath); end
         end
     end
-    
+        
     
     
     %% Object Conversion Methods
-    methods
-        % Convert to a structure
+    methods     
         function pathStruct = ToStruct(myPaths)
             %TOSTRUCT - Converts a path storage object into a structure.
             pathStruct = get(myPaths);
         end
     end
+   
 end

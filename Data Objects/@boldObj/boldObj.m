@@ -81,6 +81,7 @@ classdef boldObj < humanObj
 %                   log entries. Implemented a data cache to store data loaded from MatFiles. Moved the ToMatrix and 
 %                   Regress method code here to the class definition file. Updated the version number of this software 
 %                   to 2 to reflect these changes.
+%       20140929:   Changed the TR & TE fields to dependent properties that pull from the acquisition structure.
 
 %% DEPENDENCIES
 %
@@ -89,6 +90,7 @@ classdef boldObj < humanObj
 %   IMG Utilities
 %   MATLAB Image Processing Toolbox
 %   SPM
+%   Structure Utilities
 %   
 %   @BrainPlot
 %   @humanObj
@@ -98,6 +100,7 @@ classdef boldObj < humanObj
 %   assignInputs
 %   assignOutputs
 %   istrue
+%   searchdir
 %   sigFig
 %   str2rgb
 %   struct2var
@@ -129,9 +132,6 @@ classdef boldObj < humanObj
     
     properties (Dependent)
         IsBlurred               % Boolean indicating whether the functional data has been spatially blurred.
-    end
-    
-    properties (SetAccess = protected)
         TE                      % The echo time of the scan session (in milliseconds).
         TR                      % The repetition time of the scan session (in milliseconds).
     end
@@ -189,7 +189,7 @@ classdef boldObj < humanObj
     methods
         GenerateNuisance(boldData)                                      % Generate & store nuisance signals
         varargout   = Mask(boldData, maskData, confPct, replaceWith)    % Mask BOLD data
-        paramStruct = Parameters(boldData)                              % Get data object preprocessing parameters
+        
         varargout   = Plot(boldData, varargin)                          % Plot BOLD data as an image montage
     end
     
@@ -202,6 +202,13 @@ classdef boldObj < humanObj
         end
         function orientation    = get.Orientation(boldData)
             error('This functionality has not yet been implemented.');
+        end
+        
+        function te = get.TE(boldData)
+            te = boldData.Acquisition.EchoTime;
+        end
+        function tr = get.TR(boldData)
+            tr = boldData.Acquisition.RepetitionTime;
         end
         
         function set.Orientation(boldData, orientation)
@@ -535,7 +542,8 @@ classdef boldObj < humanObj
     end
     
     methods (Static)
-        Preprocess(paramStruct)                 % Preprocess raw BOLD data & create new data objects
+        Preprocess(params)                      % Preprocess raw BOLD data & create new data objects
+        paramStruct = PrepParameters            % Get data object preprocessing parameters
     end
        
     

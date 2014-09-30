@@ -11,56 +11,54 @@ function PrepImportIMG(boldData)
 %   boldData:       BOLDOBJ
 %                   A single BOLD data object undergoing preprocessing.
 
-
-
 %% CHANGELOG
 %   Written by Josh Grooms on 20130707
 %       20130708:   Bug fix for variable name typo.
 %       20140721:   Changed the way IMG files were being identified here and in other related SPM preprocessing
 %                   functions. File references are now passed along from stage to stage in the pipeline, eliminating the
 %                   need for searching through directories.
+%       20140929:   Major overhaul of this function to work with the preprocessing parameter structure overhaul.
 
 
 
-%% Initialize
-% Pull information from data structure
-functionalIMG = boldData.Preprocessing.Files.IMG.Functional;
-anatomicalIMG = boldData.Preprocessing.Files.IMG.BiasCorrected;
-meanIMG = boldData.Preprocessing.Files.IMG.Mean;
-segmentIMG = boldData.Preprocessing.Files.IMG.Segments;
+%% Import the Preprocessed Data
+% Get the working data set from the data object
+data = boldData.Preprocessing.WorkingData;
 
-segmentStrs = {'WM', 'GM', 'CSF'};
+% Import the anatomical image
+anatData = load_nii(data.Anatomical{1});
+anatData = double(anatData.img);
 
+% Import the mean functional image
+meanData = load_nii(data.Mean{1}(1:end - 2));
+meanData = double(meanData.img);
 
+% Pre-allocate an array for the functional data
+tempFunData = load_nii(data.Functional{1}(1:end - 2));
+tempFunData = double(tempFunData.img);
+szData = size(tempFunData);
+funData = zeros([szData length(data.Functional)]);
+clear temp*;
 
-%% Load the IMG Files
-% Load the anatomical & mean data
-anatomicalData = load_nii(anatomicalIMG); anatomicalData = double(anatomicalData.img);
-meanData = load_nii(meanIMG); meanData = double(meanData.img);
-
-% Pre-allocate the functional data array
-tempData = load_nii(functionalIMG{1}); tempData = double(tempData.img);
-szData = size(tempData);
-functionalData = zeros([szData length(functionalIMG)]);
-clear temp*
-
-% Load the functional data
-for a = 1:length(functionalIMG)
-    currentData = load_nii(functionalIMG{a}); currentData = double(currentData.img);
-    functionalData(:, :, :, a) = currentData;
+% Import the functional images
+for a = 1:length(data.Functional)
+    tempData = load_nii(data.Functional{a}(1:end - 2));
+    tempData = double(tempData.img);
+    funData(:, :, :, a) = tempData;
 end
-clear current*
+clear temp*;
 
-% Load the segmentation data
-for a = 1:length(segmentIMG)
-    currentData = load_nii(segmentIMG{a}); currentData = double(currentData.img);
-    segmentData.(segmentStrs{a}) = currentData;
+% Import the segmented anatomical images
+segData = zeros([szData 3]);
+for a = 1:length(data.Segments)
+    tempData = load_nii(data.Segments{a}(1:end - 2));
+    tempData = double(tempData.img);
+    
+    segData(:, :, :, a) = tempData;
 end
 
-
-
-%% Store the Loaded Data in the Data Structure
-boldData.Data.Functional = functionalData;
-boldData.Data.Anatomical = anatomicalData;
+% Store the data in the data object
+boldData.Data.Anatomical = anatData;
+boldData.Data.Functional = funData;
 boldData.Data.Mean = meanData;
-boldData.Data.Segments = segmentData;
+boldData.Data.Segments = segData;

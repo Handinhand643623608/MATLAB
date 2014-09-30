@@ -112,7 +112,7 @@ classdef eegObj < humanObj
     %% General Utilities
     methods        
         varargout   = Plot(eegData, varargin)
-        paramStruct = Parameters(eegData)
+        
         
         function GenerateClusterSignals(eegData, maxNumClusters)
             %GENERATECLUSTERSIGNALS - Generates average signals by clustering EEG time series.
@@ -441,7 +441,8 @@ classdef eegObj < humanObj
         PrepImportCNT(eegData)
     end
     
-    methods (Static) 
+    methods (Static)
+        paramStruct = PrepParameters
         Preprocess(paramStruct)                 % Preprocess raw EEG data & create new data objects
     end
     

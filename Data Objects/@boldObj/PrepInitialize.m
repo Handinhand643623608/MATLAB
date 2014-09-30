@@ -1,4 +1,4 @@
-function PrepInitialize(boldData, varargin)
+function PrepInitialize(boldData)
 %PREPINITIALIZE Initialize the BOLD data object for preprocessing.
 %   This function inintializes the BOLD data object using user-specified inputs. Primarily, these inputs are references
 %   to critical files and folders that will be needed for preprocessing. Inputs can be supplied using Name/Value
@@ -66,90 +66,68 @@ function PrepInitialize(boldData, varargin)
 %                   Implemented transfer of TE/TR from acquisition parameters to uppermost object properties. Added
 %                   storage of voxel dimensions.
 %       20130710:   Updated documentation. Removed option for inputting a parameter structure.
+%       20140929:   Major overhaul of this function to work with the preprocessing parameter structure overhaul.
 
 
 
 %% Initialize
-% Get the user-specified initialization parameters
-if nargin == 1
-    inStruct = boldData.Preprocessing.Parameters.Initialization;
-else
-    inStruct = struct(...
-        'AnatomicalFolderStr', 't1_MPRAGE_',...
-        'DataPath', '/shella-lab/Josh/Data/Raw',...
-        'FunctionalFolderStr', 'ep2d_',...
-        'IMGFolderStr', 'IMG',...
-        'MNIBrain', '/shella-lab/Josh/Globals/MNI/template/T1.nii',...
-        'MNIFolder', '/shella-lab/Josh/Globals/MNI',...
-        'ROIFolder', '/shella-lab/Josh/Globals/MNI/roi',...
-        'SegmentsFolder', '/shella-lab/Josh/Globals/MNI/segments',...
-        'SubjectFolderStr', '1..A_');
-    assignInputs(inStruct, varargin, 'StructOnly',...
-        {'AnatomicalFolder', 'FunctionalFolder', 'IMGFolder', 'MNIFolder', 'ROIFolder', 'SegmentsFolder'},...
-        'regrexprep(varPlaceholder, ''(/$)'', '')');
-end
+% Get some needed parameters from the data object
+params = mergestructs(...
+    boldData.Preprocessing.DataPaths,...
+    boldData.Preprocessing.DataFolderIDs);
 
 
 
 %% Get File & Directory Information
 % Get the current subject's data folder
-allSubjectFolders = get(fileData(inStruct.DataPath, 'Folders', 'on', 'Search', inStruct.SubjectFolderStr), 'Path');
-boldData.Preprocessing.Folders.Root = allSubjectFolders{boldData.Subject};
+subjDirs = searchdir(params.RawDataPath, params.SubjectFolderID, 'Ext', 'folder');
+scanData.RootFolder = subjDirs{boldData.Subject};
 
-% Get the current scan functional data folder
-allScansFolders = get(fileData(boldData.Preprocessing.Folders.Root, 'Folders', 'on', 'Search', inStruct.FunctionalFolderStr), 'Path');
-boldData.Preprocessing.Folders.Functional = allScansFolders{boldData.Scan};
+% Get the current subject's functional data folder & DICOM files
+scanDirs = searchdir(scanData.RootFolder, params.FunctionalFolderID, 'Ext', 'folder');
+scanData.FunctionalFolder = scanDirs{boldData.Scan};
+scanData.RawFunctionalFiles = searchdir(scanData.FunctionalFolder, [], 'Ext', '.dcm');
 
-% Get the current subject's anatomical folder
-anatomicalFolder = get(fileData(boldData.Preprocessing.Folders.Root, 'Folders', 'on', 'Search', inStruct.AnatomicalFolderStr), 'Path');
-boldData.Preprocessing.Folders.Anatomical = anatomicalFolder{1};
+% Get the current subject's anatomical data folder & DICOM files
+anatDirs = searchdir(scanData.RootFolder, params.AnatomicalFolderID, 'Ext', 'folder');
+scanData.AnatomicalFolder = anatDirs{1};
+scanData.RawAnatomicalFiles = searchdir(scanData.AnatomicalFolder, [], 'Ext', '.dcm');
 
-% Determine where to store IMG files, once generated
-imgFolder = [boldData.Preprocessing.Folders.Functional '/' inStruct.IMGFolderStr];
-if ~exist(imgFolder, 'dir')
-    mkdir(imgFolder)
-end
-boldData.Preprocessing.Folders.IMG.Root = imgFolder;
+% Generate a directory for storing NIFTI files
+scanData.IMGFolder = [scanData.FunctionalFolder '/IMG'];
+if ~exist(scanData.IMGFolder, 'dir'); mkdir(scanData.IMGFolder); end
 
 
 
 %% Pull Valuable Information from DICOM Files in the Functional Folder
-tempDCMFile = get(fileData(boldData.Preprocessing.Folders.Functional, 'ext', '.dcm'), 'Path');
-dcmInfo = dicominfo(tempDCMFile{1});
-fieldsOfInterest = {'AcquisitionDate', 'AcquisitionMatrix', 'EchoTime', 'FlipAngle',...
-    'MagneticFieldStrength', 'NumberOfPhaseEncodingSteps', 'RepetitionTime', 'ScanningSequence',...
-    'SliceThickness'};
+% Get a reference to a DICOM file
+dcmFiles = searchdir(scanData.FunctionalFolder, [], 'ext', '.dcm');
+dcmFile = dcmFiles{floor(length(dcmFiles) / 2)};
+dcmInfo = dicominfo(dcmFile);
+
+% Pull acquisition data from the DICOM file header
+acqData = struct;
+fieldsOfInterest = {'AcquisitionDate', 'AcquisitionMatrix', 'EchoTime', 'FlipAngle', 'MagneticFieldStrength',...
+    'NumberOfPhaseEncodingSteps', 'RepetitionTime', 'ScanningSequence', 'SliceThickness'};
 for a = 1:length(fieldsOfInterest)
-    boldData.Acquisition.(fieldsOfInterest{a}) = dcmInfo.(fieldsOfInterest{a});
+    acqData.(fieldsOfInterest{a}) = dcmInfo.(fieldsOfInterest{a});
 end
 
 % Get voxel dimensions (in mm)
-boldData.Acquisition.VoxelSize = [dcmInfo.PixelSpacing' dcmInfo.SliceThickness];
+acqData.VoxelSize = [dcmInfo.PixelSpacing' dcmInfo.SliceThickness];
 
 % If DICOMs are Siemens mosaics, get the number of slices per file from private header information
 if strcmpi(dcmInfo.Manufacturer, 'siemens') && strcmpi(dcmInfo.ImageType(end-5:end), 'mosaic')
-    tempDCMInfo = spm_dicom_headers(tempDCMFile{1});
-    tempHeaderNames = {tempDCMInfo{1}.CSAImageHeaderInfo.name};
-    tempHeaderInfo = tempDCMInfo{1}.CSAImageHeaderInfo(strcmpi(tempHeaderNames, 'numberofimagesinmosaic'));
-    boldData.Acquisition.NumberOfSlices = eval(tempHeaderInfo.item(1).val);
+    dcmInfoSPM = spm_dicom_headers(dcmFile);
+    headerNames = {dcmInfoSPM{1}.CSAImageHeaderInfo.name};
+    headerInfo = dcmInfoSPM{1}.CSAImageHeaderInfo(strcmpi(headerNames, 'numberofimagesinmosaic'));
+    acqData.NumberOfSlices = eval(headerInfo.item(1).val);
 else
     error('Unable to read DICOM imaging parameters. Scanners not made by Siemens are not yet supported')
 end
 
 
 
-%% Transfer Remaining Data into the Object
-propNames = fieldnames(inStruct);
-for a = 1:length(propNames)
-    switch propNames{a}
-        case 'MNIBrain'
-            boldData.Preprocessing.Files.MNIBrain = inStruct.MNIBrain;
-        case {'MNIFolder', 'ROIFolder', 'SegmentsFolder'}
-            tempPropName = regexprep(propNames{a}, 'Folder', '');
-            boldData.Preprocessing.Folders.(tempPropName) = inStruct.(propNames{a});
-    end
-end
-
-% Transfer important acquisition properties to object properties
-boldData.TR = boldData.Acquisition.RepetitionTime;
-boldData.TE = boldData.Acquisition.EchoTime;
+%% Store Data in the Data Object
+boldData.Acquisition = acqData;
+boldData.Preprocessing.ScanData = scanData;

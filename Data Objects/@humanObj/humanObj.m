@@ -74,7 +74,6 @@ classdef (Abstract) humanObj < hgsetget
     
     %% General Utilities
     methods (Abstract)
-        paramStruct = Parameters(dataObject)
         varargout   = Plot(dataObject, varargin)
     end
     
@@ -297,11 +296,19 @@ classdef (Abstract) humanObj < hgsetget
         end
     end
     
+    methods (Abstract, Static)
+        paramStruct = PrepParameters
+    end
+    
     
     
     %% Universal Methods
     methods
         Store(dataObject, varargin);                    % Store a data object on the hard drive
+        
+        function AsAdmin(dataObject, command)
+            eval(command);
+        end
         
         function AssertSingleObject(dataObject)
             %ASSERTSINGLEOBJECT - Throws an error if an array of multiple data objects is detected.

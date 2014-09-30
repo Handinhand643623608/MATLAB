@@ -1,10 +1,11 @@
-function Preprocess(paramStruct)
+function Preprocess(params)
 %PREPROCESS - Preprocesses raw BOLD data & stores output in a BOLD human data object. 
 %
 %   SYNTAX:
+%   boldObj.Preprocess
 %   boldObj.Preprocess(paramStruct)
 %
-%   INPUT:
+%   OPTIONAL INPUT:
 %   paramStruct:    STRUCT
 %                   The preprocessing parameter structure, which is an aggregation of all parameters and user input
 %                   needed to autonomously import, preprocess, and store raw BOLD functional data. 
@@ -34,6 +35,7 @@ function Preprocess(paramStruct)
 %                   to delete the mean dicom generation function, since this is done in SPM motion correction
 %                   automatically.
 %       20140829:   Converted this function into a static method of the BOLD data object class.
+%       20140929:   Major overhaul of this function to work with the preprocessing parameter structure overhaul.
 
 
 %% TODOS
@@ -50,13 +52,15 @@ function Preprocess(paramStruct)
 
 
 %% Initialize
-assignInputs(paramStruct.General, 'varsOnly');
+% Get the default preprocessing parameter structure if a custom one isn't provided
+if nargin == 0; params = boldObj.PrepParameters; end
 
-% Clean out files from raw folders
-boldObj.CleanRawFolders(paramStruct.Initialization.DataPath,...
-    'AnatomicalFolderStr', paramStruct.Initialization.AnatomicalFolderStr,...
-    'FunctionalFolderStr', paramStruct.Initialization.FunctionalFolderStr,...
-    'SubjectFolderStr', paramStruct.Initialization.SubjectFolderStr);
+% Clean out any previous preprocessed data in the raw data folders
+boldObj.CleanRawFolders(...
+    params.DataPaths.RawDataPath,...
+    'AnatomicalFolderStr', params.DataFolderIDs.AnatomicalFolderID,...
+    'FunctionalFolderStr', params.DataFolderIDs.FunctionalFolderID,...
+    'SubjectFolderStr', params.DataFolderIDs.SubjectFolderID);
 
 % Set progress bar parameters
 numSteps = 8;
@@ -65,60 +69,61 @@ numSteps = 8;
 
 %% Preprocess Raw BOLD Data
 progBar = progress('', '', '');
-for a = Subjects
-    % Initialize a BOLD data object array
-    progBar.BarTitle{1} = ['Processing Subject ' num2str(a)];
+for a = params.DataSelection.SubjectsToProcess
     
+    progBar.BarTitle{1} = ['Processing Subject ' num2str(a)];
     reset(progBar, 2)
-    for b = Scans{a}
+    
+    for b = params.DataSelection.ScansToProcess{a}
+        
         progBar.BarTitle{2} = ['Processing Scan ' num2str(b)];
         reset(progBar, 3)
         
-        % Initialize a new BOLD data object & fill in known object properties
+        % [ TESTED ] Initialize a new BOLD data object & fill in known object properties
         boldData = boldObj;
         boldData.Subject = a;
         boldData.Scan = b;
-        boldData.ScanState = ScanState;
-        boldData.Preprocessing.Parameters = paramStruct;
+        boldData.ScanState = params.DataSelection.ScanState;
+        boldData.Preprocessing = params;
         boldData.SoftwareVersion = boldObj.LatestVersion;
         
-        % Initialize file & folder references in the data object
-        progBar.BarTitle{3} = 'Initializing Data Structure';
+        % [ TESTED ] Initialize file & folder references in the data object
+        progBar.BarTitle{3} = 'Importing Acquisition Data';
         PrepInitialize(boldData);
         update(progBar, 3, 1/numSteps);
                 
-        % Convert DICOM functional files to NIFTI format
+        % [ TESTED ] Convert DICOM functional files to NIFTI format
         progBar.BarTitle{3} = 'Converting DICOM Images to NIFTI Format';
         PrepDCMToIMG(boldData);
         update(progBar, 3, 2/numSteps);
         
-        % Segment the anatomical image
+        % [ TESTED ] Segment the anatomical image
         progBar.BarTitle{3} = 'Segmenting Anatomical Data';
         PrepSegment(boldData);
         update(progBar, 3, 3/numSteps);
         
-        % Correct for subject motion during scanning
+        % [ TESTED ] Correct for subject motion during scanning
         progBar.BarTitle{3} = 'Correcting Motion Artifacts';
         PrepMotion(boldData);
         update(progBar, 3, 4/numSteps);
         
-        % Register functional images to anatomical images
+        % [ TESTED ] Register functional images to anatomical images
         progBar.BarTitle{3} = 'Registering Functional to Anatomical Images';
         PrepRegister(boldData);
         update(progBar, 3, 5/numSteps);
         
-        % Normalize data to MNI space
+        % [ TESTED ] Normalize data to MNI space
         progBar.BarTitle{3} = 'Normalizing to MNI Space';
         PrepNormalize(boldData);
         update(progBar, 3, 6/numSteps);
         
-        % Import IMG files to MATLAB workspace
+        % [TESTED ] Import IMG files to MATLAB workspace
         progBar.BarTitle{3} = 'Importing IMG Files into MATLAB Workspace';
         PrepImportIMG(boldData);
         update(progBar, 3, 7/numSteps);
         
         % Store temporary files at this point so alterations in conditioning can easily occur later
-        rawStoreName = sprintf('boldObject-%d-%d_%s_raw.mat', a, b, ScanState);
+        rawStoreName = sprintf('boldObject-%d-%d_%s_raw.mat', a, b, params.DataSelection.ScanState);
         Store(boldData, 'Name', rawStoreName, 'Path', OutputPath);
 
         % Condition the BOLD signals for analysis
