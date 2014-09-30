@@ -191,6 +191,14 @@ classdef boldObj < humanObj
         varargout   = Mask(boldData, maskData, confPct, replaceWith)    % Mask BOLD data
         
         varargout   = Plot(boldData, varargin)                          % Plot BOLD data as an image montage
+        
+        
+        function GenerateSegmentMasks(boldData, varargin)
+            
+        end
+            
+            
+            
     end
     
     methods
@@ -356,7 +364,7 @@ classdef boldObj < humanObj
         Filter(boldData, varargin)              % FIR Filter the BOLD data time series
         Resample(boldData, fs)
         
-        function Blur(boldData, hsize, sigma)
+        function Blur(boldData, hsize, sigma, applyToMasks)
             %BLUR - Spatially Gaussian blur BOLD image series.
             %
             %   SYNTAX:
@@ -374,6 +382,14 @@ classdef boldObj < humanObj
             %   sigma:          DOUBLE
             %                   The standard deviation (in pixels) of the Gaussian used to blur the data. This must be a
             %                   single double-precision value.
+            %
+            %   OPTIONAL INPUTS:
+            %   applyToMasks:   BOOLEAN
+            %                   A Boolean indicating whether or not to blur the anatomical segment images using the same
+            %                   parameters as for the functional data. 
+            
+            % Deal with missing inputs
+            if nargin == 3; applyToMasks = true; end
             
             % Error check
             boldData.AssertSingleObject;
@@ -529,16 +545,31 @@ classdef boldObj < humanObj
     %% Preprocessing Methods
     methods
         PrepBRIKToIMG(boldData)                 % Convert BRIK files into NIFTI format
-        PrepCondition(boldData, varargin)       % Condition the BOLD signals for analysis
+        PrepCondition(boldData)                 % Condition the BOLD signals for analysis
         PrepDCMToIMG(boldData)
-        PrepImportIMG(boldData)                 % Import IMG files to the MATLAB workspace
-        PrepInitialize(boldData, varargin)      % Initialize a BOLD data object for preprocessing
+        PrepImportData(boldData)                % Import preprocessed data to the MATLAB workspace
+        PrepInitialize(boldData)                % Initialize a BOLD data object for preprocessing
         PrepMean(boldData)                      % Create a mean functional DICOM & IMG file
         PrepMotion(boldData)                    % Correct for motion using SPM
         PrepMotionSliceTime(boldData)           % Correct for motion & slice timing using AFNI
-        PrepNormalize(boldData, varargin)       % Normalize the data to MNI space
-        PrepRegister(boldData, varargin)        % Register functional images to anatomical images
-        PrepSegment(boldData, varargin)         % Segment the anatomical image
+        PrepNormalize(boldData)                 % Normalize the data to MNI space
+        PrepRegister(boldData)                  % Register functional images to anatomical images
+        PrepSegment(boldData)                   % Segment the anatomical image
+        PrepSliceTime(boldData)
+        
+        
+        function PrepNormalizeSegments(boldData)
+            
+            
+            
+        end
+        
+        
+        function PrepIdentifySegments(boldData)
+            
+            
+            
+        end
     end
     
     methods (Static)

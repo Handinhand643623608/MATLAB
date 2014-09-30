@@ -42,8 +42,6 @@ function Preprocess(params)
 % Immediate Todos
 % - Implement skipping of unnecessary anatomical segmentations
 % - Hide SPM & AFNI echoing
-% - Implement ability to choose AFNI or SPM for motion correction
-%   > Save reference to motion parameters file for use in PrepCondition
 %
 % Future Todos
 % - Implement parallel data preprocessing
@@ -55,6 +53,9 @@ function Preprocess(params)
 % Get the default preprocessing parameter structure if a custom one isn't provided
 if nargin == 0; params = boldObj.PrepParameters; end
 
+% Determine which preprocessing stages to execute
+stages = params.StageSelection;
+
 % Clean out any previous preprocessed data in the raw data folders
 boldObj.CleanRawFolders(...
     params.DataPaths.RawDataPath,...
@@ -63,21 +64,23 @@ boldObj.CleanRawFolders(...
     'SubjectFolderStr', params.DataFolderIDs.SubjectFolderID);
 
 % Set progress bar parameters
-numSteps = 8;
+baseNumStages = 4;
+numSteps = sum(struct2array(stages)) + baseNumStages;
 
 
 
 %% Preprocess Raw BOLD Data
-progBar = progress('', '', '');
+pbar = Progress('', '', '');
 for a = params.DataSelection.SubjectsToProcess
     
-    progBar.BarTitle{1} = ['Processing Subject ' num2str(a)];
-    reset(progBar, 2)
+    pbar.Title(1, ['Processing Subject ' num2str(a)]);
+    pbar.Reset(2);
     
     for b = params.DataSelection.ScansToProcess{a}
         
-        progBar.BarTitle{2} = ['Processing Scan ' num2str(b)];
-        reset(progBar, 3)
+        pbar.Title(2, ['Processing Scan ' num2str(b)]);
+        pbar.Reset(3);
+        step = 1;
         
         % [ TESTED ] Initialize a new BOLD data object & fill in known object properties
         boldData = boldObj;
@@ -88,48 +91,86 @@ for a = params.DataSelection.SubjectsToProcess
         boldData.SoftwareVersion = boldObj.LatestVersion;
         
         % [ TESTED ] Initialize file & folder references in the data object
-        progBar.BarTitle{3} = 'Importing Acquisition Data';
+        pbar.Title(3, 'Importing BOLD Acquisition Parameters');
         PrepInitialize(boldData);
-        update(progBar, 3, 1/numSteps);
+        pbar.Update(3, step/numSteps);
+        step = step + 1;
                 
         % [ TESTED ] Convert DICOM functional files to NIFTI format
-        progBar.BarTitle{3} = 'Converting DICOM Images to NIFTI Format';
+        pbar.Title(3, 'Converting DICOM Images to NIFTI Format');
         PrepDCMToIMG(boldData);
-        update(progBar, 3, 2/numSteps);
+        pbar.Update(3, step/numSteps);
+        step = step + 1;
         
         % [ TESTED ] Segment the anatomical image
-        progBar.BarTitle{3} = 'Segmenting Anatomical Data';
+        pbar.Title(3, 'Segmenting AnatomicalData');
         PrepSegment(boldData);
-        update(progBar, 3, 3/numSteps);
+        pbar.Update(3, step/numSteps);
+        step = step + 1;
+        
+        % [ TESTED ] Correct for slice timing artifacts
+        if stages.UseSliceTimingCorrection
+            pbar.Title(3, 'Correcting Slice Timing Artifacts');
+            PrepSliceTime(boldData);
+            pbar.Update(3, step/numSteps);
+            step = step + 1;
+        end
         
         % [ TESTED ] Correct for subject motion during scanning
-        progBar.BarTitle{3} = 'Correcting Motion Artifacts';
-        PrepMotion(boldData);
-        update(progBar, 3, 4/numSteps);
+        if stages.UseMotionCorrection
+            pbar.Title(3, 'Correcting Motion Artifacts');
+            PrepMotion(boldData);
+            pbar.Update(3, step/numSteps);
+            step = step + 1;
+        end
         
         % [ TESTED ] Register functional images to anatomical images
-        progBar.BarTitle{3} = 'Registering Functional to Anatomical Images';
-        PrepRegister(boldData);
-        update(progBar, 3, 5/numSteps);
+        if stages.UseCoregistration
+            pbar.Title(3, 'Registering Functional to Anatomical Images');
+            PrepRegister(boldData);
+            pbar.Update(3, step/numSteps);
+            step = step + 1;
+        end
         
         % [ TESTED ] Normalize data to MNI space
-        progBar.BarTitle{3} = 'Normalizing to MNI Space';
-        PrepNormalize(boldData);
-        update(progBar, 3, 6/numSteps);
+        if stages.UseNormalization
+            pbar.Title(3, 'Normalizing to MNI Space');
+            PrepNormalize(boldData);
+            pbar.Update(3, step/numSteps);
+            step = step + 1;
+        end
         
         % [TESTED ] Import IMG files to MATLAB workspace
-        progBar.BarTitle{3} = 'Importing IMG Files into MATLAB Workspace';
-        PrepImportIMG(boldData);
-        update(progBar, 3, 7/numSteps);
+        pbar.Title(3, 'Importing IMG Files into MATLAB Workspace');
+        PrepImportData(boldData);
+        pbar.Update(3, step/numSteps);
+        step = step + 1;
+        
+        
+        % PrepIdentifySegments
         
         % Store temporary files at this point so alterations in conditioning can easily occur later
+        pbar.Title(3, 'Storing Unconditioned BOLD Data');
         rawStoreName = sprintf('boldObject-%d-%d_%s_raw.mat', a, b, params.DataSelection.ScanState);
         Store(boldData, 'Name', rawStoreName, 'Path', OutputPath);
+        pbar.Update(3, step/numSteps);
+        step = step + 1;
+        
+        
+        % Normalize the 
+        pbar.Title(3, 'Finalizing the Imported Data');
+        PrepFinalize(boldData);
+        pbar.Update(3, step/numSteps);
+        step = step + 1;
+        
+        
+        
+        
 
         % Condition the BOLD signals for analysis
-        progBar.BarTitle{3} = 'Conditioning BOLD Time Series Data';
+        pbar.Title(3, 'Conditioning BOLD Time Series Data');
         PrepCondition(boldData);
-        update(progBar, 3, 8/numSteps);
+        pbar.Update(3, step/numSteps);
         
         % Store the BOLD data object 
         if istrue(ConvertToStructure)

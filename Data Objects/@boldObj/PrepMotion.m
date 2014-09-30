@@ -1,5 +1,5 @@
 function PrepMotion(boldData)
-%PREPMOTION - Estimate subject movements during the scan and correct for them by realigning images.
+% PREPMOTION - Estimate subject movements during the scan and correct for them by realigning images.
 %
 %   SYNTAX:
 %   PrepMotion(boldData)

@@ -66,7 +66,8 @@ function PrepInitialize(boldData)
 %                   Implemented transfer of TE/TR from acquisition parameters to uppermost object properties. Added
 %                   storage of voxel dimensions.
 %       20130710:   Updated documentation. Removed option for inputting a parameter structure.
-%       20140929:   Major overhaul of this function to work with the preprocessing parameter structure overhaul.
+%       20140929:   Major overhaul of this function to work with the preprocessing parameter structure overhaul. Added
+%                   in pulling of slice acquisition order from the DICOM header file (useful for STC later).
 
 
 
@@ -105,12 +106,29 @@ dcmFiles = searchdir(scanData.FunctionalFolder, [], 'ext', '.dcm');
 dcmFile = dcmFiles{floor(length(dcmFiles) / 2)};
 dcmInfo = dicominfo(dcmFile);
 
+% Define important fields found in the DICOM header section
+fieldsOfInterest = {...
+    'AcquisitionDate',...
+    'AcquisitionMatrix',...
+    'EchoTime',...
+    'FlipAngle',...
+    'MagneticFieldStrength',...
+    'NumberOfPhaseEncodingSteps',...
+    'Private_0019_1029',...             % The relative slice acquisition times (useful for determining slice acquisition order)
+    'RepetitionTime',...
+    'ScanningSequence',...
+    'SliceThickness'};
+
 % Pull acquisition data from the DICOM file header
 acqData = struct;
-fieldsOfInterest = {'AcquisitionDate', 'AcquisitionMatrix', 'EchoTime', 'FlipAngle', 'MagneticFieldStrength',...
-    'NumberOfPhaseEncodingSteps', 'RepetitionTime', 'ScanningSequence', 'SliceThickness'};
 for a = 1:length(fieldsOfInterest)
-    acqData.(fieldsOfInterest{a}) = dcmInfo.(fieldsOfInterest{a});
+    headerData = dcmInfo.(fieldsOfInterest{a});
+    switch fieldsOfInterest{a}
+        case 'Private_0019_1029'
+            acqData.SliceAcquisitionTimes = headerData;
+        otherwise
+            acqData.(fieldsOfInterest{a}) = headerData;
+    end
 end
 
 % Get voxel dimensions (in mm)
@@ -121,6 +139,8 @@ if strcmpi(dcmInfo.Manufacturer, 'siemens') && strcmpi(dcmInfo.ImageType(end-5:e
     dcmInfoSPM = spm_dicom_headers(dcmFile);
     headerNames = {dcmInfoSPM{1}.CSAImageHeaderInfo.name};
     headerInfo = dcmInfoSPM{1}.CSAImageHeaderInfo(strcmpi(headerNames, 'numberofimagesinmosaic'));
+    
+    acqData.IsImageMosaic = true;
     acqData.NumberOfSlices = eval(headerInfo.item(1).val);
 else
     error('Unable to read DICOM imaging parameters. Scanners not made by Siemens are not yet supported')

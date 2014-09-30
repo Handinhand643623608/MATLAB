@@ -1,5 +1,5 @@
 function PrepMotionSliceTime(boldData)
-%PREPMOTIONSLICETIME Executes motion & slice timing correction using AFNI.
+% PREPMOTIONSLICETIME - Executes motion & slice timing correction using AFNI.
 %   This function corrects for motion artifacts and slice timing acquisition effects using AFNI software. It is
 %   currently only compatible with computers running the Linux operating system.
 %

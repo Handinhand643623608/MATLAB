@@ -310,6 +310,10 @@ classdef (Abstract) humanObj < hgsetget
             eval(command);
         end
         
+        function AsAdminBase(dataObject, command)
+            evalin('base', command);
+        end
+        
         function AssertSingleObject(dataObject)
             %ASSERTSINGLEOBJECT - Throws an error if an array of multiple data objects is detected.
             if numel(dataObject) > 1

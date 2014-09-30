@@ -1,14 +1,14 @@
 function varargout = Mask(boldData, maskData, confPct, replaceWith)
-%MASK Masks BOLD images with the input probability mask.
+% MASK - Masks BOLD images with the input probability mask.
 %   This function masks BOLD data using a specified probability mask (e.g. gray matter segment mask) and sets all
 %   spatial and temporal data outside of the mask equal to zero. It then returns an output BOLD image that is the same
 %   size as the input.
 %
 %   SYNTAX:
-%   mask(boldData, maskData)
-%   mask(boldData, maskData, confPct)
-%   mask(bolDData, maskData, confPct, replaceWith)
-%   idsMask = mask(...)
+%   Mask(boldData, maskData)
+%   Mask(boldData, maskData, confPct)
+%   Mask(bolDData, maskData, confPct, replaceWith)
+%   idsMask = Mask(...)
 %
 %
 %   OPTIONAL OUTPUT:
@@ -17,7 +17,7 @@ function varargout = Mask(boldData, maskData, confPct, replaceWith)
 %
 %   INPUTS:
 %   boldData:       BOLDOBJ
-%                   The BOLD object that is to be masked.
+%                   The BOLD data object containing functional data to be masked.
 %
 %   maskData:       3D ARRAY or STRING
 %                   The mask probability or logical map. This may be a gray matter segment image or a mask of the user's
@@ -41,8 +41,6 @@ function varargout = Mask(boldData, maskData, confPct, replaceWith)
 %   replaceWith:    SCALAR or NaN
 %                   A scalar or NaN that will replace all image values not passing the mask threshold.
 %                   DEFAULT: 0
-
-
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130818

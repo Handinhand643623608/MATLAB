@@ -1,5 +1,5 @@
 function PrepNormalize(boldData)
-%PREPNORMALIZE
+% PREPNORMALIZE - Normalizes BOLD functional images to MNI space.
 %
 %   SYNTAX:
 %   PrepNormalize(boldData)
@@ -10,37 +10,81 @@ function PrepNormalize(boldData)
 %                           A single BOLD data object undergoing preprocessing.
 %
 %   OPTIONAL INPUTS:
-%   'AmtRegularization':
+%   'AmtRegularization':    INTEGER
+%                           The amount of regularization for the nonlinear part of spatial normalization.
+%                           DEFAULT: 1
 %
-%   'BoundingBox':
+%   'BoundingBox':          [ 2x3 DOUBLE ]
+%                           The volume relative to the anterior commissure that is to be written.
+%                           DEFAULT: [-78, -112, -50; 78, 76, 85]
+%                               
 %   
-%   'DCTCutoff':
+%   'DCTCutoff':            DOUBLE
+%                           The scalar lower bound on discrete cosine transform (DCT) bases used to describe image
+%                           warping during normalization. Smaller values allow for more detailed deformations but
+%                           greatly increase the computational load.
+%                           DEFAULT: 25
 %   
-%   'Interpolation':
+%   'Interpolation':        INTEGER
+%                           The image sampling method used when realigning the images. Higher degree interpolations
+%                           are better but are also much slower. This argument must be an integer "magic number"
+%                           that corresponds with one of the options listed below.
+%                           DEFAULT: 2
+%                           OPTIONS:
+%                               0 - Nearest Neighbor (not recommended)
+%                               1 - Trilinear
+%                               2 - 2nd Degree B-Spline
+%                               3 - 3rd Degree B-Spline
+%                               .
+%                               .
+%                               .
+%                               7 - 7th Degree B-Spline
 %
 %   'Masking':
 %
-%   'NormPrefix':
 %
 %   'NumIterations':
 %
+%   'OutputPrefix':         STRING
+%                           The string that will be prepended to the file names of images that have undergone this slice
+%                           timing correction procedure.
+%                           DEFAULT: 'w'
+%
 %   'Preservation':
 %
-%   'RegPrefix':
+%
 %   
-%   'Regularization':
+%   'Regularization':       STRING
+%       
+%                           DEFAULT: 'mni'
 %
-%   'SourceSmoothing':
+%   'SourceSmoothing':      INTEGER
+%                           The amount of smoothing to apply to the source (i.e. functional) images.
+%                           DEFAULT: 8
 %   
-%   'TemplateImage':
+%   'TemplateImage':        
 %   
-%   'TemplateSmoothing':
+%   'TemplateSmoothing':    INTEGER
+%                           The amount of smoothing to apply to the template image.
+%                           DEFAULT: 0
 %
-%   'TemplateWeightImage':
+%   'TemplateWeightImage':  { STRINGS }
+%                           A reference to a weighting file used to mask the functional data.
+%                           DEFAULT: {''}
 %
-%   'VoxelSize':
+%   'VoxelSize':            [DOUBLE, DOUBLE, DOUBLE]
+%                           The desired size (in millimeters formatted as [X, Y, Z]) of all voxels in the normalized
+%                           functional data array.
+%                           DEFAULT: [2, 2, 2]
 %
-%   'Wrapping':
+%   'Wrapping':             [BOOLEAN, BOOLEAN, BOOLEAN]
+%                           A Boolean vector specifying in which dimensions [X, Y, Z] the volumes are allowed to wrap
+%                           through to the opposite bound. For example, MRI images can wrap through the phase encoding
+%                           direction, resulting in an image where the subject's nose appears to poke into the back of
+%                           their own head. Setting that direction to 'true' here can help correct this kind of
+%                           artifact.
+%                           DEFAULT: [false, false, false]
+%   
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130707
@@ -65,28 +109,33 @@ params = mergestructs(...
     boldData.Preprocessing.Normalization);
 
 % SPM sometimes requires data file references to be appended with a session number
+
+
 allImages = cat(1, data.BiasCorrected, data.Mean, data.Segments, data.Functional);
-allImages = cellfun(@(x) ([x ',1']), allImages, 'UniformOutput', false);
+% allImages = cellfun(@(x) ([x ',1']), allImages, 'UniformOutput', false);
 mniTemplate = {[params.MNIBrainTemplate ',1']};
 
 % Initialize the SPM normalization batch processing
 normBatch{1}.spm.spatial.normalise.estwrite = struct(...
     'eoptions', struct(...
+        'cutoff',           params.DCTCutoff,...
+        'nits',             params.NumIterations,...
+        'reg',              params.AmtRegularization,...
         'regtype',          params.Regularization,...
+        'smosrc',           params.SourceSmoothing,...    
         'smoref',           params.TemplateSmoothing,...
-        'smosrc',           params.SourceSmoothing,...
         'template',         {mniTemplate},...
         'weight',           params.TemplateWeightImage),...
     'roptions', struct(...
         'bb',               params.BoundingBox,...
         'interp',           params.Interpolation,...
-        'prefix',           params.NormPrefix,...
+        'prefix',           'r',...
         'preserve',         params.Preservation,...
         'vox',              params.VoxelSize,...
         'wrap',             params.Wrapping),...
     'subj', struct(...
         'resample',         {allImages},...
-        'source',           {[data.BiasCorrected ',1']},...
+        'source',           {data.BiasCorrected},...
         'wtsrc',            ''));
     
 % Initialize the SPM coregistration batch processing
@@ -95,7 +144,7 @@ regBatch{1}.spm.spatial.coreg.write = struct(...
     'roptions', struct(...
         'interp',           params.Interpolation,...
         'mask',             params.Masking,...    
-        'prefix',           params.RegPrefix,...
+        'prefix',           params.OutputPrefix,...
         'wrap',             params.Wrapping),...
     'source',               []);                    % <-- Filled in with results of normalization
 

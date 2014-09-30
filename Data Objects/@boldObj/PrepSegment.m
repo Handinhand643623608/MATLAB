@@ -140,7 +140,7 @@ spmOutput = spm_jobman('run', matlabbatch);
 % Get the bias corrected data
 data.BiasCorrected = [];
 if params.OutputCorrected
-    data.BiasCorrected = spmOutput{1}.biascorr(1);
+    data.BiasCorrected = {[spmOutput{1}.biascorr{1} ',1']};
 end
 
 % Get the segmented data
@@ -148,7 +148,7 @@ numOutputs = sum([params.OutputCSF, params.OutputGM, params.OutputWM]);
 data.Segments = cell(numOutputs, 1);
 for a = 1:numOutputs
     fieldStr = ['c' num2str(a)];
-    data.Segments(a) = spmOutput{1}.(fieldStr)(1);
+    data.Segments(a) = {[spmOutput{1}.(fieldStr){1} ',1']};
 end
 
 

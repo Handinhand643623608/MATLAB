@@ -1,17 +1,17 @@
 function PrepRegister(boldData)
-%PREPREGISTER Registers functional data to anatomical images.
+% PREPREGISTER - Registers functional data to anatomical images.
 %   This function coregisters functional to anatomical images using the SPM batch processing system. Outputs are saved
 %   in a predefined location. References to these outputs are stored within the human data structure.
 %
 %   SYNTAX:
 %   PrepRegister(boldData)
-%   PrepRegister(boldData, 'PropertyName', PropertyValue...)
+%   boldData.PrepRegister
 %
 %   INPUT:
 %   boldData:           BOLDOBJ
 %                       A single BOLD data object undergoing preprocessing.
 %
-%   OPTIONAL INPUT:
+%   PARAMETER DEFITIONS:
 %   'CostFunction':     STRING
 %                       The function used to find registration parameters.
 %                       DEFAULT: 'nmi'
@@ -90,7 +90,7 @@ matlabbatch{1}.spm.spatial.coreg.estwrite = struct(...
         'sep',          params.Separation,...
         'tol',          params.Tolerances),...
     'other',            {data.Functional},...
-    'ref',              {[data.BiasCorrected ',1']},...
+    'ref',              {data.BiasCorrected},...
     'roptions', struct(...
         'interp',       params.Interpolation,...
         'mask',         params.Masking,...

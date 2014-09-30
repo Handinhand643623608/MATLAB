@@ -1,11 +1,13 @@
-function PrepImportIMG(boldData)
-%PREPIMPORTIMG - Imports IMG files into numerical arrays that MATLAB can use.
+function PrepImportData(boldData)
+% PREPIMPORTData - Imports preprocessed data into numerical arrays that MATLAB can use.
 %   This function imports anatomical, functional, mean, and segment .img files and stores them in numerical data arrays
-%   inside the human data structure. All data are converted to type "double" during the import process. This function
-%   requires the full preprocessing procedure through normalization to be completed.
+%   inside the human data structure. It also imports any motion parameters that were generated. All data are converted
+%   to type "double" during the import process. This function requires the full preprocessing procedure through
+%   normalization to be completed.
 %
 %   SYNTAX:
-%   PrepImportIMG(boldData)
+%   PrepImportData(boldData)
+%   boldData.PrepImportData
 %
 %   INPUT:
 %   boldData:       BOLDOBJ
@@ -17,7 +19,8 @@ function PrepImportIMG(boldData)
 %       20140721:   Changed the way IMG files were being identified here and in other related SPM preprocessing
 %                   functions. File references are now passed along from stage to stage in the pipeline, eliminating the
 %                   need for searching through directories.
-%       20140929:   Major overhaul of this function to work with the preprocessing parameter structure overhaul.
+%       20140929:   Major overhaul of this function to work with the preprocessing parameter structure overhaul. Moved
+%                   the import of motion parameters to this method.
 
 
 
@@ -53,12 +56,20 @@ segData = zeros([szData 3]);
 for a = 1:length(data.Segments)
     tempData = load_nii(data.Segments{a}(1:end - 2));
     tempData = double(tempData.img);
-    
     segData(:, :, :, a) = tempData;
+end
+
+% Import any motion parameters
+motionData = [];
+if isfield(data, 'MotionParameters')
+    if ~isempty(data.MotionParameters)
+        motionData = importdata(data.MotionParameters);
+    end
 end
 
 % Store the data in the data object
 boldData.Data.Anatomical = anatData;
 boldData.Data.Functional = funData;
 boldData.Data.Mean = meanData;
+boldData.Data.Nuisance.Motion = motionData';
 boldData.Data.Segments = segData;
