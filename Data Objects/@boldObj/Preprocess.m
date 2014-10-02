@@ -140,14 +140,11 @@ for a = params.DataSelection.SubjectsToProcess
             step = step + 1;
         end
         
-        % [TESTED ] Import IMG files to MATLAB workspace
-        pbar.Title(3, 'Importing IMG Files into MATLAB Workspace');
+        % [ TESTED ] Import IMG files to MATLAB workspace
+        pbar.Title(3, 'Importing Preprocessed Data into the MATLAB Workspace');
         PrepImportData(boldData);
         pbar.Update(3, step/numSteps);
         step = step + 1;
-        
-        
-        % PrepIdentifySegments
         
         % Store temporary files at this point so alterations in conditioning can easily occur later
         pbar.Title(3, 'Storing Unconditioned BOLD Data');
@@ -157,12 +154,49 @@ for a = params.DataSelection.SubjectsToProcess
         step = step + 1;
         
         
-        % Normalize the 
-        pbar.Title(3, 'Finalizing the Imported Data');
-        PrepFinalize(boldData);
+        
+        meanData = boldData.Data.Mean;
+        minMean = min(meanData(:));
+        meanData = (meanData - minMean) ./ (max(meanData(:)) - minMean);
+        boldData.Data.Mean = meanData;
+        boldData.Data.Masks.Mean = (meanData > params.SegmentThresholds.MeanImageCutoff);
+        
+        
+        
+        pbar.Title(3, 'Identifying Imported Anatomical Segments');
+        IdentifySegments(boldData);
         pbar.Update(3, step/numSteps);
         step = step + 1;
         
+       
+        
+        if stages.UseSpatialBlurring
+            pbar.Title(3, 'Applying Spatial Blur to Images');
+            Blur(boldData, params.SpatialBlurring.Size, params.SpatialBlurring.Sigma, params.SpatialBlurring.ApplyToMasks);
+            pbar.Update(3, step/numSteps);
+            step = step + 1;
+        end
+        
+        
+        
+        MaskSegments(boldData, boldData.Data.Masks.Mean);
+        NormalizeSegments(boldData);
+        GenerateSegmentMasks(boldData);
+        
+        if stages.UseTemporalFiltering
+            pbar.Title(3, 'Temporally Filtering Data');
+            filtParams = struct2var(params.TemporalFiltering);
+            Filter(boldData, filtParams{:});
+            pbar.Update(3, step/numSteps);
+            step = step + 1;
+        end
+        
+        if stages.UseNuisanceRegression
+            pbar.Title(3, 'Regressing Nuisance Parameters from Time Series');
+            PrepRegressNuisance(boldData);
+            pbar.Update(3, step/numSteps);
+            step = step + 1;
+        end 
         
         
         
@@ -187,4 +221,4 @@ for a = params.DataSelection.SubjectsToProcess
     end
     update(progBar, 1, find(Subjects == a)/length(Subjects));
 end
-close(progBar);
+pbar.Close;

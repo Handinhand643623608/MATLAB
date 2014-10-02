@@ -48,6 +48,7 @@ function Filter(boldData, varargin)
 %       20140902:   Implemented throwing of an error if the user tries to apply anything other than a Hamming window.
 %                   Certain other windows may work out alright, but it's not safe to try for now. Made this function
 %                   compatible with new data object status properties.
+%       20141001:   Removed the option to use arrays of BOLD data objects with this method.
 
 %% TODOS
 % Immediate Todos
@@ -64,73 +65,61 @@ inStruct = struct(...
     'WindowLength', 45);
 assignInputs(inStruct, varargin);
 
-% Error check
+% Error checking
+boldData.AssertSingleObject;
+boldData.LoadData;
 if ~strcmpi(Window, 'hamming')
     error('Filter windows other than the Hamming window have not been implemented yet');
 end
 
 % Build filter parameters
-TR = boldData(1).TR/1000;
-WindowLength = round(WindowLength/TR);
+TR = boldData.TR/1000;
+WindowLength = round(WindowLength / TR);
 windowParams = window(eval(['@' lower(Window)]), WindowLength+1);
 filterParams = fir1(WindowLength, Passband.*2.*TR, windowParams);
 
 
 
 %% Filter the Data
-pbar = Progress('Scans Filtered');
-for a = 1:numel(boldData)
-    
-    % Load the full object data set, because modifications to core data are occurring
-    if strcmpi(class(boldData(a).Data), 'matlab.io.matfile')
-        boldData(a).Data = load(boldData(a).Data.Properties.Source);
-    end
-    
-    % Gather the functional & nuisance signals & transpose to column-major format
-    [funData, idsNaN] = ToMatrix(boldData(a));
-    funData = funData';
-    [nuisanceData, nuisanceStrs] = ToArray(boldData(a), 'Nuisance');
-    nuisanceData = nuisanceData';
-    
-    % Filter the signals
-    if istrue(UseZeroPhaseFilter)
-        funData = filtfilt(filterParams, 1, funData);
-        funData = funData';
-        nuisanceData = filtfilt(filterParams, 1, nuisanceData);
-        nuisanceData = nuisanceData';
-        filterShift = 0;
-    else
-        funData = filter(filterParams, 1, funData);
-        funData = funData';
-        funData(:, 1:WindowLength) = [];
-        nuisanceData = filter(filterParams, 1, nuisanceData);
-        nuisanceData = nuisanceData';
-        nuisanceData(:, 1:WindowLength) = [];
-        filterShift = floor(WindowLength/(2*1/TR));
-    end
-    
-    % Replace the nuisance data in the data object
-    motionData = [];
-    for b = 1:length(nuisanceStrs)
-        if strcmpi(nuisanceStrs{b}, 'Motion')
-            motionData = cat(1, motionData, nuisanceData(b, :));
-        else
-            boldData(a).Data.Nuisance.(nuisanceStrs{b}) = nuisanceData(b, :);
-        end
-    end
-    boldData(a).Data.Nuisance.Motion = motionData;
-    
-    % Replace the functional data in the data object
-    newFunData = nan(length(idsNaN), size(funData, 2));
-    newFunData(~idsNaN, :) = funData;
-    szBOLD = size(boldData(a).Data.Functional);
-    boldData(a).Data.Functional = reshape(newFunData, [szBOLD(1:3) size(newFunData, 2)]);
+% Gather the functional & nuisance signals & transpose to column-major format
+[funData, idsNaN] = boldData.ToMatrix;
+funData = funData';
+[nuisanceData, nuisanceStrs] = boldData.ToArray('Nuisance');
+nuisanceData = nuisanceData';
 
-    % Fill in object properties
-    boldData(a).Bandwidth = Passband;
-    Filter@humanObj(boldData(a), Passband, filterShift, UseZeroPhaseFilter, Window, WindowLength);
-    boldData(a).IsZScored = false;
-    
-    pbar.Update(a/numel(boldData));
+% Filter the signals
+if (istrue(UseZeroPhaseFilter))
+    funData = filtfilt(filterParams, 1, funData);
+    funData = funData';
+    nuisanceData = filtfilt(filterParams, 1, nuisanceData);
+    nuisanceData = nuisanceData';
+    filterShift = 0;
+else
+    funData = filter(filterParams, 1, funData);
+    funData = funData';
+    funData(:, 1:WindowLength) = [];
+    nuisanceData = filter(filterParams, 1, nuisanceData);
+    nuisanceData = nuisanceData';
+    nuisanceData(:, 1:WindowLength) = [];
+    filterShift = floor(WindowLength/(2*1/TR));
 end
-pbar.close;
+
+% Replace the nuisance data in the data object
+motionData = [];
+for b = 1:length(nuisanceStrs)
+    if strcmpi(nuisanceStrs{b}, 'Motion')
+        motionData = cat(1, motionData, nuisanceData(b, :));
+    else
+        boldData.Data.Nuisance.(nuisanceStrs{b}) = nuisanceData(b, :);
+    end
+end
+boldData.Data.Nuisance.Motion = motionData;
+
+% Replace the functional data in the data object
+newFunData = nan(length(idsNaN), size(funData, 2));
+newFunData(~idsNaN, :) = funData;
+szBOLD = size(boldData.Data.Functional);
+boldData.Data.Functional = reshape(newFunData, [szBOLD(1:3) size(newFunData, 2)]);
+
+% Fill in object properties
+Filter@humanObj(boldData, Passband, filterShift, UseZeroPhaseFilter, Window, WindowLength);

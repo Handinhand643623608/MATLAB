@@ -1,12 +1,12 @@
 function GenerateNuisance(boldData)
-%GENERATENUISANCE Estimate BOLD nuisance signals.
+% GENERATENUISANCE - Estimate and store BOLD nuisance signals.
 %
 %   SYNTAX:
 %   GenerateNuisance(boldData)
 %
 %   INPUTS:
 %   boldData:       BOLDOBJ
-%                   A BOLD data object or array of BOLD objects.
+%                   A single BOLD data object.
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130818
@@ -15,40 +15,43 @@ function GenerateNuisance(boldData)
 %                   nuisance parameters were being found. Now all of them are all the time.
 %       20140612:   Updated the documentation for this method.
 %       20140801:   Updated to work with the new MATFILE storage system.
+%       20141001:   Completely rewrote this function so that it doesn't alter the data stored in the inputted object at
+%                   all. Before, it was performing masking and z-scoring, which was fine for my data but might be
+%                   unexpected for anyone who didn't follow my preprocessing procedure.
 
 
 
 %% Generate & Store the Nuisance Signals
-% Z-Score & mask out functional image areas unlikely to contain tissue
-ZScore(boldData);
-meanCutoff = boldData(1).Preprocessing.Parameters.Conditioning.MeanCutoff;
-Mask(boldData, 'mean', meanCutoff, NaN);
+% Error checking
+boldData.AssertSingleObject;
+boldData.LoadData;
+
+% Store a list of nuisance parameters
 nuisanceStrs = {'Global', 'WM', 'CSF'};
 
-for a = 1:numel(boldData)
-    % Load any MATFILE data & get the flattened functional data
-    LoadData(boldData(a));
-    functionalData = ToMatrix(boldData(a));
-    functionalData = functionalData';
-    
-    % Regress out motion data (always needed before identifying other nuisance parameters)    
-    motionSigs = boldData(a).Data.Nuisance.Motion';
-    functionalData = functionalData - motionSigs*(motionSigs\functionalData);
-    
-    % Identify nuisance signals by regressing out nuisance parameters that come before it
-    for b = 1:length(nuisanceStrs)
-        switch lower(nuisanceStrs{b})
-            case 'global'
-                nuisanceData = nanmean(functionalData, 2);
-                boldData(a).Data.Nuisance.Global = nuisanceData';
+% Get & flatten the functional data
+funData = boldData.ToArray;
+funData = maskImageSeries(funData, boldData.Data.Masks.Mean, NaN);
+funData = reshape(funData, [], boldData.NumTimePoints);
+funData = funData';
 
-            otherwise
-                segmentData = reshape(boldData(a).Data.Segments.(nuisanceStrs{b}), [], 1)';
-                nuisanceData = nanmean(functionalData(:, segmentData > meanCutoff), 2);
-                boldData(a).Data.Nuisance.(nuisanceStrs{b}) = nuisanceData';
-        end
-        
-        % Regress the current nuisance signal from functional data before identifying the next one
-        functionalData = functionalData - nuisanceData*(nuisanceData\functionalData);
+% Regress constant terms & motion parameters first
+motionSigs = boldData.Data.Nuisance.Motion';
+motionSigs = cat(2, ones(size(motionSigs, 1), 1), motionSigs);
+funData = funData - motionSigs * (motionSigs \ funData);
+
+for a = 1:length(nuisanceStrs)
+    
+    % Generate the nuisance signals & store them in the data object
+    if (strcmpi(nuisanceStrs{a}, 'global'))
+        nuisanceData = nanmean(funData, 2);
+        boldData.Data.Nuisance.Global = nuisanceData';
+    else
+        segMask = boldData.Data.Masks.(nuisanceStrs{a})(:);
+        nuisanceData = nanmean(funData(:, segMask), 2);
+        boldData.Data.Nuisance.(nuisanceStrs{a}) = nuisanceData';
     end
+    
+    % Regress the current nuisance signal so that the next one isn't influenced by it
+    funData = funData - nuisanceData * (nuisanceData \ funData);
 end

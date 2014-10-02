@@ -18,6 +18,9 @@ classdef (Abstract) humanObj < hgsetget
 %                   that were going to be difficult to finish.
 %       20140902:   Implemented some status properties that take their values from standardized preprocessing parameter 
 %                   log entries. Implemented a data cache to store data loaded from MatFiles.
+%       20141001:   Implemented a POSTPROCESSING property to hold processing parameters after preprocessing is
+%                   completed. Updated the getter methods accordingly. Made the BANDWIDTH property dependent on the 
+%                   filtering postprocessing stage.
     
 %% TODOS
 %   - Fix problems with implementation of MATFILE
@@ -34,6 +37,7 @@ classdef (Abstract) humanObj < hgsetget
     
     properties (Dependent)
         
+        Bandwidth                   % The high and low-pass cutoffs for the filtered data (in Hz)
         IsDetrended                 % Boolean indicating whether the data time series has been detrended
         IsFiltered                  % Boolean indicating whether the data time series has been filtered
         IsResampled                 % Boolean indicating whether the data time series has been resampled
@@ -50,9 +54,9 @@ classdef (Abstract) humanObj < hgsetget
         
         % Acquisition & processing 
         Acquisition                 % All parameters related to the acquisition of raw data
-        Bandwidth                   % The high and low-pass cutoffs for the filtered data (in Hz)
         IsGlobalRegressed           % Boolean indicating whether the global signal has been regressed
         IsZScored                   % Boolean indicating whether the data is scaled to zero mean & unit variance
+        Postprocessing              % All parameters related to the postprocessing of preprocessed data.
         Preprocessing               % All parameters related to the preprocessing of raw data
         
         % Storage
@@ -164,9 +168,10 @@ classdef (Abstract) humanObj < hgsetget
             %                       .
             %                       .
             
-            dataObject.Preprocessing.Parameters.Detrending = struct(...
+            dataObject.Postprocessing.Detrending = struct(...
                 'DetrendOrder', order,...
                 'IsDetrended', true);
+            dataObject.IsZScored = false;
         end
         function Filter(dataObject, passband, phaseDelay, useZeroPhaseFilter, window, windowLength)
             %FILTER - Saves filtering parameters to the data object preprocessing parameter log.
@@ -195,13 +200,14 @@ classdef (Abstract) humanObj < hgsetget
             %   windowLength:           INTEGER
             %                           The length of the window (in seconds) for the FIR filter.
             
-            dataObject.Preprocessing.Parameters.Filtering = struct(...
+            dataObject.Postprocessing.Filtering = struct(...
                 'IsFiltered', true,...
                 'Passband', passband,...
                 'PhaseDelay', phaseDelay,...
                 'Window', window,...
                 'WindowLength', windowLength,...
                 'ZeroPhaseFiltered', useZeroPhaseFilter);
+            dataObject.IsZScored = false;
         end
         function Resample(dataObject, oldFs, newFs)
             %RESAMPLE - Saves resampling parameters to the data object preprocessing parameter log.
@@ -221,9 +227,10 @@ classdef (Abstract) humanObj < hgsetget
             %                   The new sampling frequency (in Hertz) of the data. This is the sampling frequency that
             %                   was just applied using the RESAMPLE function on the data object time series.
             
-            dataObject.Preprocessing.Parameters.Resampling = struct(...
+            dataObject.Postprocessing.Resampling = struct(...
                 'NewFs', newFs,...
                 'OldFs', oldFs);
+            dataObject.IsZScored = false;
         end
     end
     
@@ -306,11 +313,7 @@ classdef (Abstract) humanObj < hgsetget
     methods
         Store(dataObject, varargin);                    % Store a data object on the hard drive
         
-        function AsAdmin(dataObject, command)
-            eval(command);
-        end
-        
-        function AsAdminBase(dataObject, command)
+        function AsAdmin(~, command)
             evalin('base', command);
         end
         
@@ -329,23 +332,30 @@ classdef (Abstract) humanObj < hgsetget
     end
     
     methods
+        function bandwidth      = get.Bandwidth(dataObject)
+            if (dataObject.IsFiltered)
+                bandwidth = dataObject.Postprocessing.Filtering.Passband;
+            else
+                bandwidth = [];
+            end
+        end
         function isDetrended    = get.IsDetrended(dataObject)
             isDetrended = dataObject.IsPreprocessed('Detrending', 'IsDetrended');
         end
         function isFiltered     = get.IsFiltered(dataObject)
-            isFiltered = dataObject.IsPreprocessed('Filtering', 'IsFiltered');
+            isFiltered = dataObject.IsPostprocessed('Filtering', 'IsFiltered');
         end
         function isResampled    = get.IsResampled(dataObject)
-            isResampled = dataObject.IsPreprocessed('Resampling', 'IsResampled');
+            isResampled = dataObject.IsPostprocessed('Resampling', 'IsResampled');
         end
     end
     
     methods (Access = protected)
-        function isPreprocessed = IsPreprocessed(dataObject, stageName, statusName)
-            isPreprocessed = false;
-            if (isfield(dataObject.Preprocessing.Parameters, stageName))
-                if (dataObject.Preprocessing.Parameters.(statusName))
-                    isPreprocessed = true;
+        function isPostprocessed = IsPostprocessed(dataObject, stageName, statusName)
+            isPostprocessed = false;
+            if (isfield(dataObject.Postprocessing, stageName))
+                if (dataObject.Postprocessing.(statusName))
+                    isPostprocessed = true;
                 end
             end
         end

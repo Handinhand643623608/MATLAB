@@ -1,5 +1,5 @@
 function varargout = ToArray(boldData, dataStr)
-%TOARRAY Pull numeric arrays from a BOLD data object.
+%TOARRAY - Pull numeric data arrays from a BOLD data object.
 %   This function converts a BOLD data object to a numeric array by returning specific data sets that it pulls out of
 %   the object. It is intended for use as a shortcut alternative to constantly dot-indexing the numerous fields that the
 %   object contains by providing quick access to data that is frequently needed. Such data includes functional,
@@ -96,7 +96,7 @@ switch lower(dataStr)
         wmData = boldData.Data.Segments;
         boldArray = wmData.WM;
     otherwise
-        error('%s is not a recognized data string. Consult the documentation for this function for acceptable options.');
+        error('%s is not a recognized data string. Consult the documentation for this function for acceptable options.', dataStr);
 end
 
 % Output the requested data

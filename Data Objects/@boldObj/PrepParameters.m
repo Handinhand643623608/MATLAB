@@ -49,11 +49,11 @@ function paramStruct = PrepParameters
 %% General Preprocessing Parameters (Will Frequently Change)
 % Provide input & output data paths
 paramStruct.DataPaths = struct(...
-    'MNIBrainTemplate',         'C:/Users/jgrooms/Dropbox/Globals/MNI/template/T1.nii',...  % The path to the MNI brain template image
-    'MNIFolder',                'C:/Users/jgrooms/Dropbox/Globals/MNI',...                  % 
-    'OutputPath',               'C:/Users/jgrooms/Desktop/Data Sets/Data Objects/BOLD',...  % Choose where preprocessed data should be saved
-    'RawDataPath',              'S:/Josh/Data/Raw',...                                      % Specify the top-level raw data path (where each subject data folder is)
-    'SegmentsFolder',           'C:/Users/jgrooms/Dropbox/Globals/MNI/segments');           % Specify where MNI segment maps are stored
+    'MNIBrainTemplate',         [get(Paths, 'Globals') '/MNI/template/T1.nii'],...          % The path to the MNI brain template image
+    'MNIFolder',                [get(Paths, 'Globals') '/MNI'],...                          % 
+    'OutputPath',               get(Paths, 'BOLD'),...                                      % Choose where preprocessed data should be saved
+    'RawDataPath',              get(Paths, 'Raw'),...                                       % Specify the top-level raw data path (where each subject data folder is)
+    'SegmentsFolder',           [get(Paths, 'Globals') '/MNI/segments']);                   % Specify where MNI segment maps are stored
 
 % Provide data folder signatures that uniquely identify subject- & scan-specific data (use REGEXP metacharacters if necessary)
 paramStruct.DataFolderIDs = struct(...
@@ -74,7 +74,6 @@ paramStruct.StageSelection = struct(...
     'UseMotionCorrection',      true,...                                            % Correct minor subject movements during imaging
     'UseNormalization',         true,...                                            % Normalize functional images to MNI space
     'UseNuisanceRegression',    true,...
-    'UseSignalConditioning',    true,...                                            % Use a prescribed sequence of image detrending, filtering, & nuisance correction4
     'UseSliceTimingCorrection', true,...                                            % Correct time delays arising from imaging adjacent brain slices at different times
     'UseSpatialBlurring',       true,...
     'UseTemporalFiltering',     true);
@@ -86,7 +85,7 @@ paramStruct.StageSelection = struct(...
 
 % Control the spatial blurring of functional & segment images
 paramStruct.SpatialBlurring = struct(...
-    'ApplyToMasks',             true,...                                            % Should structural segments also be blurred?
+    'ApplyToSegments',          true,...                                            % Should structural segments also be blurred?
     'Sigma',                    2,...                                               % The standard deviation of the Gaussian used to blur images (in voxels)
     'Size',                     3);                                                 % The size of the Gaussian used to blur images (in voxels)
 
@@ -102,6 +101,7 @@ paramStruct.NuisanceRegression = struct(...
     'DetrendOrder',             2,...                                               % Specify the order of the polynomial used to regress ultra-low-frequency drift artifacts
     'RegressCSF',               false,...                                           % Should the average CSF signal be regressed from functional time series?
     'RegressGlobal',            false,...                                           % Should the global (i.e. grand mean) signal be regressed from functional time series?
+    'RegressMotion',            false,...
     'RegressWhiteMatter',       false);                                             % Should the average white matter signal be regressed from functional time series?
 
 % Specify how many TRs to remove from each data set
@@ -111,6 +111,7 @@ paramStruct.SignalCropping = struct(...
 % Specify parameters for voxel signal filtering
 paramStruct.TemporalFiltering = struct(...
     'Passband',                 [0.01 0.08],...                                     % The passband of the filter (in Hertz)
+    'UseZeroPhaseFilter',       true,...
     'Window',                   'gaussian',...
     'WindowLength',             45);                                                % The length of the filter window (in seconds)                                       
 

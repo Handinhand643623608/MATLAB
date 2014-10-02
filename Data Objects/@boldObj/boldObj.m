@@ -99,7 +99,9 @@ classdef boldObj < humanObj
 %
 %   assignInputs
 %   assignOutputs
+%   corr3
 %   istrue
+%   maskImageSeries
 %   searchdir
 %   sigFig
 %   str2rgb
@@ -132,6 +134,7 @@ classdef boldObj < humanObj
     
     properties (Dependent)
         IsBlurred               % Boolean indicating whether the functional data has been spatially blurred.
+        NumTimePoints           % The total number of time points in the functional image series.
         TE                      % The echo time of the scan session (in milliseconds).
         TR                      % The repetition time of the scan session (in milliseconds).
     end
@@ -190,32 +193,24 @@ classdef boldObj < humanObj
         GenerateNuisance(boldData)                                      % Generate & store nuisance signals
         varargout   = Mask(boldData, maskData, confPct, replaceWith)    % Mask BOLD data
         
-        varargout   = Plot(boldData, varargin)                          % Plot BOLD data as an image montage
-        
-        
-        function GenerateSegmentMasks(boldData, varargin)
-            
-        end
-            
-            
-            
+        varargout   = Plot(boldData, varargin)                          % Plot BOLD data as an image montage            
     end
     
     methods
         function isBlurred      = get.IsBlurred(boldData)
-            isBlurred = false;
-            if boldData.IsPreprocessed('Blurring', 'IsBlurred')
-                isBlurred = true;
-            end
+            isBlurred = boldData.IsPostprocessed('Blurring', 'IsBlurred');
         end
         function orientation    = get.Orientation(boldData)
+            orientation = NaN;
             error('This functionality has not yet been implemented.');
         end
-        
-        function te = get.TE(boldData)
+        function numPoints      = get.NumTimePoints(boldData)
+            numPoints = size(boldData.Data.Functional, 4);
+        end
+        function te             = get.TE(boldData)
             te = boldData.Acquisition.EchoTime;
         end
-        function tr = get.TR(boldData)
+        function tr             = get.TR(boldData)
             tr = boldData.Acquisition.RepetitionTime;
         end
         
@@ -364,32 +359,32 @@ classdef boldObj < humanObj
         Filter(boldData, varargin)              % FIR Filter the BOLD data time series
         Resample(boldData, fs)
         
-        function Blur(boldData, hsize, sigma, applyToMasks)
-            %BLUR - Spatially Gaussian blur BOLD image series.
+        function Blur(boldData, hsize, sigma, applyToSegments)
+            % BLUR - Spatially Gaussian blur BOLD image series.
             %
             %   SYNTAX:
             %   Blur(boldData, hsize, sigma)
             %
             %   INPUTS:
-            %   boldData:       BOLDOBJ
-            %                   A single BOLD data object.
+            %   boldData:           BOLDOBJ
+            %                       A single BOLD data object.
             %
-            %   hsize:          INTEGER or [INTEGER, INTEGER]
-            %                   An integer or 2-element vector of integers representing the size (in [HEIGHT, WIDTH]
-            %                   pixels) of the Gaussian used to blur the data. A single scalar input generates a
-            %                   symmetric Gaussian.
+            %   hsize:              INTEGER or [INTEGER, INTEGER]
+            %                       An integer or 2-element vector of integers representing the size (in [HEIGHT, WIDTH]
+            %                       pixels) of the Gaussian used to blur the data. A single scalar input generates a
+            %                       symmetric Gaussian.
             %
-            %   sigma:          DOUBLE
-            %                   The standard deviation (in pixels) of the Gaussian used to blur the data. This must be a
-            %                   single double-precision value.
+            %   sigma:              DOUBLE
+            %                       The standard deviation (in pixels) of the Gaussian used to blur the data. This must
+            %                       be a single double-precision value.
             %
             %   OPTIONAL INPUTS:
-            %   applyToMasks:   BOOLEAN
-            %                   A Boolean indicating whether or not to blur the anatomical segment images using the same
-            %                   parameters as for the functional data. 
+            %   applyToSegments:    BOOLEAN
+            %                       A Boolean indicating whether or not to blur the anatomical segment images using the
+            %                       same parameters as for the functional data.
             
             % Deal with missing inputs
-            if nargin == 3; applyToMasks = true; end
+            if nargin == 3; applyToSegments = true; end
             
             % Error check
             boldData.AssertSingleObject;
@@ -403,16 +398,18 @@ classdef boldObj < humanObj
             end
             
             % Blur the segment images
-            segmentStrs = fieldnames(boldData.Data.Segments);
-            for a = 1:length(segmentStrs)
-                boldData.Data.Segments.(segmentStrs{a}) = imfilter(boldData.Data.Segments.(segmentStrs{a}), fspec);
+            if (applyToSegments)
+                segmentStrs = fieldnames(boldData.Data.Segments);
+                for a = 1:length(segmentStrs)
+                    boldData.Data.Segments.(segmentStrs{a}) = imfilter(boldData.Data.Segments.(segmentStrs{a}), fspec);
+                end
             end
             
             % Store the blurred data
             boldData.Data.Functional = funData;
             
             % Change data object preprocessing parameters
-            boldData.Preprocessing.Parameters.Blurring = struct(...
+            boldData.Postprocessing.Blurring = struct(...
                 'IsBlurred', true,...
                 'Size', hsize,...
                 'Sigma', sigma);
@@ -459,7 +456,6 @@ classdef boldObj < humanObj
             
             % Change data object preprocessing parameters
             Detrend@humanObj(boldData, order);
-            boldData.Data.IsZScored = false;
         end
         function Regress(boldData, signal)
             %REGRESS - Linearly regress signals from BOLD functional time series.
@@ -542,7 +538,7 @@ classdef boldObj < humanObj
     
     
     
-    %% Preprocessing Methods
+    %% fMRI Preprocessing Methods
     methods
         PrepBRIKToIMG(boldData)                 % Convert BRIK files into NIFTI format
         PrepCondition(boldData)                 % Condition the BOLD signals for analysis
@@ -557,19 +553,184 @@ classdef boldObj < humanObj
         PrepSegment(boldData)                   % Segment the anatomical image
         PrepSliceTime(boldData)
         
+        function PrepRegressNuisance(boldData)
+            % PREPREGRESSNUISANCE - Regress nuisance parameters from BOLD functional data.
+            
+            % Error checking
+            boldData.AssertSingleObject;
+            boldData.LoadData;
+            
+            % Get stage parameters from the data object
+            regParams = boldData.Parameters.NuisanceRegression;
+            
+            % Detrend the data first, then generate nuisance parameters
+            boldData.Detrend(regParams.DetrendOrder);
+            GenerateNuisance(boldData)
+            
+            % Build a list of parameters to regress from the functional time series
+            regSignal = ones(1, numTimePoints);
+            if (regParams.RegressMotion); regSignal = cat(1, regSignal, boldData.Data.Nuisance.Motion); end
+            if (regParams.RegressGlobal); regSignal = cat(1, regSignal, boldData.Data.Nuisance.Global); end
+            if (regParams.RegressWhiteMatter); regSignal = cat(1, regSignal, boldData.Data.Nuisance.WM); end
+            if (regParams.RegressCSF); regSignal = cat(1, regSignal, boldData.Data.Nuisance.CSF); end
+            
+            % Perform the regression
+            boldData.Regress(regSignal);
+            
+        end
+    end
+    
+    
+    
+    %% Anatomical Segment Postprocessing Methods
+    methods
         
-        function PrepNormalizeSegments(boldData)
+        function GenerateSegmentMasks(boldData)
+            % GENERATESEGMENTMASKS - Converts segmented anatomical images in binary volumetric data masks.
             
+            % Initial error checking
+            boldData.AssertSingleObject;
+            boldData.LoadData;
             
+            % Get needed parameters & ensure segments have been identified
+            params = boldData.Preprocessing.SegmentThresholds;
+            segData = boldData.Data.Segments;
+            if (~isstruct(segData)); error('Segments must already be identified to generate segment masks.'); end
+            
+            % Generate masks out of anatomical segments
+            segNames = fieldnames(segData);
+            for a = 1:length(segNames)
+                switch segNames{a}
+                    case 'CSF';     boldData.Data.Masks.CSF = segData.CSF > params.CSFCutoff;
+                    case 'GM';      boldData.Data.Masks.GM = segData.GM > params.GrayMatterCutoff;
+                    case 'WM';      boldData.Data.Masks.WM = segData.WM > WhiteMatterCutoff;
+                    otherwise;      error('An unrecognized segment name was found in the BOLD segment data field.');
+                end
+            end            
+            
+        end
+        function IdentifySegments(boldData)
+            % IDENTIFYSEGMENTS - Attempts to automatically identify preprocessed anatomical segments.
+            %   This function attempts to autonomously resolve the identities of the imported anatomical segments
+            %   created during the BOLD preprocessing procedure. It does this by loading the standard MNI segment
+            %   templates (which must have been present for preprocessing) and calculating the correlation coefficients
+            %   between those volumes and the ones that exist in the inputted data object. The final segment identities
+            %   correspond to whichever pairwise correlation coefficient is highest. 
+            %
+            %   WARNING:
+            %   This function may not always correctly resolve segment identities. It is imperative that segments are
+            %   manually inspected once the preprocessing procedure concludes. 
+            %
+            %   SYNTAX:
+            %   PrepIdentifySegments(boldData)
+            %   boldData.PrepIdentifySegments
+            %
+            %   INPUTS:
+            %   boldData:   BOLDOBJ
+            %               A single BOLD data object undergoing preprocessing.
+            
+            % Initial error checks
+            boldData.AssertSingleObject;
+            boldData.LoadData;
+            
+            % Get the current BOLD anatomical segments & do some error checking
+            numSegs = 3;
+            segData = boldData.Data.Segments;
+            if (isstruct(segData)); error('Segments have already been identified for this data object.'); end
+            if (size(segData, 4) ~= numSegs); error('Only three different anatomical segments should have been identified.'); end
+            
+            % Locate the standardized MNI segment IMG files
+            segFilesMNI = searchdir(boldData.Preprocessing.DataPaths.SegmentsFolder, [], 'Ext', '.nii');
+            if (length(segFilesMNI) ~= 3); error('Only segment IMGs should be located in the MNI segments folder.'); end
+            
+            % Initialize storage for correlation coefficients
+            imgCorr = struct('CSF', zeros(1, numSegs), 'GM', zeros(1, numSegs), 'WM', zeros(1, numSegs));
+            
+            % Calculate the correlation coefficients between each MNI segment & each preprocessed anatomical segment
+            for a = 1:length(segFilesMNI)
+                [~, name, ~] = fileparts(segFilesMNI{a});
+                segMNI = load_nii(segFilesMNI{a});
+                segMNI = segMNI.img;
+                
+                for b = 1:size(segData, 4)
+                    
+                    switch name
+                        case 'csf';     imgCorr.CSF(b) = corr3(segMNI, segData(:, :, :, b));
+                        case 'grey';    imgCorr.GM(b) = corr3(segMNI, segData(:, :, :, b));
+                        case 'white';   imgCorr.WM(b) = corr3(segMNI, segData(:, :, :, b));
+                        otherwise; error('Segment file name is not recognized.');
+                    end
+                end
+            end
+            
+            % Re-initialize the segment data storage field of the data object
+            boldData.Data.Segments = struct('CSF', [], 'GM', [], 'WM', []);
+            
+            % Identify the preprocessed segemnts
+            segNames = fieldnames(imgCorr);
+            for a = 1:length(segNames)
+                [~, idxSeg] = max(imgCorr.(segNames{a}));
+                boldData.Data.Segments.(segNames{a}) = segData(:, :, :, idxSeg);
+            end
+            
+        end
+        function MaskSegments(boldData, maskImage)
+            % MASKSEGMENTS - Masks segmented anatomical images.
+            
+            % Error checking
+            boldData.AssertSingleObject;
+            boldData.LoadData;
+            if (~islogical(maskImage)); error('Only a 3D array of Booleans can be used to mask segment images.'); end
+            
+            % Mask the anatomical segments
+            segData = boldData.Data.Segments;
+            if isstruct(segData)
+                segNames = fieldnames(segData);
+                for a = 1:length(segNames)
+                    segData.(segNames(a)) = segData.(segNames{a}) .* maskImage;
+                end
+            else
+                for a = 1:size(segData, 4)
+                    segData(:, :, :, a) = segData(:, :, :, a) .* maskImage;
+                end
+            end
+            
+            % Store the masked segments
+            boldData.Data.Segments = segData;
+        end
+        function NormalizeSegments(boldData)
+            % NORMALIZESEGMENTS - Normalizes anatomical segment data to fractional probability values.
+            %
+            %   SYNTAX:
+            %   NormalizeSegments(boldData)
+            %   boldData.NormalizeSegments
+            %
+            %   INPUT:
+            %   boldData:   BOLDOBJ
+            %               A single BOLD data object with a complete set of anatomical segments. Typically this object
+            %               will be nearing the end of its preprocessing procedure, and as such it is required that all
+            %               segments be properly identified and sorted into individual fields of the segment data
+            %               structure. 
+            
+            % Initial error checking
+            boldData.AssertSingleObject;
+            boldData.LoadData;
+            
+            % Get the segment data & check that it's been identified
+            segData = boldData.Data.Segments;
+            if (~isstruct(segData)); error('Segments must already be identified to perform normalization.'); end
+            
+            % Normalize the segments & store in the data object
+            segNames = fieldnames(segData);
+            for a = 1:length(segNames)
+                data = segData.(segNames{a});
+                minSeg = min(data(:));
+                segData.(segNames{a}) = (data - minSeg) ./ (max(data(:)) - minSeg);
+            end
+            boldData.Data.Segments = segData;
             
         end
         
-        
-        function PrepIdentifySegments(boldData)
-            
-            
-            
-        end
     end
     
     methods (Static)
