@@ -51,6 +51,7 @@ function varargout = ToArray(boldData, dataStr)
 %% CHANGELOG
 %   Written by Josh Grooms on 20140618
 %       20140707:   Updated for compatibility with new MATFILE data storage.
+%       20141002:   Bug fix for calling for a nuisance parameter array when one does not yet exist in the data object.
 
 
 
@@ -83,15 +84,19 @@ switch lower(dataStr)
         for a = 1:length(legend); boldArray(a, :) = icData.(legend{a}); end
     case 'mean'
         boldArray = boldData.Data.Mean;
+    
     case 'nuisance'
         legend = {'Motion', 'Motion', 'Motion', 'Motion', 'Motion', 'Motion', 'Global', 'WM', 'CSF'}';
         nuisanceData = boldData.Data.Nuisance;
-        boldArray = [...
-                        nuisanceData.Motion;
-                        nuisanceData.Global;
-                        nuisanceData.WM;
-                        nuisanceData.CSF
-                    ];                
+        nuisanceFields = fieldnames(nuisanceData);
+        boldArray = [];
+        
+        % Ordering of fields here is controlled by GenerateNuisance
+        for a = 1:length(nuisanceFields)
+            boldArray = cat(1, boldArray, nuisanceData.(nuisanceFields{a}));
+        end
+        legend = legend(1:size(boldArray, 1));
+        
     case 'whitematter'
         wmData = boldData.Data.Segments;
         boldArray = wmData.WM;

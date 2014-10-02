@@ -21,6 +21,8 @@ classdef (Abstract) humanObj < hgsetget
 %       20141001:   Implemented a POSTPROCESSING property to hold processing parameters after preprocessing is
 %                   completed. Updated the getter methods accordingly. Made the BANDWIDTH property dependent on the 
 %                   filtering postprocessing stage.
+%       20141002:   Had to change the name of the window parameter in FILTER to WindowName to avoid conflicts that were 
+%                   cropping up with my Window class. 
     
 %% TODOS
 %   - Fix problems with implementation of MATFILE
@@ -173,7 +175,7 @@ classdef (Abstract) humanObj < hgsetget
                 'IsDetrended', true);
             dataObject.IsZScored = false;
         end
-        function Filter(dataObject, passband, phaseDelay, useZeroPhaseFilter, window, windowLength)
+        function Filter(dataObject, passband, phaseDelay, useZeroPhaseFilter, windowName, windowLength)
             %FILTER - Saves filtering parameters to the data object preprocessing parameter log.
             %
             %   SYNTAX:
@@ -204,7 +206,7 @@ classdef (Abstract) humanObj < hgsetget
                 'IsFiltered', true,...
                 'Passband', passband,...
                 'PhaseDelay', phaseDelay,...
-                'Window', window,...
+                'WindowName', windowName,...
                 'WindowLength', windowLength,...
                 'ZeroPhaseFiltered', useZeroPhaseFilter);
             dataObject.IsZScored = false;

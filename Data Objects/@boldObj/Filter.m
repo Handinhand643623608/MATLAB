@@ -31,7 +31,7 @@ function Filter(boldData, varargin)
 %                           samples need to be cropped out.
 %                           DEFAULT: true
 %
-%   'Window':               STRING
+%   'WindowName':           STRING
 %                           The name of the window to be used in filtering of the BOLD data. This input is specified as
 %                           a string.
 %                           DEFAULT: 'hamming'
@@ -49,6 +49,8 @@ function Filter(boldData, varargin)
 %                   Certain other windows may work out alright, but it's not safe to try for now. Made this function
 %                   compatible with new data object status properties.
 %       20141001:   Removed the option to use arrays of BOLD data objects with this method.
+%       20141002:   Had to change the name of the window parameter to WindowName to avoid conflicts that were cropping
+%                   up with my Window class. 
 
 %% TODOS
 % Immediate Todos
@@ -61,21 +63,21 @@ function Filter(boldData, varargin)
 inStruct = struct(...
     'Passband', [0.01 0.08],...
     'UseZeroPhaseFilter', true,...
-    'Window', 'hamming',...
+    'WindowName', 'hamming',...
     'WindowLength', 45);
 assignInputs(inStruct, varargin);
 
 % Error checking
 boldData.AssertSingleObject;
 boldData.LoadData;
-if ~strcmpi(Window, 'hamming')
+if ~strcmpi(WindowName, 'hamming')
     error('Filter windows other than the Hamming window have not been implemented yet');
 end
 
 % Build filter parameters
 TR = boldData.TR/1000;
 WindowLength = round(WindowLength / TR);
-windowParams = window(eval(['@' lower(Window)]), WindowLength+1);
+windowParams = window(eval(['@' lower(WindowName)]), WindowLength+1);
 filterParams = fir1(WindowLength, Passband.*2.*TR, windowParams);
 
 
@@ -122,4 +124,4 @@ szBOLD = size(boldData.Data.Functional);
 boldData.Data.Functional = reshape(newFunData, [szBOLD(1:3) size(newFunData, 2)]);
 
 % Fill in object properties
-Filter@humanObj(boldData, Passband, filterShift, UseZeroPhaseFilter, Window, WindowLength);
+Filter@humanObj(boldData, Passband, filterShift, UseZeroPhaseFilter, WindowName, WindowLength);

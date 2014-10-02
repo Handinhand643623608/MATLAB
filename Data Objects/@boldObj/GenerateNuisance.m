@@ -26,7 +26,7 @@ function GenerateNuisance(boldData)
 boldData.AssertSingleObject;
 boldData.LoadData;
 
-% Store a list of nuisance parameters
+% Store a list of nuisance parameters (order here is critical for other functions)
 nuisanceStrs = {'Global', 'WM', 'CSF'};
 
 % Get & flatten the functional data

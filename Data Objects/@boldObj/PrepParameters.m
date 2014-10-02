@@ -50,33 +50,34 @@ function paramStruct = PrepParameters
 % Provide input & output data paths
 paramStruct.DataPaths = struct(...
     'MNIBrainTemplate',         [get(Paths, 'Globals') '/MNI/template/T1.nii'],...          % The path to the MNI brain template image
-    'MNIFolder',                [get(Paths, 'Globals') '/MNI'],...                          % 
+    'MNIFolder',                [get(Paths, 'Globals') '/MNI'],...                          % The path to the general MNI folder
     'OutputPath',               get(Paths, 'BOLD'),...                                      % Choose where preprocessed data should be saved
     'RawDataPath',              get(Paths, 'Raw'),...                                       % Specify the top-level raw data path (where each subject data folder is)
     'SegmentsFolder',           [get(Paths, 'Globals') '/MNI/segments']);                   % Specify where MNI segment maps are stored
 
 % Provide data folder signatures that uniquely identify subject- & scan-specific data (use REGEXP metacharacters if necessary)
 paramStruct.DataFolderIDs = struct(...
-    'AnatomicalFolderID',       't1_MPRAGE_',...                                    % Provide a naming prototype that identifies each subject's structural scan
-    'FunctionalFolderID',       'ep2d_.*_Rest_\d',...                               % Provide a naming prototype that identifies all functional data folders inside subject folders
-    'SubjectFolderID',          '1..A');                                            % Provide a naming prototype that identifies all subject data folders
+    'AnatomicalFolderID',       't1_MPRAGE_',...                                            % Provide a naming prototype that identifies each subject's structural scan
+    'FunctionalFolderID',       'ep2d_.*_Rest_\d',...                                       % Provide a naming prototype that identifies all functional data folders inside subject folders
+    'SubjectFolderID',          '1..A');                                                    % Provide a naming prototype that identifies all subject data folders
 
 % Indicate which scans should be preprocessed
 scansToProcess = {[1, 2], [1, 2], [1, 2], [1, 2], [], [], [1, 2], [1, 2]};
 paramStruct.DataSelection = struct(...
-    'ScanState',                'RS',...                                            % Provide the task that subjects performed during the scans (has no impact on preprocessing)
-    'ScansToProcess',           {scansToProcess},...                                % List which scans (per subject) should be preprocessed
-    'SubjectsToProcess',        [1:4, 7, 8]);                                       % List which subjects should be preprocessed
+    'ScanState',                'RS',...                                                    % Provide the task that subjects performed during the scans (has no impact on preprocessing)
+    'ScansToProcess',           {scansToProcess},...                                        % List which scans (per subject) should be preprocessed
+    'SubjectsToProcess',        [1:4, 7, 8]);                                               % List which subjects should be preprocessed
 
 % Choose which preprocessing stages will be utilized
 paramStruct.StageSelection = struct(...
-    'UseCoregistration',        true,...                                            % Coregister functional with anatomical images
-    'UseMotionCorrection',      true,...                                            % Correct minor subject movements during imaging
-    'UseNormalization',         true,...                                            % Normalize functional images to MNI space
-    'UseNuisanceRegression',    true,...
-    'UseSliceTimingCorrection', true,...                                            % Correct time delays arising from imaging adjacent brain slices at different times
-    'UseSpatialBlurring',       true,...
-    'UseTemporalFiltering',     true);
+    'ConvertToStructure',       false,...                                                   % Save the final data as a structure instead of an object
+    'UseCoregistration',        true,...                                                    % Coregister functional with anatomical images
+    'UseMotionCorrection',      true,...                                                    % Correct minor subject movements during imaging
+    'UseNormalization',         true,...                                                    % Normalize functional images to MNI space
+    'UseNuisanceRegression',    true,...                                                    % Regress nuisance signals out of the functional time series
+    'UseSliceTimingCorrection', true,...                                                    % Correct time delays arising from imaging adjacent brain slices at different times
+    'UseSpatialBlurring',       true,...                                                    % Apply a spatial Gaussian blur to the functional data
+    'UseTemporalFiltering',     true);                                                      % Temporally filter all time series data
 
 
 
@@ -91,10 +92,10 @@ paramStruct.SpatialBlurring = struct(...
 
 % Specify how to threshold segment images for use as masks
 paramStruct.SegmentThresholds = struct(...
-    'CSFCutoff',                0.2,...                                             % The cutoff probability above which normalized segment voxels are considered to be CSF
-    'GrayMatterCutoff',         0.1,...                                             % The cutoff probability above which normalized segment voxels are considered to be gray matter
+    'CSFCutoff',                0.5,...                                             % The cutoff probability above which normalized segment voxels are considered to be CSF
+    'GrayMatterCutoff',         0.5,...                                             % The cutoff probability above which normalized segment voxels are considered to be gray matter
     'MeanImageCutoff',          0.2,...                                             % The cutoff probability above which mean image voxels are considered to be brain tissue
-    'WhiteMatterCutoff',        0.15);                                              % The cutoff probability above which normalized segment voxels are considered to be white matter
+    'WhiteMatterCutoff',        0.5);                                               % The cutoff probability above which normalized segment voxels are considered to be white matter
 
 % Specify what kind of signals to linearly regress from functional time series
 paramStruct.NuisanceRegression = struct(...
@@ -111,8 +112,8 @@ paramStruct.SignalCropping = struct(...
 % Specify parameters for voxel signal filtering
 paramStruct.TemporalFiltering = struct(...
     'Passband',                 [0.01 0.08],...                                     % The passband of the filter (in Hertz)
-    'UseZeroPhaseFilter',       true,...
-    'Window',                   'gaussian',...
+    'UseZeroPhaseFilter',       true,...                                            % Correct the phase delay from FIR filters by filtering the signal twice in opposite directions
+    'WindowName',               'hamming',...                                       % The name of the window that the filter will use
     'WindowLength',             45);                                                % The length of the filter window (in seconds)                                       
 
 

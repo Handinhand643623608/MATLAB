@@ -29,7 +29,7 @@ function r = corr3(a, b)
 
 %% Volume Correlation
 % Check for dimensionality mismatches
-if (ndims(a) ~= 3 || ndims(b) || 3); error('Inputted arrays must be 3-dimensional only.'); end
+if (ndims(a) ~= 3 || ndims(b) ~= 3); error('Inputted arrays must be 3-dimensional only.'); end
 if (any(size(a) ~= size(b))); error('Inputted volume arrays must be identical in size'); end
 
 % Ensure that everything is double-precision

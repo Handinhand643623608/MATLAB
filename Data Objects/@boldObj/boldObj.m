@@ -82,6 +82,7 @@ classdef boldObj < humanObj
 %                   Regress method code here to the class definition file. Updated the version number of this software 
 %                   to 2 to reflect these changes.
 %       20140929:   Changed the TR & TE fields to dependent properties that pull from the acquisition structure.
+%       20141002:   Bug fixes for the BLUR and IDENTIFYSEGMENTS methods. 
 
 %% DEPENDENCIES
 %
@@ -110,16 +111,10 @@ classdef boldObj < humanObj
 
 %% TODOS
 % Immediate Todos
-% - Implement SPM slice timing correction
-%   > Prevents having to use a Linux machine for preprocessing.
 % - Implement a volume rendering method.
-% - Simplify the preprocessing procedure
-%   > Maybe implement a GUI for parameter selection
-%   > Remove the need for instantiating a parameter structure before preprocessing
-% - Fix hard-coded preprocessing dependency on IMG folder name.
-%   > Maybe just hard-code all folders like this to simplify the parameter structure?
-% - Test all rewritten functionality.
 % - Implement data reorientation (i.e. sagittal, coronal, transverse views)
+% - Make segment identification more robust
+% - Look into improving detrending speed
 %
 % Future Todos
 % - Automate the ICA process
@@ -191,8 +186,8 @@ classdef boldObj < humanObj
     %% General Utilities
     methods
         GenerateNuisance(boldData)                                      % Generate & store nuisance signals
-        varargout   = Mask(boldData, maskData, confPct, replaceWith)    % Mask BOLD data
         
+        varargout   = Mask(boldData, maskData, confPct, replaceWith)    % Mask BOLD data
         varargout   = Plot(boldData, varargin)                          % Plot BOLD data as an image montage            
     end
     
@@ -392,7 +387,7 @@ classdef boldObj < humanObj
             
             % Blur the functional data
             funData = boldData.ToArray;
-            fspec = fpsecial('gaussian', hsize, sigma);
+            fspec = fspecial('gaussian', hsize, sigma);
             for a = 1:size(boldData, 4)
                 funData(:, :, :, a) = imfilter(funData(:, :, :, a), fspec);
             end
@@ -561,14 +556,14 @@ classdef boldObj < humanObj
             boldData.LoadData;
             
             % Get stage parameters from the data object
-            regParams = boldData.Parameters.NuisanceRegression;
+            regParams = boldData.Preprocessing.NuisanceRegression;
             
             % Detrend the data first, then generate nuisance parameters
             boldData.Detrend(regParams.DetrendOrder);
             GenerateNuisance(boldData)
             
             % Build a list of parameters to regress from the functional time series
-            regSignal = ones(1, numTimePoints);
+            regSignal = ones(1, boldData.NumTimePoints);
             if (regParams.RegressMotion); regSignal = cat(1, regSignal, boldData.Data.Nuisance.Motion); end
             if (regParams.RegressGlobal); regSignal = cat(1, regSignal, boldData.Data.Nuisance.Global); end
             if (regParams.RegressWhiteMatter); regSignal = cat(1, regSignal, boldData.Data.Nuisance.WM); end
@@ -578,6 +573,11 @@ classdef boldObj < humanObj
             boldData.Regress(regSignal);
             
         end
+    end
+    
+    methods (Static)
+        Preprocess(params)                      % Preprocess raw BOLD data & create new data objects
+        paramStruct = PrepParameters            % Get data object preprocessing parameters
     end
     
     
@@ -603,7 +603,7 @@ classdef boldObj < humanObj
                 switch segNames{a}
                     case 'CSF';     boldData.Data.Masks.CSF = segData.CSF > params.CSFCutoff;
                     case 'GM';      boldData.Data.Masks.GM = segData.GM > params.GrayMatterCutoff;
-                    case 'WM';      boldData.Data.Masks.WM = segData.WM > WhiteMatterCutoff;
+                    case 'WM';      boldData.Data.Masks.WM = segData.WM > params.WhiteMatterCutoff;
                     otherwise;      error('An unrecognized segment name was found in the BOLD segment data field.');
                 end
             end            
@@ -663,15 +663,24 @@ classdef boldObj < humanObj
                 end
             end
             
-            % Re-initialize the segment data storage field of the data object
-            boldData.Data.Segments = struct('CSF', [], 'GM', [], 'WM', []);
+            % Identify the anatomical segments (GM & WM tend to correlate very well with templates)
+            [~, idxGM] = max(imgCorr.GM);
+            [~, idxWM] = max(imgCorr.WM);
             
-            % Identify the preprocessed segemnts
-            segNames = fieldnames(imgCorr);
-            for a = 1:length(segNames)
-                [~, idxSeg] = max(imgCorr.(segNames{a}));
-                boldData.Data.Segments.(segNames{a}) = segData(:, :, :, idxSeg);
+            % Do a quick error check to ensure all segments will get stored (even if they are incorrectly identified)
+            if (idxGM == idxWM)
+                warning('Segment identities were unable to be resolved automatically. They will have to be manually assigned.');
+                return;
             end
+            
+            % If the GM & WM indices are unique, assume the CSF index is unique one
+            idxCSF = setdiff(1:numSegs, [idxGM, idxWM]);
+            
+            % Re-initialize the segment data storage field & sort the segments
+            boldData.Data.Segments = struct(...
+                'CSF',  segData(:, :, :, idxCSF),...
+                'GM',   segData(:, :, :, idxGM),...
+                'WM',   segData(:, :, :, idxWM));
             
         end
         function MaskSegments(boldData, maskImage)
@@ -687,7 +696,7 @@ classdef boldObj < humanObj
             if isstruct(segData)
                 segNames = fieldnames(segData);
                 for a = 1:length(segNames)
-                    segData.(segNames(a)) = segData.(segNames{a}) .* maskImage;
+                    segData.(segNames{a}) = segData.(segNames{a}) .* maskImage;
                 end
             else
                 for a = 1:size(segData, 4)
@@ -733,11 +742,6 @@ classdef boldObj < humanObj
         
     end
     
-    methods (Static)
-        Preprocess(params)                      % Preprocess raw BOLD data & create new data objects
-        paramStruct = PrepParameters            % Get data object preprocessing parameters
-    end
-       
     
     
     %% Static Utility Functions

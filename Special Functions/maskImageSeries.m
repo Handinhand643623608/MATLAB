@@ -15,10 +15,10 @@ if (~islogical(mask)); error('The array being used as a mask must be a logical a
 
 % Get the inputted array & mask dimensionalities
 szArray = size(array);
-szMask = sz(mask);
+szMask = size(mask);
 
 % If the array & mask are equivalent in size, do a simple mask
-if (all(szArray == szMask))
+if (length(szArray) == length(szMask) && all(szArray == szMask))
     maskedArray = array .* mask;
     return;
 end

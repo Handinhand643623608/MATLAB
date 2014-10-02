@@ -3,12 +3,16 @@ function Preprocess(params)
 %
 %   SYNTAX:
 %   boldObj.Preprocess
-%   boldObj.Preprocess(paramStruct)
+%   boldObj.Preprocess(params)
 %
 %   OPTIONAL INPUT:
-%   paramStruct:    STRUCT
+%   params:         STRUCT
 %                   The preprocessing parameter structure, which is an aggregation of all parameters and user input
-%                   needed to autonomously import, preprocess, and store raw BOLD functional data. 
+%                   needed to autonomously import, preprocess, and store raw BOLD functional data. This parameter can
+%                   be found inside of the PrepParameters file associated with the BOLD data object code. It is
+%                   recommended that you modify the parameters found inside this file as needed in order to influence
+%                   the preprocessing pipeline. If this argument is empty, the parameter structure inside the
+%                   PrepParameters file is used. 
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130707
@@ -36,12 +40,13 @@ function Preprocess(params)
 %                   automatically.
 %       20140829:   Converted this function into a static method of the BOLD data object class.
 %       20140929:   Major overhaul of this function to work with the preprocessing parameter structure overhaul.
+%       20141002:   Fixed redundant anatomical segmentations when the scans are from the same subject.
 
 
 %% TODOS
 % Immediate Todos
-% - Implement skipping of unnecessary anatomical segmentations
 % - Hide SPM & AFNI echoing
+% - Get rid of GUIs (where did these come from all of a sudden?!)
 %
 % Future Todos
 % - Implement parallel data preprocessing
@@ -53,8 +58,9 @@ function Preprocess(params)
 % Get the default preprocessing parameter structure if a custom one isn't provided
 if nargin == 0; params = boldObj.PrepParameters; end
 
-% Determine which preprocessing stages to execute
+% Create shortcuts to certain parameters used in this file
 stages = params.StageSelection;
+scans = params.DataSelection;
 
 % Clean out any previous preprocessed data in the raw data folders
 boldObj.CleanRawFolders(...
@@ -62,6 +68,10 @@ boldObj.CleanRawFolders(...
     'AnatomicalFolderStr', params.DataFolderIDs.AnatomicalFolderID,...
     'FunctionalFolderStr', params.DataFolderIDs.FunctionalFolderID,...
     'SubjectFolderStr', params.DataFolderIDs.SubjectFolderID);
+
+% Keep track of segmentation to prevent running it more than once per subject
+isSegmented = false(1, max(scans.SubjectsToProcess));
+subjSegData = struct;
 
 % Set progress bar parameters
 baseNumStages = 4;
@@ -71,12 +81,12 @@ numSteps = sum(struct2array(stages)) + baseNumStages;
 
 %% Preprocess Raw BOLD Data
 pbar = Progress('', '', '');
-for a = params.DataSelection.SubjectsToProcess
+for a = scans.SubjectsToProcess
     
     pbar.Title(1, ['Processing Subject ' num2str(a)]);
     pbar.Reset(2);
     
-    for b = params.DataSelection.ScansToProcess{a}
+    for b = scans.ScansToProcess{a}
         
         pbar.Title(2, ['Processing Scan ' num2str(b)]);
         pbar.Reset(3);
@@ -102,9 +112,15 @@ for a = params.DataSelection.SubjectsToProcess
         pbar.Update(3, step/numSteps);
         step = step + 1;
         
-        % [ TESTED ] Segment the anatomical image
-        pbar.Title(3, 'Segmenting AnatomicalData');
-        PrepSegment(boldData);
+        % [ TESTED ] Segment the anatomical image, avoiding redundancy as applicable
+        pbar.Title(3, 'Segmenting Anatomical Data');
+        if (~isSegmented(a))
+            PrepSegment(boldData);
+            subjSegData = rmfield(boldData.Preprocessing.WorkingData, {'Anatomical', 'Functional'});
+            isSegmented(a) = true;
+        else
+            boldData.Preprocessing.WorkingData = mergestructs(boldData.Preprocessing.WorkingData, subjSegData);
+        end
         pbar.Update(3, step/numSteps);
         step = step + 1;
         
@@ -148,41 +164,47 @@ for a = params.DataSelection.SubjectsToProcess
         
         % Store temporary files at this point so alterations in conditioning can easily occur later
         pbar.Title(3, 'Storing Unconditioned BOLD Data');
-        rawStoreName = sprintf('boldObject-%d-%d_%s_raw.mat', a, b, params.DataSelection.ScanState);
-        Store(boldData, 'Name', rawStoreName, 'Path', OutputPath);
+        rawStoreName = sprintf('boldObject-%d-%d_%s_raw.mat', a, b, scans.ScanState);
+        boldData.Store('Name', rawStoreName, 'Path', params.DataPaths.OutputPath);
         pbar.Update(3, step/numSteps);
         step = step + 1;
         
+        % Remove TRs from beginning of all time series
         
         
+        % [ TESTED ] Normalize the mean functional image & convert it to a binary mask
+        pbar.Title(3, 'Generating a Mean Functional Image Mask');
         meanData = boldData.Data.Mean;
         minMean = min(meanData(:));
         meanData = (meanData - minMean) ./ (max(meanData(:)) - minMean);
         boldData.Data.Mean = meanData;
         boldData.Data.Masks.Mean = (meanData > params.SegmentThresholds.MeanImageCutoff);
         
-        
-        
+        % [ TESTED ] Attempt to autonomously identify anatomical segments
         pbar.Title(3, 'Identifying Imported Anatomical Segments');
         IdentifySegments(boldData);
         pbar.Update(3, step/numSteps);
         step = step + 1;
         
-       
-        
+        % [ TESTED ] Apply a spatial Gaussian blur to the data
         if stages.UseSpatialBlurring
             pbar.Title(3, 'Applying Spatial Blur to Images');
-            Blur(boldData, params.SpatialBlurring.Size, params.SpatialBlurring.Sigma, params.SpatialBlurring.ApplyToMasks);
+            Blur(boldData, params.SpatialBlurring.Size, params.SpatialBlurring.Sigma, params.SpatialBlurring.ApplyToSegments);
             pbar.Update(3, step/numSteps);
             step = step + 1;
         end
         
-        
-        
-        MaskSegments(boldData, boldData.Data.Masks.Mean);
+        % [ TESTED ] Create CSF, white matter, and gray matter masks
+        pbar.Title(3, 'Generating Anatomical Segment Masks');
         NormalizeSegments(boldData);
         GenerateSegmentMasks(boldData);
+        pbar.Update(3, step/numSteps);
+        step = step + 1;
         
+        % [ TESTED ] Mask out non-brain areas using the mean functional image
+        Mask(boldData, boldData.Data.Masks.Mean, 0, NaN);
+        
+        % [ TESTED ] Apply temporal filtering to the time series data
         if stages.UseTemporalFiltering
             pbar.Title(3, 'Temporally Filtering Data');
             filtParams = struct2var(params.TemporalFiltering);
@@ -191,34 +213,32 @@ for a = params.DataSelection.SubjectsToProcess
             step = step + 1;
         end
         
+        % STORED 
+        
+        % [ TESTED ] Regress out certain nuisance parameters
         if stages.UseNuisanceRegression
             pbar.Title(3, 'Regressing Nuisance Parameters from Time Series');
             PrepRegressNuisance(boldData);
             pbar.Update(3, step/numSteps);
             step = step + 1;
         end 
-        
-        
-        
-
-        % Condition the BOLD signals for analysis
-        pbar.Title(3, 'Conditioning BOLD Time Series Data');
-        PrepCondition(boldData);
-        pbar.Update(3, step/numSteps);
+       
+        % [ TESTED ] Z-Score the BOLD voxel time series
+        ZScore(boldData);
         
         % Store the BOLD data object 
-        if istrue(ConvertToStructure)
-            boldStruct = ToStruct(boldData);
-            saveNameStr = sprintf('%s/boldStruct-%d-%d_%s_%s.mat', OutputPath, a, b, ScanState, datestr(now, 'yyyymmdd'));
+        if stages.ConvertToStructure
+            boldStruct = boldData.ToStruct;
+            saveNameStr = sprintf('%s/boldStruct-%d-%d_%s_%s.mat',params.DataPath.OutputPath, a, b, scans.ScanState, datestr(now, 'yyyymmdd'));
             save(saveNameStr, 'boldStruct', '-v7.3');
             clear boldStruct;
         else
-            Store(boldData, 'Path', OutputPath);
+            boldData.Store('Path', params.DataPath.OutputPath);
         end
         clear boldData;
                 
-        update(progBar, 2, b/length(Scans{a}));
+        pbar.Update(2, find(b == scans.ScansToProcess{a})/length(scans.ScansToProcess{a}));
     end
-    update(progBar, 1, find(Subjects == a)/length(Subjects));
+    pbar.Update(2, find(a == scans.SubjectsToProcess)/length(scans.Subjects.ToProcess));
 end
 pbar.Close;
