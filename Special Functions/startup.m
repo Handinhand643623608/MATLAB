@@ -8,7 +8,8 @@
 %       20140804:   Updated the working code directory across my computers, which received a much needed update today.
 %                   Calling the working directory "svnSandbox" no longer makes sense; I haven't used SVN seriously in a
 %                   very long time.
-
+%       20141003:   Had to remove a SPM directory from the working path because it overloads the builtin nanmean
+%                   function with either a completely broken version or one that (stupidly) uses global variables.
 
 
 %% Setup MATLAB Environment
@@ -21,6 +22,9 @@ CD(Paths, 'Main');
 % Add data paths to MATLAB's working directories
 addpath(genpath(get(Paths, 'DataObjects')));
 addpath(genpath(get(Paths, 'Globals')));
+
+% SPM, with its boundlessly terrible programming, decided to overload the builtin nanmean function with its broken one
+rmpath([where('spm') '/external/fieldtrip/src']);
 
 % Wipe the command window
 clc

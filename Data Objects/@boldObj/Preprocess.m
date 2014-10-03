@@ -47,6 +47,7 @@ function Preprocess(params)
 % Immediate Todos
 % - Hide SPM & AFNI echoing
 % - Get rid of GUIs (where did these come from all of a sudden?!)
+% - Implement verbosity feedback options (e.g. in command prompt only, allow progress bar, show nothing, etc.)
 %
 % Future Todos
 % - Implement parallel data preprocessing
