@@ -3,6 +3,7 @@ function maskedArray = maskImageSeries(array, mask, replaceWith)
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20141001
+%       20141008:   Improved the check for mask and data array size equality.
 
 
 
@@ -18,7 +19,7 @@ szArray = size(array);
 szMask = size(mask);
 
 % If the array & mask are equivalent in size, do a simple mask
-if (length(szArray) == length(szMask) && all(szArray == szMask))
+if (isequal(szArray, szMask))
     maskedArray = array .* mask;
     return;
 end

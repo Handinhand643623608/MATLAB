@@ -1,5 +1,5 @@
 function [ccArr, lags] = xcorrArr(x, y, varargin)
-%XCORRARR Cross-correlation of two arrays.
+%XCORRARR - Cross-correlation of two arrays.
 %   This function performs cross-correlation exactly as the native XCORR function does, but expands on built-in
 %   functionality by allowing inputs of multidimensional arrays. This allows for rapid cross-correlation estimation
 %   between many signals, instead of having to compute single vectors of correlations at a time using FOR loops (as
@@ -74,6 +74,8 @@ function [ccArr, lags] = xcorrArr(x, y, varargin)
 %% CHANGELOG
 %   Written by Josh Grooms on 20130709
 %       20131126:   Implemented GPU processing for improved speed & updated documentation accordingly.
+%       20141007:   Moved an error check for input array sizes to an earlier position in the function. Implemented the
+%                   ability to perform autocorrelations on arrays if an empty second input is provided.
 
 
 
@@ -88,7 +90,10 @@ assignInputs(inStruct, varargin,...
                       'MaxLag', 'lag', 'maxlags';
                       'ScaleOpt', 'normalize', 'scale'});
 
-% Move calculations to the GPU for maximum speed
+% Deal with missing inputs
+if isempty(y); y = x; end
+                  
+% Move calculations to the GPU for maximum speed, if called for
 if istrue(GPU)
     reset(gpuDevice);
     x = gpuArray(x);
@@ -96,14 +101,15 @@ if istrue(GPU)
 end
 
 % Compute the default MaxLags value & lags vector
-if isempty(MaxLag)
-    MaxLag = size(x, Dim) - 1;
-end
+if isempty(MaxLag); MaxLag = size(x, Dim) - 1; end
 lags = -MaxLag:MaxLag;
 
-% Get the size of the input arrays
+% Get the size of the input arrays & check for sizing errors
 szx = size(x);
 szy = size(y);
+if szx(Dim) ~= szy(Dim)
+    error('Arrays must be the same size over the dimension being correlated.');
+end
 
 % Permute the arrays so that correlation dimension is the last
 permOrder = 1:ndims(x); permOrder(Dim) = ndims(x); permOrder(end) = Dim;
@@ -120,9 +126,7 @@ szFlaty = size(flaty, 1);
 
 % Make sure input arrays are the same size
 szCheck = [szFlatx(1) szFlaty(1)] == min(szFlatx(1), szFlaty(1));
-if szx(Dim) ~= szy(Dim)
-    error('Arrays must be the same size over the dimension being correlated')
-elseif ~all(szCheck)
+if ~all(szCheck)
     tempData = {flatx, flaty};
     tempSize = cellfun(@size, tempData, 'UniformOutput', false);
     tempData{szCheck} = repmat(tempData{szCheck}, tempSize{~szCheck}(1)/tempSize{szCheck}(1), 1);

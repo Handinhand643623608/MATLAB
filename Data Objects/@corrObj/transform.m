@@ -6,7 +6,7 @@ function z = transform(r, n)
 %
 %   SYNTAX:
 %   z = transform(r)
-%   z = transform(r, N)
+%   z = transform(r, n)
 %
 %   OUTPUT:
 %   z:              The transformed correlation coefficients in an array that is the same size and
