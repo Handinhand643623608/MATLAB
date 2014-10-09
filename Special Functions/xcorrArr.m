@@ -1,5 +1,5 @@
 function [ccArr, lags] = xcorrArr(x, y, varargin)
-%XCORRARR - Cross-correlation of two arrays.
+% XCORRARR - Cross-correlation of two arrays.
 %   This function performs cross-correlation exactly as the native XCORR function does, but expands on built-in
 %   functionality by allowing inputs of multidimensional arrays. This allows for rapid cross-correlation estimation
 %   between many signals, instead of having to compute single vectors of correlations at a time using FOR loops (as
