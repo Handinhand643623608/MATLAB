@@ -43,7 +43,7 @@ classdef Paths < hgsetget
         Globals             % The path to all global functions.
         Main                % The path to the main coding workspace.
         Raw                 % The path to all raw BOLD and EEG data sets.
-        Today               % The path to all today scripts.
+        TodayScripts        % The path to all today scripts.
         TodayData           % The path to where all today script data sets are saved.
         
     end
@@ -57,33 +57,34 @@ classdef Paths < hgsetget
             computerName = getenv('COMPUTERNAME');
             switch lower(computerName)
                 case 'desktop'
-                    myPaths.DataObjects   = 'E:/Graduate Studies/Lab Work/Data Sets/Data Objects';
-                    myPaths.Desktop       = 'C:/Users/Josh/Desktop';
-                    myPaths.Globals       = 'C:/Users/Josh/Dropbox/Globals';
-                    myPaths.Main          = 'C:/Users/Josh/Dropbox/MATLAB Code';
-                    myPaths.Raw           = 'E:/Graduate Studies/Lab Work/Data Sets/Raw Data';
-                    myPaths.Today         = 'C:/Users/Josh/Dropbox/MATLAB Code/Today Scripts';
-                    myPaths.TodayData     = 'E:/Graduate Studies/Lab Work/Data Sets/Today Data';
+                    myPaths.DataObjects     = Path('E:/Graduate Studies/Lab Work/Data Sets/Data Objects');
+                    myPaths.Desktop         = Path('C:/Users/Josh/Desktop');
+                    myPaths.FlashDrive      = Path('X:');
+                    myPaths.Globals         = Path('C:/Users/Josh/Dropbox/Globals');
+                    myPaths.Main            = Path('C:/Users/Josh/Dropbox/MATLAB Code');
+                    myPaths.Raw             = Path('E:/Graduate Studies/Lab Work/Data Sets/Raw Data');
+                    myPaths.TodayScripts    = Path('C:/Users/Josh/Dropbox/MATLAB Code/Today Scripts');
+                    myPaths.TodayData       = Path('E:/Graduate Studies/Lab Work/Data Sets/Today Data');
                     
                 case 'shella-bigboy1'
-                    myPaths.DataObjects   = 'C:/Users/jgrooms/Desktop/Data Sets/Data Objects';
-                    myPaths.Desktop       = 'C:/Users/jgrooms/Desktop';
-                    myPaths.FlashDrive    = 'E:';
-                    myPaths.Globals       = 'C:/Users/jgrooms/Dropbox/Globals';
-                    myPaths.Main          = 'C:/Users/jgrooms/Dropbox/MATLAB Code';
-                    myPaths.Raw           = 'S:/Josh/Data/Raw';
-                    myPaths.Today         = 'C:/Users/jgrooms/Dropbox/MATLAB Code/Today Scripts';
-                    myPaths.TodayData     = 'C:/Users/jgrooms/Desktop/Today Data';
+                    myPaths.DataObjects     = Path('C:/Users/jgrooms/Desktop/Data Sets/Data Objects');
+                    myPaths.Desktop         = Path('C:/Users/jgrooms/Desktop');
+                    myPaths.FlashDrive      = Path('X:');
+                    myPaths.Globals         = Path('C:/Users/jgrooms/Dropbox/Globals');
+                    myPaths.Main            = Path('C:/Users/jgrooms/Dropbox/MATLAB Code');
+                    myPaths.Raw             = Path('S:/Josh/Data/Raw');
+                    myPaths.TodayScripts    = Path('C:/Users/jgrooms/Dropbox/MATLAB Code/Today Scripts');
+                    myPaths.TodayData       = Path('C:/Users/jgrooms/Desktop/Today Data');
                     
                 case ''     % CABI doesn't have names evidently...
-                    myPaths.DataObjects   = '';
-                    myPaths.Desktop = '/home/jgrooms/Desktop';
-                    myPaths.FlashDrive = '';
-                    myPaths.Globals = '/home/jgrooms/Dropbox/Globals';
-                    myPaths.Main = '/home/jgrooms/Dropbox/MATLAB Code';
-                    myPaths.Raw = '';
-                    myPaths.Today = '/home/jgrooms/Dropbox/MATLAB Code/Today Scripts';
-                    myPaths.TodayData = '/home/jgrooms/Desktop/Today Data';
+                    myPaths.DataObjects     = Path('');
+                    myPaths.Desktop         = Path('/home/jgrooms/Desktop');
+                    myPaths.FlashDrive      = Path('');
+                    myPaths.Globals         = Path('/home/jgrooms/Dropbox/Globals');
+                    myPaths.Main            = Path('/home/jgrooms/Dropbox/MATLAB Code');
+                    myPaths.Raw             = Path('');
+                    myPaths.TodayScripts    = Path('/home/jgrooms/Dropbox/MATLAB Code/Today Scripts');
+                    myPaths.TodayData       = Path('/home/jgrooms/Desktop/Today Data');
             end
             
             % Fill in paths that can be derived
@@ -114,16 +115,16 @@ classdef Paths < hgsetget
     
     %% Get & Set Methods
     methods    
-        function boldFiles = get.InfraslowBOLD(myPaths)
-            boldFiles = Search(myPaths, 'BOLD', 'boldObject.*', 'Ext', '.mat');
+        function boldFiles = get.InfraslowBOLD(P)
+            boldFiles = Search(P, 'BOLD', 'boldObject.*', 'Ext', '.mat');
         end
-        function eegFiles = get.InfraslowEEG(myPaths)
-            eegFiles = myPaths.Search('EEG', 'eegObject.*', 'Ext', '.mat');
+        function eegFiles = get.InfraslowEEG(P)
+            eegFiles = P.Search('EEG', 'eegObject.*', 'Ext', '.mat');
         end
         
         % Return a path to a date-specific data folder for today scripts (creating one if it doesn't exist)
-        function todayDataPath = get.TodayData(myPaths)
-            todayDataPath = [myPaths.TodayData '/' datestr(now, 'yyyymmdd')];
+        function todayDataPath = get.TodayData(P)
+            todayDataPath = [P.TodayData '/' datestr(now, 'yyyymmdd')];
             if ~exist(todayDataPath, 'dir'); mkdir(todayDataPath); end
         end
     end
