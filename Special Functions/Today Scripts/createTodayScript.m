@@ -17,23 +17,25 @@ function createTodayScript
 %                   ends of variables listed at the beginning of the section. Made the analysis stamp an empty string
 %                   instead of an incomplete line of code.
 
+%% TODOS
+%   - Update this function to fully use File & Path class capabilities.
 
 
 %% Create the Today-Script
 % Navigate to the today-script directory
-oldDir = pwd;
-cd(get(Paths, 'Today'));
+scriptPath = get(Paths, 'TodayScripts');
+dataPath = get(Paths, 'TodayData');
 
 % Get the date of file creation & time of the first entry (right now)
 strDate = datestr(now, 'yyyymmdd');
 strTime = datestr(now, 'HHMM');
-strFilename = [strDate '.m'];
+todayScript = [scriptPath.ToString() '/' strDate '.m'];
 
 % Create the new script, but don't overwrite any existing files
-if exist(strFilename, 'file'); 
+if exist(todayScript, 'file'); 
     warning('A today-script with today''s date already exists. You''ll have to manually create another one');
 else
-    idFile = fopen(strFilename, 'w');
+    idFile = fopen(todayScript, 'w');
     
     % Print the date & time of the first entry in the file
     fprintf(idFile,...
@@ -52,17 +54,10 @@ else
         strDate,...
         strTime,...
         [strDate strTime],...
-        get(Paths, 'TodayData'),...
+        dataPath.ToString(),...
         [strDate strTime]);
     
     % Close the low-level editor & open the file in the IDE for user interaction
     fclose(idFile);
-    edit(strFilename);
+    edit(todayScript);
 end
-
-% Return to the directory that was scoped before this function was called
-cd(oldDir);
-    
-
-
-

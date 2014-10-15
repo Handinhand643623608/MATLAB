@@ -12,26 +12,30 @@ classdef File < Path
     
     %% Constructor Method
     methods
-        function F = File(pathStr)
+        function F = File(P)
             % FILE - Constructs a new File object or array of objects around path strings.
             
             if (nargin ~= 0)
-                Path.AssertStringContents(pathStr);
+                if (isa(P, 'Path'))
+                    if (~P(1).IsFile); error('Only paths to files may be converted into a file object.'); end
+                    pathStrs = cell(size(P));
+                    for a = 1:numel(P); pathStrs{a} = P(a).FullPath; end
+                end
                 
-                if (~iscell(pathStr)); pathStr = { pathStr }; end
-                F(numel(pathStr)) = File;
-                for a = 1:numel(pathStr)
-                    F(a).ParseFullPath(pathStr{a});
+                Path.AssertStringContents(P);
+                
+                if (~iscell(P)); P = { P }; end
+                F(numel(P)) = File;
+                for a = 1:numel(P)
+                    F(a).ParseFullPath(P{a});
                     if (~F(a).IsFile); error('The path provided must be a reference to a file.'); end
                 end
-                F = reshape(F, size(pathStr));
+                F = reshape(F, size(P));
             end
         end
     end
     
-    
-    
-    
+       
     
     %% General Utilities
     methods
@@ -86,10 +90,15 @@ classdef File < Path
             
         end
         
-        
+        function Edit(F)
+            % EDIT - Opens a MATLAB .m script or function for editing.
+            if (~strcmpi(F.Extension, 'm'))
+                error('Only MATLAB .m files can be opened for editing using this command.');
+            end
+            edit(F.FullPath);
+        end
         
     end
-    
     
     
 end

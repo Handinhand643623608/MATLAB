@@ -9,16 +9,15 @@ classdef  Path < hgsetget
     %% Properties
     
     
-    properties (SetAccess = private)
+    properties (SetAccess = protected)
         
         FullPath;               % The full path string that the object points to.
-        Extension;
+        Extension;              % Either 'Folder' or the extension string of the file that the full path points to.
         IsFile;                 % A Boolean that indicates whether or not the full path points to a file.
         IsFolder;               % A Boolean that indicates whether or not the full path points to a folder.
-        Name;
+        Name;                   % The name string of the file or folder that the full path points to.
         
     end
-    
     
     properties (Dependent)
         
@@ -52,6 +51,7 @@ classdef  Path < hgsetget
         
     %% General Utilities
     methods 
+        
         function parent = get.ParentDirectory(P)
             
             P.AssertSingleObject();
@@ -75,8 +75,57 @@ classdef  Path < hgsetget
             
         end
         
-        
-        function catP = horzcat(varargin)
+    end
+    
+    
+    methods
+        function F      = ToFile(P)
+            % TOFILE - Converts a path object pointing to a file into a File object.
+            if (~P.IsFile); error('Only paths to files may be converted into a file object.'); end
+            F = File(P);
+        end        
+        function str    = ToString(P)
+            % TOSTRING - Converts a path object into an equivalent string representation.
+            str = P.FullPath; 
+        end
+        function NavigateTo(P)
+            % NAVIGATETO - Changes MATLAB's current working directory to the directory that the path object points to. 
+            P.AssertSingleObject();
+            if (P.IsFile); P.ParentDirectory.NavigateTo();
+            else cd([P.FullPath '/']);
+            end
+        end
+    end
+    
+    
+    
+    %% Overloaded MATLAB Methods
+    methods
+                        
+        function addpath(P)
+            % ADDPATH - Adds a path to MATLAB's current working path list.
+            
+            for a = 1:numel(P); addpath(P(a).FullPath); end
+        end        
+        function cd(P)
+            % CD - Navigates to the inputted directory or parent directory if the object points to a file.
+            P.NavigateTo()
+        end
+        function str        = char(P)
+            % CHAR - Converts a Path object into a fully formed path string.
+            str = P.ToString();
+        end
+        function exists     = exist(P, type)
+            % EXIST - Checks for the existence of a file or folder at the specified path.
+            P.AssertSingleObject();
+            exists = exist(P.FullPath, type);
+        end        
+        function paths      = genpath(P)
+            % GENPATH - Recursively generates directory paths starting at the inputted object's path.
+            P.AssertSingleObject();
+            paths = Path(genpath(P.FullPath));
+        end
+        function catP       = horzcat(varargin)
             
             strCheck = cellfun(@ischar, varargin(2:end));
             pathCheck = cellfun(@(x) isa(x, 'Path'), varargin);
@@ -140,79 +189,41 @@ classdef  Path < hgsetget
                 
                 catP = reshape(catP, szCatP(permOrder));
                 catP = permute(catP, permOrder);
-                
-                
-            
-               
+
             else
                 error('NA');
             end
         end
-        
-        function newP = vertcat(P, varargin)
+        function [s, m, id] = mkdir(P)
+            % MKDIR - Creates the directory at the specified path.
+            [s, m, id] = mkdir(P.FullPath);
+        end        
+        function catP       = vertcat(P, varargin)
             
             if (~all(cellfun(@(x) isa(x, 'Path'), varargin)))
                 error('Vertical concatenation only applies to forming arrays of path objects.');
             end
             
+            warning('Object array concatenation is currently not working properly. Cancelling operation.');
+            return;
+            
             szP = size(P);
             
             newP(szP(1) + length(varargin), szP(2)) = Path;
             
-            
-                
-            
         end
-            
-            
-        
-        function str = char(P)
-            str = P.ToString();
-        end
-        
+
     end
-    
-    
-    methods
-        
-        function file   = ToFile(P)
-            % TOFILE - Converts a path object pointing to a file into a File object.
-            
-            if (~P.IsFile); error('Only paths to files may be converted into a file object.'); end
-            file = [];
-        end        
-        function str    = ToString(P)
-            % TOSTRING - Converts a path object into an equivalent string representation.
-            
-            str = P.FullPath; 
-        end
-        
-        
-        
-        
-        function NavigateTo(P)
-            % NAVIGATETO - Changes MATLAB's current working directory to the directory that the path object points to.
-            
-            if (P.IsFile); P.ParentDirectory.NavigateTo();
-            else cd([P.FullPath '/']);
-            end
-        end
-        
-    end
-    
     
     
     %% Private Class Methods
     methods (Access = protected)
-        
         function AssertSingleObject(P)
             % ASSERTSINGLEOBJECT - Throws an error if more than one Path object is supplied to a function.
-            
             if (numel(P) > 1)
                 error('Only one Path object may be inputted at a time.');
             end
         end
-        
         function ParseFullPath(P, pathStr)
             % PARSEFULLPATH - Deconstructs a full path string and populates the Path object properties with it.
             
@@ -232,29 +243,21 @@ classdef  Path < hgsetget
             if (P.IsFolder); P.Extension = 'Folder';
             else P.Extension = fileParts{1}{2};
             end 
-        end
-        
+        end 
     end
     
-    
     methods (Static, Access = protected)    
-        
         function AssertStringContents(var)
             % ASSERTSTRINGCONTENTS - Throws an error if a variable is not a string or cell array of strings.
-            
             strCheck = (iscell(var) && all(cellfun(@ischar, var))) || (ischar(var));
             if (~strCheck); error('Only strings or cell arrays of strings may be used with Path objects.'); end
-            
         end
-        
         function AssertSingleString(var)
             % ASSERTSINGLESTRING - Throws an error if a variable is not one single string. 
-            
             if (iscell(var) || ~isvector(var))
                 error('Only one string may be inputted to function at a time.');
             end
-        end
-        
+        end        
     end
                 
     

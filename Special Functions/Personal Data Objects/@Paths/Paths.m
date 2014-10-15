@@ -125,7 +125,7 @@ classdef Paths < hgsetget
         % Return a path to a date-specific data folder for today scripts (creating one if it doesn't exist)
         function todayDataPath = get.TodayData(P)
             todayDataPath = [P.TodayData '/' datestr(now, 'yyyymmdd')];
-            if ~exist(todayDataPath, 'dir'); mkdir(todayDataPath); end
+            if ~exist(todayDataPath.ToString(), 'dir'); mkdir(todayDataPath.ToString()); end
         end
     end
         
