@@ -50,21 +50,19 @@ classdef  Path < hgsetget
     
         
     %% General Utilities
-    methods 
+    methods
         
+        % Get Methods
         function parent = get.ParentDirectory(P)
-            
             P.AssertSingleObject();
             
             if (P.IsFile); pattern = '(.*)[\\/][^\\/]+\.[^\\/]$';
             else pattern = '(.*)[\\/][^\\/]+$';
             end
             parentPath = regexp(P.FullPath, pattern, 'tokens');
-            parent = Path(parentPath{1}{1});
-            
+            parent = Path(parentPath{1}{1}); 
         end
         function drive  = get.ParentDrive(P)
-            
             if (ispc)
                 drivePattern = '^([^\\/]:).*';
                 driveLetter = regexp(P.FullPath, drivePattern, 'tokens');
@@ -72,13 +70,14 @@ classdef  Path < hgsetget
             else
                 drive = Path('/');
             end
-            
         end
         
-    end
-    
-    
-    methods
+        % Object Conversion Methods
+        function C      = ToCell(P)
+            % TOCELL - Converts a Path object or array of objects into cell array of full path strings.
+            C = cell(size(P));
+            for a = 1:numel(P); C{a} = P(a).FullPath; end
+        end
         function F      = ToFile(P)
             % TOFILE - Converts a path object pointing to a file into a File object.
             if (~P.IsFile); error('Only paths to files may be converted into a file object.'); end
@@ -88,6 +87,8 @@ classdef  Path < hgsetget
             % TOSTRING - Converts a path object into an equivalent string representation.
             str = P.FullPath; 
         end
+        
+        % Navigation Methods
         function NavigateTo(P)
             % NAVIGATETO - Changes MATLAB's current working directory to the directory that the path object points to. 
             P.AssertSingleObject();
@@ -95,6 +96,16 @@ classdef  Path < hgsetget
             else cd([P.FullPath '/']);
             end
         end
+        function ViewInExplorer(P)
+            % VIEWINEXPLORER - Opens a directory or a file's parent directory in Windows Explorer.
+            
+            if (~ispc); warning('This function is only available on Windows PCs.'); return; end
+            if (P.IsFile); P.ViewInExplorer(P.ParentDirectory);
+            else winopen(P.FullPath);
+            end
+            
+        end
+        
     end
     
     
@@ -103,14 +114,14 @@ classdef  Path < hgsetget
     methods
                         
         function addpath(P)
-            % ADDPATH - Adds a path to MATLAB's current working path list.
-            
+            % ADDPATH - Adds a path to MATLAB's current working path list.            
             for a = 1:numel(P); addpath(P(a).FullPath); end
         end        
         function cd(P)
             % CD - Navigates to the inputted directory or parent directory if the object points to a file.
             P.NavigateTo()
         end
+        
         function str        = char(P)
             % CHAR - Converts a Path object into a fully formed path string.
             str = P.ToString();
@@ -214,6 +225,7 @@ classdef  Path < hgsetget
         end
 
     end
+    
     
     
     %% Private Class Methods
