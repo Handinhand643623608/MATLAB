@@ -73,7 +73,7 @@ if ~isempty(allFileNames)
     % Search for specific file extensions, if called for 
     if ~isempty(Ext) && ~strcmpi(Ext, 'folder')
         idsExt = regexpi(allFileNames, [Ext '$']);
-        idsExt = ~cellfun(@(x) isempty(x), idsExt);
+        idsExt = ~cellfun(@isempty, idsExt);
         
         % If no file extensions are found, error out unless overridden
         if ~any(idsExt)

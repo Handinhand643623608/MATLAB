@@ -22,19 +22,12 @@ classdef Paths < hgsetget
 %                   very long time.
 %       20140929:   Removed the GetEEG and GetBOLD methods and created new dependent object properties to take over
 %                   their functionality. Reorganized class a bit.
-%       20141016:   Converted this into a makeshift static class so that paths are easier to access. 
+%       20141016:   Converted this into a makeshift static class so that paths are easier to access. Removed access to
+%                   infraslow object paths (this is to be taken over by the corresponding Files class). Removed all
+%                   other properties and methods that worked with the non-static Paths class.
    
     
     %% Important Paths
-    properties (Dependent)
-        
-        InfraslowBOLD       % A list of paths to all current infraslow BOLD data objects.
-        InfraslowEEG        % A list of paths to all current infraslow EEG data objects.
-        
-    end
-    
-    
-    
     methods (Static)
         
         function P = BOLD
@@ -143,34 +136,6 @@ classdef Paths < hgsetget
         end
     end
         
-    
-    
-    %% Data File Retrieval & Query Methods
-    methods 
-        pathList = Contents(myPaths, folder)                        % Get a list of paths to all folder contents
-        pathList = Search(myPaths, folder, searchStr, varargin)     % Search through a folder for specific files 
-    end    
-    
-    
-    
-    %% Get & Set Methods
-    methods    
-        function boldFiles = get.InfraslowBOLD(P)
-            boldFiles = Search(P, 'BOLD', 'boldObject.*', 'Ext', '.mat');
-        end
-        function eegFiles = get.InfraslowEEG(P)
-            eegFiles = P.Search('EEG', 'eegObject.*', 'Ext', '.mat');
-        end
-    end
-        
-    
-    
-    %% Object Conversion Methods
-    methods     
-        function pathStruct = ToStruct(myPaths)
-            %TOSTRUCT - Converts a path storage object into a structure.
-            pathStruct = get(myPaths);
-        end
-    end
+
    
 end

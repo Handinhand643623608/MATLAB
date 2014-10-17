@@ -26,6 +26,12 @@ classdef  Path < hgsetget
         
     end
     
+    methods (Static)
+        function P = PWD
+            % Gets the current working directory as a Path object.
+            P = Path(pwd);
+        end
+    end
     
     
     
@@ -73,20 +79,49 @@ classdef  Path < hgsetget
         end
         
         % Object Conversion Methods
-        function C      = ToCell(P)
+        function c = ToCell(P)
             % TOCELL - Converts a Path object or array of objects into cell array of full path strings.
-            C = cell(size(P));
-            for a = 1:numel(P); C{a} = P(a).FullPath; end
+            c = cell(size(P));
+            for a = 1:numel(P); c{a} = P(a).FullPath; end
         end
-        function F      = ToFile(P)
+        function F = ToFile(P)
             % TOFILE - Converts a path object pointing to a file into a File object.
             if (~P.IsFile); error('Only paths to files may be converted into a file object.'); end
             F = File(P);
         end        
-        function str    = ToString(P)
+        function s = ToString(P)
             % TOSTRING - Converts a path object into an equivalent string representation.
-            str = P.FullPath; 
+            s = P.FullPath; 
         end
+
+        % Directory Searching Methods
+        function F = FileContents(P)
+            % FILECONTENTS - Gets a list of all files in a directory.
+            assert(P.IsFolder, 'Contents can only be retrieved for paths to directories, not files.');
+            allFiles = dir(P.FullPath);
+            allFiles([allFiles.isdir]) = [];
+            F = File({allFiles.name});
+        end
+        function F = FileSearch(P, query)
+            % FILESEARCH - Searches for a specific file inside of a folder.
+            if nargin == 1; query = '.*'; end
+            assert(P.IsFolder, 'Files may only be searched for in folders, not in other files.');
+            
+            F = P.FileContents();
+            idsMatch = regexpi(F.ToCell(), ['.*' query '.*']);
+            idsMatch = ~cellfun(@isempty, idsMatch);
+            
+            if (~any(idsMatch))
+                warning(['No files with the signature %s were found in %s.\n'...
+                         'Check to ensure that the file exists in this folder'],...
+                         query,...
+                         P.FullPath);
+                F = File;
+                return;
+            end
+            
+            F(~idsMatch) = [];
+        end        
         
         % Navigation Methods
         function NavigateTo(P)
@@ -98,9 +133,8 @@ classdef  Path < hgsetget
         end
         function ViewInExplorer(P)
             % VIEWINEXPLORER - Opens a directory or a file's parent directory in Windows Explorer.
-            
             if (~ispc); warning('This function is only available on Windows PCs.'); return; end
-            if (P.IsFile); P.ViewInExplorer(P.ParentDirectory);
+            if (P.IsFile); P.ParentDirectory.ViewInExplorer();
             else winopen(P.FullPath);
             end
             
@@ -245,7 +279,7 @@ classdef  Path < hgsetget
             P.FullPath = regexprep(pathStr, '[\\/]$', '');
             P.FullPath = regexprep(pathStr, '\\', '/');
             
-            filePattern = '([^\\/\.]+)\.?([^\\/]*)$';
+            filePattern = '([^\\/\.]*)\.?([^\\/]*)$';
             fileParts = regexp(P.FullPath, filePattern, 'tokens');
             P.IsFolder = isempty(fileParts{1}{2});
             P.IsFile = ~P.IsFolder;
