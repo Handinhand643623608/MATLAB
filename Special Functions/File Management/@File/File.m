@@ -194,30 +194,98 @@ classdef File < Path
         
         % File Stream Management Methods
         function Close(F)
-            % CLOSE - Closes an open file reference.
+        % CLOSE - Closes an open file stream.
+        %
+        %   This method closes any open data streams for files, producing a warning for any files that were not opened
+        %   using the OPEN method of this class. 
+        %
+        %   Data streams should always be closed manually as soon as any IO operations on the file are completed. This
+        %   is because open streams lock the underlying file and prevent access from any other part of the computer
+        %   system. Additionally, so long as a stream is open, the possibility of file corruption is increased.
+        %
+        %   The File class offers additional protection against forgetting to close file streams by providing a
+        %   destructor method that performs the close operation automatically whenever objects are deleted from memory.
+        %   Thus, whenever an open File object goes out of scope, the stream is automatically closed. However, this
+        %   should not be used as a substitute for manually closing the stream because, so long as the object is
+        %   referenced in the base or active workspace, it will not be deleted. 
+        %
+        %   SYNTAX:
+        %       Close(F)
+        %       F.Close()
+        %
+        %   INPUT:
+        %       F:      FILE or [ FILES ]
+        %               A File object or array of objects with open data streams to be closed.
+        %               
             
-            if (~F.IsOpen)
-                warning('The file %s is already closed or was never opened. Aborting the operation.', F.Name);
-                return;
+            for a = 1:numel(F)
+                if (~F(a).IsOpen)
+                    warning('The file %s is already closed or was never opened. Aborting the operation.', F(a).FullName);
+                    return;
+                end
+
+                didClose = fclose(F(a).FID);
+                assert(didClose ~= -1, 'The file %s could not be closed by MATLAB.', F(a).FullPath);
+
+                F(a).FID = NaN;
+                F(a).IsOpen = false;
             end
-            
-            didClose = fclose(F.FID);
-            assert(didClose ~= -1, 'The file %s could not be closed by MATLAB.', F.FullPath);
-            
-            F.FID = NaN;
-            F.IsOpen = false;
         end
         function Edit(F)
-            % EDIT - Opens a .m script or function in the MATLAB editor.
-            
-            if (~strcmpi(F.Extension, 'm'))
-                error('Only MATLAB .m files can be opened for editing using this command.');
-            end
+        % EDIT - Opens a .m script or function in the MATLAB editor.
+        %
+        %   This method opens any MATLAB code or text file with the .m extension. The contents of this file are
+        %   irrelevant to invoking this method, so it may contain plain text or function/script/class definitions.
+        %
+        %   EDIT is just a wrapper for the MATLAB-native function EDIT. As such, it inherits most of the behaviors that
+        %   are supported by that function. Unlike the native EDIT function, this method does not support the opening of
+        %   multiple file references, nor does it support invocation with an empty File object (the equivalent of
+        %   calling the native EDIT with no inputs).
+        %
+        %   SYNTAX:
+        %       Edit(F)
+        %       F.Edit()
+        %
+        %   INPUT:
+        %       F:      FILE
+        %               A single File object referencing a MATLAB .m code file. This file must be a .m text file;
+        %               inputting a reference to any other file type is an error. Arrays of File objects are not
+        %               supported by this function.
+        %
+        %   See also:   EDIT
+            F.AssertSingleObject();
+            assert(strcmpi(F.Extension, 'm'), 'Only MATLAB .m files can be opened for editing using this command.');
             edit(F.FullPath);
         end
         function Open(F, opt)
-            % OPEN - Opens a file with read or write access.
-            
+        % OPEN - Opens a file with read or write access.
+        %
+        %   This method opens a data stream for a file that exists or will be created on the computer's hard drive. The
+        %   file in question does not have to exist prior to invoking this method; it will be created automatically in 
+        %   the parent directory referenced by F if it does not.
+        %
+        %   OPEN is just a wrapper for the MATLAB-native function FOPEN. As such, it inherits most of the behaviors that
+        %   are supported by that function. Unlike FOPEN, OPEN returns no values because the handle to the data stream
+        %   is managed automatically by the File object. For more information on file IO operations, see the MATLAB
+        %   documentation for FOPEN and the associated functions.
+        %
+        %   SYNTAX:
+        %       Open(F)
+        %       Open(F, opt)
+        %       F.Open()
+        %       F.Open(opt)
+        %
+        %   INPUT:
+        %       F:      FILE
+        %               A File object pointing to a file on the computer's hard drive. This file does not have to exist
+        %               prior to using this method. If it does not, the file is created upon opening.
+        %
+        %   OPTIONAL INPUT:
+        %       opt:    STRING
+        %               A string indicating the read/write access that the resulting data stream should have. This
+        %               argument can be any of the permission strings supported by the native function FOPEN.
+        %
+        %   See also:   CLOSE, FCLOSE, FOPEN, WRITE, WRITELINE
             if (nargin == 1); opt = 'r'; end
             if (F.IsOpen)
                 warning('The file %s is already open for editing.', F.Name);
@@ -232,13 +300,95 @@ classdef File < Path
             F.Permission = opt;
         end
         function Write(F, text, varargin)
-            % WRITE - Writes inputted text or data to an open file stream.
+        % WRITE - Writes inputted text or data to an open file stream.
+        %
+        %   This method writes text to a file's open data stream so that it appears in the file upon opening it using
+        %   MATLAB or any other text editor. The file being used must already exist and must have been opened with write
+        %   permissions using the OPEN method. If any of these criteria are failed, WRITE will throw an error.
+        %
+        %   WRITE is just a wrapper for the MATLAB-native function FPRINFT. As such, it inherits most of the behaviors
+        %   that are supported by that function. Unlike FPRINTF, this function does not require a handle to the data
+        %   stream (i.e. FID in the documentation for FPRINTF) because this handle is managed automatically by File
+        %   objects. Additionally, there is currently no output from WRITE. For more information on file IO operations,
+        %   see the MATLAB documentation for FPRINTF and the associated functions.
+        %
+        %   SYNTAX:
+        %       Write(F, text)
+        %       Write(F, text, var1, var2,..., varN)
+        %       F.Write(text)
+        %       F.Write(text, var1, var2,..., varN)
+        %
+        %   INPUT:
+        %       F:          FILE
+        %                   A single File object that is to have data written to it. Arrays of objects are not supported
+        %                   by this function. This file must have been opened using the OPEN method of this class and
+        %                   must have write permission. Failing any of these criteria is an error.
+        %
+        %       text:       STRING
+        %                   A single string that will be written to the open file. Arrays and cell arrays of strings are
+        %                   not supported by this function. This string may be any length of characters and can contain
+        %                   escape sequences (i.e. formatting characters) that will be substituted with values from any
+        %                   var parameters.
+        %
+        %   OPTIONAL INPUTS:
+        %       var:        ANYTHING
+        %                   A comma-separated list of variables whose values will be substituted into the text argument
+        %                   wherever escape sequences are found. An unlimited number of variables may be supplied, so
+        %                   long as there are an equivalent number of escape sequences and these values are given in the
+        %                   same order as the escapes are found in the string. By default, no variables will be used and
+        %                   the text argument will be printed as a string literal. 
+        %
+        %   See also:   FPRINTF, SPRINTF
+            assert(nargin >= 2 && ~isempty(text) && ischar(text), 'A single non-empty string of text must be provided for a write operation.');
             assert(F.IsOpen, 'File %s must first be opened with write access in order to perform a write operation.', F.Name);
             assert(F.Permission ~= 'r', 'File %s was opened with read access only. Writing is not permitted.', F.Name);
+            Path.AssertSingleString(text);
             fprintf(F.FID, text, varargin{:});
         end
         function WriteLine(F, text, varargin)
-            % WRITELINE - Writes inputted text or data to an open file stream then advances the cursor to the next line.
+        % WRITELINE - Writes inputted text or data to an open file stream then advances the cursor to the next line.
+        %
+        %   This method writes a line of text to a file's open data stream so that it appears in the file upon opening
+        %   it using MATLAB or any other text editor. The file being used must already exist and must have been opened
+        %   with write permissions using the OPEN method. If any of these criteria are failed, WRITELINE will throw an
+        %   error.
+        %
+        %   WRITELINE is just a wrapper for the File class method WRITE. As such, it inherits most of the behaviors that
+        %   are supported by that function. Unlike WRITE, this method does not require a string of text as an input
+        %   because it appends a new-line character to whatever string (empty by default) is being used. That string is
+        %   then given to the WRITE method, which performs the write operation, and passes the checks for empty strings.
+        %
+        %   SYNTAX:
+        %       WriteLine(F)
+        %       WriteLine(F, text)
+        %       WriteLine(F, text, var1, var2,..., varN)
+        %       F.WriteLine()
+        %       F.WriteLine(text)
+        %       F.WriteLine(text, var1, var2,..., varN)
+        %
+        %   INPUT:
+        %       F:          FILE
+        %                   A single File object that is to have a line of text written to it. Arrays of objects are not
+        %                   supported by this function. This file must have been opened using the OPEN method of this
+        %                   class and must have write permission. Failing any of these criteria is an error.
+        %
+        %   OPTIONAL INPUT:
+        %       text:       STRING
+        %                   A single string that will be written to the open file. Arrays and cell arrays of strings are
+        %                   not supported by this function. This string may be any length of characters and can contain
+        %                   escape sequences (i.e. formatting characters) that will be substituted with values from any
+        %                   var parameters.
+        %                   DEFAULT: ''
+        %
+        %       var:        ANYTHING
+        %                   A comma-separated list of variables whose values will be substituted into the text argument
+        %                   wherever escape sequences are found. An unlimited number of variables may be supplied, so
+        %                   long as there are an equivalent number of escape sequences and these values are given in the
+        %                   same order as the escapes are found in the string. By default, no variables will be used and
+        %                   the text argument will be printed as a string literal. 
+        %                   DEFAULT: []
+            if nargin == 1; text = ''; end
+            Path.AssertSingleString(text)
             F.Write([text '\n'], varargin{:});
         end
         
