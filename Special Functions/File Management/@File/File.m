@@ -26,10 +26,6 @@ classdef File < Path
         IsOpen = false;         % A Boolean indicating whether or not a data stream has been opened for the file.
     end
     
-    properties (Dependent)
-        Exists                  % A Boolean indicating whether or not the file exists on the hard drive at the specified path.
-    end
-    
     properties (Access = private)
         FID = NaN;              % The numeric handle to an open data stream for the file this object contains.
         Permission = '';        % The string read/write permission that was used to open the file's data stream.
@@ -40,22 +36,21 @@ classdef File < Path
     %% Constructor & Destructor Methods
     methods
         function F = File(P)
-            % FILE - Constructs a new File object or array of objects around path strings.
-            %
-            %   SYNTAX:
-            %       F = File(P)
-            %
-            %   OUTPUT:
-            %       F:      FILE
-            %               A File object or array of objects that is equivalent in size to the inputted path(s). This
-            %               output may then use all of the utility functions associated with this class.
-            %
-            %   INPUT:
-            %       P:      PATH or [ PATHS ] or STRING or { STRING }
-            %               A Path object, array of objects, path string, or cell array of path strings pointing to one
-            %               or more files. This argument must always refer to a file, defined here as anything with a
-            %               visible extension. Folders and files without extensions are not supported and will trigger
-            %               errors.
+        % FILE - Constructs a new File object or array of objects around path strings.
+        %
+        %   SYNTAX:
+        %       F = File(P)
+        %
+        %   OUTPUT:
+        %       F:      FILE
+        %               A File object or array of objects that is equivalent in size to the inputted path(s). This
+        %               output may then use all of the utility functions associated with this class.
+        %
+        %   INPUT:
+        %       P:      PATH or [ PATHS ] or STRING or { STRING }
+        %               A Path object, array of objects, path string, or cell array of path strings pointing to one or
+        %               more files. This argument must always refer to a file, defined here as anything with a visible
+        %               extension. Folders and files without extensions are not supported and will trigger errors.
             
             if (nargin ~= 0)
                 if (isa(P, 'Path'))
@@ -84,12 +79,6 @@ classdef File < Path
     
     %% General Utilities
     methods
-        
-        % Get Methods
-        function doesExist = get.Exists(F)
-            doesExist = exist(F.FullPath, 'file');
-        end
-        
         
         function varargout = Load(F, varargin)
         % LOAD - Loads the content of the .MAT file that the File object is pointing to.
