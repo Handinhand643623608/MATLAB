@@ -1,4 +1,4 @@
-%%STARTUP Sets up the MATLAB environment for research work.
+%% STARTUP - Sets up the MATLAB environment for research work.
 
 %% CHANGELOG
 %   Written by Josh Grooms
@@ -10,18 +10,27 @@
 %                   very long time.
 %       20141003:   Had to remove a SPM directory from the working path because it overloads the builtin nanmean
 %                   function with either a completely broken version or one that (stupidly) uses global variables.
+%       20141016:   Updated so that this procedure is universal between computers (no need for separate versions
+%                   anymore). Also updated this script for compatibility with the Paths class rewrite.
 
 
 %% Setup MATLAB Environment
 % Add the path to the main code storage area
-addpath(genpath('C:\Users\Josh\Dropbox\MATLAB Code\'))
+switch (lower(getenv('COMPUTERNAME')))
+    case 'desktop'
+        addpath(genpath('C:/Users/Josh/Dropbox/MATLAB Code/'));
+    case 'shella-bigboy1'
+        addpath(genpath('C:/Users/jgrooms/Dropbox/MATLAB Code/'));
+    otherwise
+        addpath(genpath('/home/jgrooms/Dropbox/MATLAB Code'));
+end
 
 % Navigate to the main coding area
-CD(Paths, 'Main');
+Paths.Main.NavigateTo();
 
 % Add data paths to MATLAB's working directories
-addpath(genpath(get(Paths, 'DataObjects')));
-addpath(genpath(get(Paths, 'Globals')));
+addpath(genpath(Paths.DataObjects));
+addpath(genpath(Paths.Globals));
 
 % SPM, with its boundlessly terrible programming, decided to overload the builtin nanmean function with its broken one
 rmpath([where('spm') '/external/fieldtrip/src']);
