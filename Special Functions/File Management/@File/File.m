@@ -52,9 +52,9 @@ classdef File < Path
         %               more files. This argument must always refer to a file, defined here as anything with a visible
         %               extension. Folders and files without extensions are not supported and will trigger errors.
             
-            if (nargin ~= 0)
+            if (nargin ~= 0 && ~isempty(P))
                 if (isa(P, 'Path'))
-                    if (~P(1).IsFile); error('Only paths to files may be converted into a file object.'); end
+                    assert(P(1).IsFile, 'Only paths to files may be converted into a file object.');
                     P = P.ToCell();
                 end
                 
@@ -64,7 +64,7 @@ classdef File < Path
                 F(numel(P)) = File;
                 for a = 1:numel(P)
                     F(a).ParseFullPath(P{a});
-                    if (~F(a).IsFile); error('The path provided must be a reference to a file.'); end
+                    assert(F(a).IsFile, 'The path provided must be a reference to a file.');
                 end
                 F = reshape(F, size(P));
             end
@@ -393,6 +393,65 @@ classdef File < Path
         end
         
     end
+    
+    
+    
+    %% Overloaded MATLAB Methods
+    methods
+        function display(F)
+        % DISPLAY - Displays information about the File object in the console window.
+        %
+        %   This method organizes and formats File object information before displaying it in the console window. The
+        %   information that is displayed is different depending on the number of objects that are inputted. For
+        %   singleton objects, this function prints a more detailed view of the File instance that includes several 
+        %   properties of the instance. For arrays of File objects, this function prints a list of file names only.
+        %
+        %   DISPLAY is called automatically whenever operations returning a File object are invoked without using the
+        %   semicolon output suppressor. This includes the act of invoking an existing object in a function, script, or
+        %   in the console (i.e. by typing F and pressing enter if "F" is the name of a File object).
+        %
+        %   SYNTAX:
+        %       display(F)
+        %       F.display()
+        %
+        %   INPUT:
+        %       F:      FILE or [ FILES ]
+        %               A File object or array of objects for which information will be displayed in the MATLAB console.
+        %
+        %   See also:   DISP, DISPLAY, FPRINTF
+            if (numel(F) == 1)
+                fprintf(1,...
+                   ['\n',...
+                    '%s File Reference:\n\n',...
+                    '\tFile Name:\t\t%s\n\n',...
+                    '\t   Exists:\t\t%s\n',...
+                    '\tExtension:\t\t%s\n',...
+                    '\t   IsOpen:\t\t%s\n',...
+                    '\t Location:\t\t%s\n\n'],...
+                    upper(F.Extension),...
+                    F.FullName,...
+                    Path.BooleanString(F.Exists),...
+                    F.Extension,...
+                    Path.BooleanString(F.IsOpen),...
+                    F.ParentDirectory.ToString());
+            else
+                nameCell = cell(numel(F), 1);
+                for a = 1:numel(F); nameCell{a} = F(a).FullName; end
+                formatStr = [repmat('\t%s\n', 1, numel(F)) '\n'];
+                fprintf(1,...
+                    ['\n',...
+                     '(%d x %d) Array of File References:\n\n',...
+                     formatStr],...
+                     size(F, 1),...
+                     size(F, 2),...
+                     nameCell{:});
+            end
+                    
+                
+                
+        end
+    end
+    
     
     
 end

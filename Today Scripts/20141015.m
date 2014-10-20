@@ -44,7 +44,6 @@ p.close();
 
 
 
-
 %% 1401 - Averaging Z-Scored Correlation Data
 % This section will average the z-scored correlation data generated in the section above. It will also collect
 % statistics about these z-scores, such as the standard deviations of the z-scores for each voxel across all scans.
@@ -80,9 +79,13 @@ meanCorrData.DOF = zCorrData.DOF;
 
 save([dataSaveName analysisStamp], 'meanCorrData');
 
+% 20141020 - Error Discovered
+% These averages are incorrect. The index used for loading z-scored correlation files is "a", but it should have been
+% "b". The data saved from this section should never be used.
 
 
-%% 1952 - 
+
+%% 1952 - Averaging Correlation Data (Without Z-Scoring)
 % Today's parameters
 timeStamp = '201410151952';
 analysisStamp = 'Averaged BOLD-EEG Correlations';
@@ -113,4 +116,6 @@ meanCorrData.Lags = corrData.Lags;
 
 save([dataSaveName analysisStamp], 'meanCorrData');
 
-
+% 20141020 - Error Discovered
+% These averages are incorrect. The index used for loading correlation files is "a", but it should have been "b". The
+% data saved from this section should never be used.

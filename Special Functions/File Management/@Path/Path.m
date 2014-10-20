@@ -97,14 +97,13 @@ classdef  Path < hgsetget
         function e = get.Exists(P)
             if (P.IsFile); type = 'file';
             else type = 'dir'; end
-            e = exist(P.FullPath, type);
+            e = logical(exist(P.FullPath, type));
         end
         function U = get.ParentDirectory(P)
             P.AssertSingleObject();
             
-            if (P.IsFile); pattern = '(.*)[\\/][^\\/]+\.[^\\/]$';
-            else pattern = '(.*)[\\/][^\\/]+$';
-            end
+            if (P.IsFile); pattern = '(.*)[\\/][^\\/]+\.[^\\/]+$';
+            else pattern = '(.*)[\\/][^\\/]+$'; end
             parentPath = regexp(P.FullPath, pattern, 'tokens');
             U = Path(parentPath{1}{1}); 
         end
@@ -146,7 +145,7 @@ classdef  Path < hgsetget
         %   See also:   FILE
             if (~P.IsFile); error('Only paths to files may be converted into a file object.'); end
             F = File(P);
-        end        
+        end
         function s = ToString(P)
         % TOSTRING - Converts a path object into an equivalent string representation.
         %
@@ -202,12 +201,13 @@ classdef  Path < hgsetget
         %               point to a folder; inputting a reference to a file here is an error.
         %
         %   See also:   DIR, FILE, FOLDER, LS
-        
             P.AssertSingleObject();
             assert(P.IsFolder, 'Contents can only be retrieved for paths to directories, not files.');
             allFiles = dir(P.FullPath);
             allFiles([allFiles.isdir]) = [];
-            F = File({allFiles.name});
+            nameStrs = {allFiles.name}';
+            pathStrs = cellfun(@(x) [P.FullPath '/' x], nameStrs, 'UniformOutput', false);
+            F = File(pathStrs);
         end
         function F = FileSearch(P, query)
         % FILESEARCH - Searches for a specific file inside of a folder.
@@ -252,7 +252,8 @@ classdef  Path < hgsetget
         %                   expressions. Any file whose name contains this query signature will be included in the
         %                   returned File array. Letter casing is ignored.
         %   
-        %   See also:   FILECONTENTS, REGEXP, REGEXPI            
+        %   See also:   FILECONTENTS, REGEXP, REGEXPI
+            P.AssertSingleObject();
             assert(P.IsFolder, 'Files may only be searched for in folders, not in other files.');
             assert(~isempty(query) && ischar(query), 'The query parameter must contain a single string.');
             
@@ -319,7 +320,7 @@ classdef  Path < hgsetget
         function addpath(P)
             % ADDPATH - Adds a path to MATLAB's current working path list.            
             for a = 1:numel(P); addpath(P(a).FullPath); end
-        end        
+        end
         function cd(P)
             % CD - Navigates to the inputted directory or parent directory if the object points to a file.
             %
@@ -328,6 +329,60 @@ classdef  Path < hgsetget
             %
             %   See also:   CD
             P.NavigateTo()
+        end
+        function display(P)
+        % DISPLAY - Displays information about the Path object in the console window.
+        %
+        %   This method organizes and formats Path object information before displaying it in the console window. The
+        %   information that is displayed is different depending on the number of objects that are inputted. For
+        %   singleton objects, this function prints a more detailed view of the Path instance. For arrays of Path 
+        %   objects, this function prints a list of full path strings only.
+        %
+        %   DISPLAY is called automatically whenever operations returning a Path object are invoked without using the
+        %   semicolon output suppressor. This includes the act of invoking an existing object in a function, script, or
+        %   in the console (i.e. by typing P and pressing enter if "P" is the name of a Path object).
+        %
+        %   SYNTAX:
+        %       display(P)
+        %       P.display()
+        %
+        %   INPUT:
+        %       P:      PATH or [ PATHS ]
+        %               A Path object or array of objects for which information will be displayed in the MATLAB console.
+        %
+        %   See also:   DISP, DISPLAY, FPRINTF
+            if (numel(P) == 1)
+                if (P.IsFile); entityStr = 'File';
+                else entityStr = 'Folder'; end
+                fprintf(1,...
+                    ['\n',...
+                     '%s Reference:\n\n',...
+                     '\t    Path:\t\t%s\n',...
+                     '\n',...
+                     '\t  Exists:\t\t%s\n',...
+                     '\t  IsFile:\t\t%s\n',...
+                     '\tLocation:\t\t%s\n',...
+                     '\t    Name:\t\t%s\n',...
+                     '\n',...
+                     ],...
+                     entityStr,...
+                     P.FullPath,...
+                     Path.BooleanString(P.Exists),...
+                     Path.BooleanString(P.IsFile),...
+                     P.ParentDirectory.ToString(),...
+                     P.FullName);
+            else
+                pathCell = cell(numel(P), 1);
+                for a = 1:numel(P); pathCell{a} = P(a).FullPath; end
+                formatStr = [repmat('\t%s\n', 1, numel(P)) '\n'];
+                fprintf(1,...
+                    ['\n',...
+                     '(%d x %d) Array of Path References:\n\n',...
+                     formatStr],...
+                     size(P, 1),...
+                     size(P, 2),...
+                     pathCell{:});
+            end      
         end
         
         function str        = char(P)
@@ -470,12 +525,12 @@ classdef  Path < hgsetget
                 P.FullName = P.Name;
             else
                 P.Extension = fileParts{1}{2};
-                P.FullName = [P.Name, P.Extension];
+                P.FullName = [P.Name '.' P.Extension];
             end 
         end 
     end
     
-    methods (Static, Access = protected)    
+    methods (Static, Access = protected)
         function AssertStringContents(var)
             % ASSERTSTRINGCONTENTS - Throws an error if a variable is not a string or cell array of strings.
             strCheck = (iscell(var) && all(cellfun(@ischar, var))) || (ischar(var));
@@ -486,7 +541,13 @@ classdef  Path < hgsetget
             if (iscell(var) || ~isvector(var))
                 error('Only one string may be inputted to function at a time.');
             end
-        end        
+        end
+        
+        function s = BooleanString(bool)
+            
+            if (bool); s = 'true'; 
+            else s = 'false'; end
+        end
     end
                 
     

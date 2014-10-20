@@ -86,9 +86,7 @@ assignInputs(inStruct, varargin,...
     {'Ext'}, 'regexprep(varPlaceholder, ''\.^'', '''');');
 
 % Create the directory that data is to be stored in
-if ~exist(SavePath, 'dir')
-    mkdir(SavePath)
-end
+if ~exist(SavePath, 'dir'); mkdir(SavePath); end
 
 % Make the extension save name parameters cells
 if ~iscell(Ext); Ext = {Ext}; end;
