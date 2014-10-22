@@ -1,23 +1,25 @@
 function y = fastBinoCDF(x,n,p,uflag)
 %BINOCDF Binomial cumulative distribution function.
-%   Y=BINOCDF(X,N,P) returns the binomial cumulative distribution
-%   function with parameters N and P at the values in X.
+%   Y=BINOCDF(X,N,P) returns the binomial cumulative distribution function with parameters N and P at the values in X.
 %
-%   The size of Y is the common size of the input arguments. A scalar input  
-%   functions as a constant matrix of the same size as the other inputs.    
+%   The size of Y is the common size of the input arguments. A scalar input functions as a constant matrix of the same
+%   size as the other inputs.
 %
 %   The algorithm uses the cumulative sums of the binomial masses.
 %
-%   Y=BINOCDF(X,N,P,'upper') returns the upper tail probability of the 
-%   binomial distribution with parameters N and P at the values in X.
+%   Y=BINOCDF(X,N,P,'upper') returns the upper tail probability of the binomial distribution with parameters N and P at
+%   the values in X.
 %
 %   See also BINOFIT, BINOINV, BINOPDF, BINORND, BINOSTAT, CDF.
-
+%
 %   Reference:
-%      [1]  M. Abramowitz and I. A. Stegun, "Handbook of Mathematical
-%      Functions", Government Printing Office, 1964, 26.1.20.
+%      [1]  M. Abramowitz and I. A. Stegun, "Handbook of Mathematical Functions", Government Printing Office, 1964,
+%      26.1.20.
+%
+%   Copyright 1993-2013 The MathWorks, Inc.
 
-%   Copyright 1993-2013 The MathWorks, Inc. 
+%% CHANGELOG
+%   Modified by Josh Grooms on 20140127
 %       20140127:   Custom version of this builtin function created. Increased memory limits implemented in this
 %                   function for enormous speed boosts.
 

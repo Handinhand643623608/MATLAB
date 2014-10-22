@@ -110,7 +110,7 @@ classdef Paths < hgsetget
                 case 'desktop'
                     P = Path('E:/Graduate Studies/Lab Work/Data Sets/Today Data');
                 case 'shella-bigboy1'
-                    P = Path('X:/Code/MATLAB/Data/Today');
+                    P = Path('X:/Data/Today');
                 otherwise
                     P = Path('/home/jgrooms/Desktop/Today Data');
             end

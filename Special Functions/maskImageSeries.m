@@ -12,7 +12,7 @@ function maskedArray = maskImageSeries(array, mask, replaceWith)
 if nargin == 2; replaceWith = 0; end
 
 % Ensure that the mask is logical in type
-if (~islogical(mask)); error('The array being used as a mask must be a logical array.'); end
+assert(islogical(mask), 'The array being used as a mask must be a logical array.');
 
 % Get the inputted array & mask dimensionalities
 szArray = size(array);
