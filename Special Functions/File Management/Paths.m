@@ -83,7 +83,7 @@ classdef Paths < hgsetget
             end
         end
         function P = Main
-            % Gets the path to the main coding workspace.
+        % Gets the path to the main coding workspace.
             switch (lower(Paths.ComputerName))
                 case 'desktop'
                     P = Path('C:/Users/Josh/Dropbox/MATLAB Code');
@@ -92,6 +92,10 @@ classdef Paths < hgsetget
                 otherwise
                     P = Path('/home/jgrooms/Dropbox/MATLAB Code');
             end
+        end
+        function P = MATLAB
+        % Gets the path to the MATLAB installation folder.
+            P = Path(matlabroot);
         end
         function P = Raw
             % Gets the path to all raw BOLD and EEG data sets.

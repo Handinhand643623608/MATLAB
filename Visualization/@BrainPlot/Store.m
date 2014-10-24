@@ -1,5 +1,5 @@
 function Store(H, varargin)
-%STORE - Saves an image of the plot in the specified format.
+% STORE - Saves an image of the plot in the specified format.
 %   This function saves images BRAINPLOT objects in one or more formats as specified by the user. Each generated image
 %   is the same size as the MATLAB figure (default full-screen) and should appear exactly the same when opened up. Save
 %   to PDFs or FIG files to retain infinite resolution where applicable.

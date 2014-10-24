@@ -1,106 +1,109 @@
 classdef BrainPlot < Window
-%BRAINPLOT - Displays data in an EEG- or fMRI-style plot or montage of plots.
+% BRAINPLOT - Displays data in an EEG- or fMRI-style plot or montage of plots.
 %   This object displays EEG or MRI data in a montage. It accepts 3-4D MRI images and 2-3D EEG data arrays, as described
 %   below. For MRI data, data are displayed as color-coded images. EEG data is displayed as a color-coded scaled spatial
 %   layout of EEG electrodes.
 %
 %   SYNTAX:
-%   brainData = BrainPlot(data, 'PropertyName', PropertyValue...)
+%       brainData = BrainPlot(data, 'PropertyName', PropertyValue...)
 %
 %   OPTIONAL OUTPUT:
-%   H:                      BRAINPLOT
-%                           A handle to the outputted data object containing all necessary information to create an
-%                           image montage. This output is optional.
+%       H:                      BRAINPLOT
+%                               A handle to the outputted data object containing all necessary information to create an
+%                               image montage. This output is optional.
 %
 %   INPUTS:
-%   data:                   2D, 3D, or 4D ARRAY
-%                           The data to be plotted. Data must be the specified format to work with this object. MRI data
-%                           can be 2, 3, or 4 dimensional. EEG data can be either 1, 2, or 3 dimensional. Threshold data
-%                           by setting insignificant values to NaN.
+%       data:                   2D, 3D, or 4D ARRAY
+%                               The data to be plotted. Data must be the specified format to work with this object. MRI
+%                               data can be 2, 3, or 4 dimensional. EEG data can be either 1, 2, or 3 dimensional.
+%                               Threshold data by setting insignificant values to NaN.
 %
-%                           OPTIONS:
-%                               MRI Data:
-%                               [X, Y]          - A single 2D MRI image.
-%                               [X, Y, Z]       - A single 3D MRI image. Slices will be plotted vertically.
-%                               [X, Y, Z, Var1] - 3D MRI images across some variable (e.g. time). Slices will be plotted 
-%                                                 vertically and the 4th dimension will be plotted horizontally.
+%                               OPTIONS:
+%                                   MRI Data:
+%                                   [X, Y]          - A single 2D MRI image.
+%                                   [X, Y, Z]       - A single 3D MRI image. Slices will be plotted vertically.
+%                                   [X, Y, Z, Var1] - 3D MRI images across some variable (e.g. time). Slices will be 
+%                                                     plotted vertically and the 4th dimension will be plotted
+%                                                     horizontally.
 %
-%                               EEG Data:
-%                               [C]             - A vector of data (one point per channel).
-%                               [C, Var1]       - An array of data where each row corresponds to a single channel's data 
-%                                                 across some other variable (e.g. time or time shift). The second
-%                                                 dimension will be plotted horizontally.
-%                               [C, Var1, Var2] - EEG data across two variables. Each column of the array will be 
-%                                                 plotted horizontally and each page will be plotted veritcally.
+%                                   EEG Data:
+%                                   [C]             - A vector of data (one point per channel).
+%                                   [C, Var1]       - An array of data where each row corresponds to a single channel's 
+%                                                     data across some other variable (e.g. time or time shift). The
+%                                                     second dimension will be plotted horizontally.
+%                                   [C, Var1, Var2] - EEG data across two variables. Each column of the array will be 
+%                                                     plotted horizontally and each page will be plotted veritcally.
 %
 %   OPTIONAL INPUTS:
-%   'Anatomical':           3D ARRAY
-%                           An anatomical (T1) 3D image. Input these data in the same spatial format as the "plotData"
-%                           parameter, with the same number of slices. The anatomical image will be displayed on
-%                           thresholded data in place of values that do not pass significance testing.
-%                           DEFAULT: []
+%       'Anatomical':           3D ARRAY --> [ X, Y, Z ]
+%                               An anatomical (T1) 3D image. Input these data in the same spatial format as the
+%                               "plotData" parameter, with the same number of slices. The anatomical image will be
+%                               displayed on thresholded data in place of values that do not pass significance testing.
+%                               DEFAULT: []
 %
-%   'AxesColor':            STRING or [DOUBLE, DOUBLE, DOUBLE]
-%                           The color of the bounding axes box and all associated text. Acceptable inputs include
-%                           standard MATLAB string color specifiers or a vector of RGB values.
-%                           DEFAULT: 'w' OR [1 1 1]
+%       'AxesColor':            STRING or [ DOUBLE, DOUBLE, DOUBLE ] --> [ R, G, B ]
+%                               The color of the bounding axes box and all associated text. Acceptable inputs include
+%                               standard MATLAB string color specifiers or a vector of RGB values.
+%                               DEFAULT: 'w' OR [1 1 1]
 %   
-%   'CLim':                 [DOUBLE, DOUBLE]
-%                           A two-element vector specifying the [MIN MAX] in data units to be mapped to color extremes.
-%                           By default, this parameter is calculated automatically using absolute data extremes.
-%                           DEFAULT: [-max(abs(data(:))), max(abs(data(:)))]
+%       'CLim':                 [ DOUBLE, DOUBLE ] --> [ MIN, MAX ]
+%                               A two-element vector specifying the [MIN MAX] in data units to be mapped to color
+%                               extremes. By default, this parameter is calculated automatically using absolute data
+%                               extremes.
+%                               DEFAULT: [-max(abs(data(:))), max(abs(data(:)))]
 %
-%   'Color':                STRING or [DOUBLE DOUBLE DOUBLE]
-%                           The background color of the figure and all axes. Acceptable inputs include standard MATLAB
-%                           string color specifiers or a vector of RGB values.
-%                           DEFAULT: 'k' OR [0 0 0]
+%       'Color':                STRING or [ DOUBLE DOUBLE DOUBLE ] --> [ R, G, B ]
+%                               The background color of the figure and all axes. Acceptable inputs include standard
+%                               MATLAB string color specifiers or a vector of RGB values.
+%                               DEFAULT: 'k' OR [0 0 0]
 %
-%   'ColorbarLabel':        STRING
-%                           The vertical text label for the colorbar.
-%                           DEFAULT: []
+%       'ColorbarLabel':        STRING
+%                               The vertical text label for the colorbar.
+%                               DEFAULT: []
 %
-%   'Colormap':             COLORMAP
-%                           The colormap being utilized by the figure.
-%                           DEFAULT: jet(256)
+%       'Colormap':             COLORMAP
+%                               The colormap being utilized by the figure.
+%                               DEFAULT: jet(256)
 %
-%   'MajorFontSize':        DOUBLE
-%                           The size in font units of the major text elements visible on the montage. This parameter
-%                           affects all title-like strings, including x- and y-axis labels, the plot title, and the
-%                           colorbar label.
-%                           DEFAULT: 25
+%       'MajorFontSize':        DOUBLE
+%                               The size in font units of the major text elements visible on the montage. This parameter
+%                               affects all title-like strings, including x- and y-axis labels, the plot title, and the
+%                               colorbar label.
+%                               DEFAULT: 25
 %
-%   'MinorFontSize':        DOUBLE
-%                           The size in font units of the minor text elements visible on the montage. This parameter
-%                           affects all tick labels, including those for the x- and y-axes as well as the colorbar tick
-%                           labels. 
-%                           DEFAULT: 20
+%       'MinorFontSize':        DOUBLE
+%                               The size in font units of the minor text elements visible on the montage. This parameter
+%                               affects all tick labels, including those for the x- and y-axes as well as the colorbar
+%                               tick labels.
+%                               DEFAULT: 20
 %   
-%   'Title':                STRING
-%                           The plot title string.
-%                           DEFAULT: []
+%       'Title':                STRING
+%                               The plot title string.
+%                               DEFAULT: []
 %
-%   'XLabel':               STRING
-%                           The x-axis label string (same as the built-in axes property). Just input the string here
-%                           (using "set" or dot-notation) and it will automatically be added to the plot and colored.
-%                           DEFAULT: []
+%       'XLabel':               STRING
+%                               The x-axis label string (same as the built-in axes property). Just input the string here
+%                               (using "set" or dot-notation) and it will automatically be added to the plot and
+%                               colored.
+%                               DEFAULT: []
 %
-%   'XTickLabel':           {STRINGS} or [DOUBLES]
-%                           The x-axis tick labels (same as the built-in axes property). Just add the array or cell
-%                           array of labels to this property (using "set" or dot-notation) and it will be automatically
-%                           added to the plot and colored.
-%                           DEFAULT: []
+%       'XTickLabel':           { STRINGS } or [ DOUBLES ]
+%                               The x-axis tick labels (same as the built-in axes property). Just add the array or cell
+%                               array of labels to this property (using "set" or dot-notation) and it will be
+%                               automatically added to the plot and colored.
+%                               DEFAULT: []
 %
-%   'YLabel':               STRING
-%                           The y-axis label string (same as the built-in axes property). Just add the array or cell
-%                           array of labels to this property (using "set" or dot-notation) and it will be automatically
-%                           added to the plot and colored.
-%                           DEFAULT: []
+%       'YLabel':               STRING
+%                               The y-axis label string (same as the built-in axes property). Just add the array or cell
+%                               array of labels to this property (using "set" or dot-notation) and it will be
+%                               automatically added to the plot and colored.
+%                               DEFAULT: []
 %
-%   'YTickLabel':           {STRINGS} or [DOUBLES]
-%                           The y-axis tick labels (same as the built-in axes property). Just add the array or cell
-%                           array of labels to this property (using "set" or dot-notation) and it will be
-%                           automatically added to the plot and colored.
-%                           DEFAULT: []
+%       'YTickLabel':           { STRINGS } or [ DOUBLES ]
+%                               The y-axis tick labels (same as the built-in axes property). Just add the array or cell
+%                               array of labels to this property (using "set" or dot-notation) and it will be
+%                               automatically added to the plot and colored.
+%                               DEFAULT: []
 
 %% DEPENDENCIES
 %
@@ -169,7 +172,7 @@ classdef BrainPlot < Window
     %% Constructor Method
     methods
         function H = BrainPlot(plotData, varargin)
-            %BRAINPLOT - Constructs a window object & initializes the plotting environment.
+        %BRAINPLOT - Constructs a window object & initializes the plotting environment.
             
             % Initialize a window object for displaying the data
             H = H@Window(...
@@ -183,7 +186,7 @@ classdef BrainPlot < Window
             if nargin ~= 0
                 
                 % Ensure only numeric arrays were inputted
-                if ~isnumeric(plotData); error('Only numeric data arrays may be displayed using BrainPlot'); end
+                assert(isnumeric(plotData), 'Only numeric data arrays may be displayed using BrainPlot');
                 
                 % Override defaults with any user inputs
                 climBound = max(abs(plotData(:)));
@@ -205,8 +208,7 @@ classdef BrainPlot < Window
                 
                 % Determine the type of data based on its dimensionality
                 if (size(plotData, 1) == 68); H.PlotType = BrainPlotTypes.EEG;
-                else H.PlotType = BrainPlotTypes.MRI;
-                end
+                else H.PlotType = BrainPlotTypes.MRI; end
                 
                 % Fill in object properties (ordering of events here is important)
                 H.Data = plotData;
@@ -333,8 +335,8 @@ classdef BrainPlot < Window
     %% Private Methods
     methods (Access = private)
         
-        % Calculate the size of montage elements
         function CalculateElementSize(H)
+        % CALCULATEELEMENTSIZE - Calculates the size of montage elements.
             posAxes = get(H.Axes.Primary, 'Position');
             asize = posAxes(3:4);
             width = asize(1)/H.MontageSize(2);
@@ -344,9 +346,9 @@ classdef BrainPlot < Window
                 width = height * (H.ElementAspect(1) / H.ElementAspect(2));
             end
             H.ElementSize = [width, height];
-        end
-        % Determine the spacing between X- & Y-axis ticks
+        end        
         function CalculateAxesTickSpacing(H)
+        % CALCULATEAXESTICKSPACKING - Determines the spacing between X- & Y-axis ticks.
             xSpacing = 1/H.MontageSize(2);
             ySpacing = 1/H.MontageSize(1);
             xHalfSpacing = 0.5*xSpacing;
@@ -354,8 +356,8 @@ classdef BrainPlot < Window
             H.XTick = linspace(xHalfSpacing, 1 - xHalfSpacing, H.MontageSize(2));
             H.YTick = linspace(yHalfSpacing, 1 - yHalfSpacing, H.MontageSize(1));
         end
-        % Determine montage size [NUMROWS, NUMCOLS] & the aspect ratio of montage elements
         function DetermineMontageDimensionality(H)
+        % DETERMINEMONTAGEDIMENSIONALITY - Determines montage size [NUMROWS, NUMCOLS] & the aspect ratio of elements.
             switch (H.PlotType) 
                 case BrainPlotTypes.EEG
                     H.MontageSize = [size(H.Data, 3), size(H.Data, 2)];         % [numRows, numCols]
@@ -366,16 +368,16 @@ classdef BrainPlot < Window
                     H.ElementAspect = H.ElementAspect./max(H.ElementAspect);    % [width, height], scaled to max value
             end
         end
-        % Fit the primary axes to the montage
         function FitPrimaryAxesToMontage(H)
+        % FITPRIMARYAXESTOMONTAGE - Fits the primary axes to the montage.
             posFig = getpixelposition(H.FigureHandle);
             apos = [0, 0, H.ElementSize .* [H.MontageSize(2) H.MontageSize(1)]];
             apos(1) = (posFig(1) + posFig(3) - apos(3)) / 2;
             apos(2) = (posFig(2) + posFig(4) - apos(4)) / 2;
             set(H.Axes.Primary, 'Position', apos);
         end
-        % Create axes that contain & label the image montage
         function InitializePrimaryAxes(H)
+        % INITIALIZEPRIMARYAXES - Creates axes that contain & label the image montage.
             H.Axes.Primary = axes(...
                 'Units', 'pixels',...
                 'Box', 'on',...
@@ -388,8 +390,8 @@ classdef BrainPlot < Window
                 'YLim', [0 1],...
                 'YTick', []);
         end
-        % Create an array of axes to serve as the individual montage elements
         function InitializeMontageAxes(H)
+        % INITIALIZEMONTAGEAXES - Create an array of axes to serve as the individual montage elements.
             H.Axes.Montage = zeros(H.MontageSize);
             apos = get(H.Axes.Primary, 'Position');
             epos = [0, 0, H.ElementSize];
@@ -402,23 +404,8 @@ classdef BrainPlot < Window
             end
             H.Axes.Montage = flipdim(H.Axes.Montage, 1);    % Flipped so ordering starts from the upper left corner
         end
-        % Create individual montage element axes at the specified position
-        function A = NewElement(H, position)
-            A = axes(...
-                'Units', 'pixels',...
-                'Box', 'off',...
-                'CLim', H.CLim,...
-                'CLimMode', 'manual',...
-                'Color', 'none',...
-                'Parent', H.FigureHandle,...
-                'Position', position,...
-                'XLim', [0, 1],...
-                'XTick', [],...
-                'YLim', [0, 1],...
-                'YTick', []);
-        end
-        % Plot the inputted data in the image montage
         function Plot(H)
+        % PLOT - Plots the inputted data in the image montage.
             switch (H.PlotType)
                 % Plot colored EEG electrode spatial maps
                 case BrainPlotTypes.EEG
@@ -458,6 +445,40 @@ classdef BrainPlot < Window
                     end       
                     
             end
+        end
+        
+        function A = NewElement(H, position)
+        % NEWELEMENT - Creates individual montage element axes at the specified position.
+        %
+        %   SYNTAX:
+        %       A = NewElement(H, position)
+        %       A = H.NewElement(position)
+        %
+        %   OUTPUT:
+        %       A:          HANDLE
+        %                   A handle to the axes graphics object that is generated by this method.
+        %
+        %   INPUTS:
+        %       H:          BRAINPLOT
+        %                   A single BrainPlot object to which a new element should be added.
+        %
+        %       position:   [ DOUBLE, DOUBLE, DOUBLE, DOUBLE ] --> [ X, Y, WIDTH, HEIGHT ]
+        %                   A four-element position-size vector indicating where the new montage element should be
+        %                   placed in the figure and how big it should be. Position is specified using the first two
+        %                   elements of this vector and is relative to the boundaries of the primary axes. Size is
+        %                   specified through the last two elements of this vector.
+            A = axes(...
+                'Units', 'pixels',...
+                'Box', 'off',...
+                'CLim', H.CLim,...
+                'CLimMode', 'manual',...
+                'Color', 'none',...
+                'Parent', H.FigureHandle,...
+                'Position', position,...
+                'XLim', [0, 1],...
+                'XTick', [],...
+                'YLim', [0, 1],...
+                'YTick', []);
         end
         
     end
