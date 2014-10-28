@@ -16,17 +16,17 @@ classdef Today < hgsetget
             % Gets the path to the data folder for the current date.
             P = [Paths.TodayData '/' Today.Date];
         end
-        function D = Date
+        function d = Date
             % Gets the current date string in the format YYYYMMDD.
-            D = datestr(now, 'yyyymmdd');
+            d = datestr(now, 'yyyymmdd');
         end
-        function T = Time
+        function t = Time
             % Gets the current time string in the 24-hour format HHMM.
-            T = datestr(now, 'HHMM');
+            t = datestr(now, 'HHMM');
         end
-        function P = ScriptPath
-            % Gets the path to the folder containing Today Scripts.
-            P = Paths.TodayScripts;
+        function F = Script
+            % Gets the path to the Today Script log file for the current date.
+            F = File([Paths.TodayScripts '/' Today.Date '.m']);
         end
         
     end
@@ -46,7 +46,7 @@ classdef Today < hgsetget
             
             date = Today.Date;
             time = Today.Time;
-            script = File([Paths.TodayScripts '/' date '.m']);
+            script = Today.Script;
             
             assert(~script.Exists, 'A Today Script with today''s date already exists.');
             
@@ -207,6 +207,29 @@ classdef Today < hgsetget
         
         function F = FindFiles(timeStamp)
         % FINDFILES - Finds files containing a time stamp that were saved to the Today Data repository.
+        %
+        %   SYNTAX:
+        %       F = Today.FindFiles(timeStamp)
+        %
+        %   OUTPUT:
+        %       F:          FILE or [ FILES ]
+        %                   A File object or array of objects that reference files found inside of the Today Script data
+        %                   respository for the date indicated by the time stamp argument. These files must have been
+        %                   saved with a time stamp that is identical to the one inputted here in order to be found.
+        %
+        %   INPUT:
+        %       timeStamp:  STRING
+        %                   A date-time string used to identify a specific set of files located in the Today Script data
+        %                   repository. This string must be formatted as "yyyymmddHHMM". The date part of this string
+        %                   (i.e. the first 8 characters) is used to identify which folder the files are located in,
+        %                   while the whole string is used to find the files themselves.
+        %                   EXAMPLE:
+        %                       
+        %                       "201410281045" - Finds files containing a time stamp of 10:45 AM on October 28th, 2014.
+        %
+        %                       
+        %
+        %   See also:   DATESTR
             assert(nargin == 1, 'A time stamp must be provided in order to find Today Data files.');
             assert(ischar(timeStamp), 'The time stamp must be provided as a date string.');
             dateStamp = timeStamp(1:8);
