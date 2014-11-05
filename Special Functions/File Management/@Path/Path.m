@@ -101,7 +101,6 @@ classdef  Path < hgsetget
         end
         function U = get.ParentDirectory(P)
             P.AssertSingleObject();
-            
             if (P.IsFile); pattern = '(.*)[\\/][^\\/]+\.[^\\/]+$';
             else pattern = '(.*)[\\/][^\\/]+$'; end
             parentPath = regexp(P.FullPath, pattern, 'tokens');
@@ -312,6 +311,19 @@ classdef  Path < hgsetget
         
     end
     
+    methods (Static)
+        
+        function P = Where(fileName)
+        % WHERE - Returns the path to the directory containing a function or file.
+            if (isa(fileName, 'Path') || isa(fileName, 'File'))
+                P = fileName.ParentDirectory;
+                return;
+            end
+            P = Path(where(fileName));
+        end
+        
+        
+    end
     
     
     %% Overloaded MATLAB Methods
@@ -474,7 +486,9 @@ classdef  Path < hgsetget
             end
         end
         function [s, m, id] = mkdir(P)
-            % MKDIR - Creates the directory at the specified path.
+        % MKDIR - Creates the directory at the specified path.
+        %
+        %   See also: MKDIR
             [s, m, id] = mkdir(P.FullPath);
         end        
         function catP       = vertcat(P, varargin)
@@ -532,19 +546,16 @@ classdef  Path < hgsetget
     
     methods (Static, Access = protected)
         function AssertStringContents(var)
-            % ASSERTSTRINGCONTENTS - Throws an error if a variable is not a string or cell array of strings.
-            strCheck = (iscell(var) && all(cellfun(@ischar, var))) || (ischar(var));
-            if (~strCheck); error('Only strings or cell arrays of strings may be used with Path objects.'); end
+        % ASSERTSTRINGCONTENTS - Throws an error if a variable is not a string or cell array of strings.
+            assert(ischar(var) || iscellstr(var), 'Only strings or cell arrays of strings may be used with Path objects.');
         end
         function AssertSingleString(var)
             % ASSERTSINGLESTRING - Throws an error if a variable is not one single string. 
-            if (iscell(var) || ~isvector(var))
-                error('Only one string may be inputted to function at a time.');
-            end
+            assert(ischar(var), 'Only one string may be inputted to function at a time.');
         end
         
         function s = BooleanString(bool)
-            
+        % BOOLEANSTRING - Converts Boolean values into equivalent string representations.
             if (bool); s = 'true'; 
             else s = 'false'; end
         end

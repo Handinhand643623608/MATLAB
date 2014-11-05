@@ -33,7 +33,6 @@ classdef Today < hgsetget
     
     
     
-    
     %% Utility Methods
     
     methods (Static)
@@ -227,8 +226,6 @@ classdef Today < hgsetget
         %                       
         %                       "201410281045" - Finds files containing a time stamp of 10:45 AM on October 28th, 2014.
         %
-        %                       
-        %
         %   See also:   DATESTR
             assert(nargin == 1, 'A time stamp must be provided in order to find Today Data files.');
             assert(ischar(timeStamp), 'The time stamp must be provided as a date string.');
@@ -239,11 +236,6 @@ classdef Today < hgsetget
         end
 
     end
-    
-    
-    
-    
-    
     
     
     

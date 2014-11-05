@@ -10,11 +10,16 @@ classdef Files < hgsetget
     
     methods (Static)
         function F = BOLD
-            % Gets a File array referencing all current infraslow BOLD data objects.
+        % Gets a File array referencing all current infraslow BOLD data objects.
             F = Paths.BOLD.FileSearch('boldObject.*.mat');
         end
+        function F = ColinBrain
+        % Gets the File object referencing the Colin Brain data set.
+            P = Path.Where('boldObj');
+            F = P.FileSearch('colinBrain.mat');
+        end
         function F = EEG
-            % Gets a File array referencing all current infraslow EEG data objects.
+        % Gets a File array referencing all current infraslow EEG data objects.
             F = Paths.EEG.FileSearch('eegObject.*.mat');
         end
     end

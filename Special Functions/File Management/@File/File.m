@@ -47,7 +47,7 @@ classdef File < Path
         %               output may then use all of the utility functions associated with this class.
         %
         %   INPUT:
-        %       P:      PATH or [ PATHS ] or STRING or { STRING }
+        %       P:      PATH or [ PATHS ] or STRING or { STRINGS }
         %               A Path object, array of objects, path string, or cell array of path strings pointing to one or
         %               more files. This argument must always refer to a file, defined here as anything with a visible
         %               extension. Folders and files without extensions are not supported and will trigger errors.
@@ -394,6 +394,13 @@ classdef File < Path
         
     end
     
+    methods (Static)
+        
+        function F = Which(fileName)
+        % WHICH - Finds the full path to a file that is on MATLAB's 
+            F = File(which(fileName));
+        end
+    end
     
     
     %% Overloaded MATLAB Methods
