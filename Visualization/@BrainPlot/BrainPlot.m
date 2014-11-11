@@ -104,6 +104,16 @@ classdef BrainPlot < Window
 %                               array of labels to this property (using "set" or dot-notation) and it will be
 %                               automatically added to the plot and colored.
 %                               DEFAULT: []
+%
+%       'Zoom':                 DOUBLE
+%                               The fraction of the size of each montage element that should be cropped out. This value
+%                               controls how much the image displayed in each element's axes will be zoomed in or out
+%                               on. It can be thought of as a percentage of the length and height that will be removed
+%                               before being displayed. Inputted values for this argument must be less than 1 since
+%                               cropping out the whole image would be pointless. The default value of 0.1 crops 10% of
+%                               the image length and height, divided between both sides (i.e. 5% left, 5% right, 5% top, 
+%                               5% bottom).
+%                               DEFAULT: 0.1
 
 %% DEPENDENCIES
 %
@@ -129,6 +139,9 @@ classdef BrainPlot < Window
 %                   several new features, in particular some relating to plot labeling (e.g. tick labels, titles, etc.).
 %       20140829:   Bug fixes for yesterday's class rewrite. Implemented/improved get and set methods for axes tick
 %                   labels.
+%       20141106:   Implemented the ability to zoom in on montage element images by cropping out some of the image
+%                   margins. This is controlled by the new public property Zoom. Set a new default value for this
+%                   property of 0.1, which works well for BOLD volumes.
 
 %% TODOS
 %   - Merge PLOTEEG static method & the separate EEGMAP function.
@@ -156,6 +169,7 @@ classdef BrainPlot < Window
         Anatomical              % A 3D array containing an anatomical brain image (only applies to MRI-type plots).
         MajorFontSize           % The font size (in font units) of major plot text (e.g. titles, axis titles, etc.).
         MinorFontSize           % The font size (in font units) of minor plot text (e.g. axis tick labels).
+        Zoom                    % The zoom level or fraction of each montage element's size that has been cropped out.
     end
     
     properties (Access = private, Hidden)
@@ -203,7 +217,8 @@ classdef BrainPlot < Window
                     'XLabel',           [],...
                     'XTickLabel',       [],...
                     'YLabel',           [],...
-                    'YTickLabel',       []);
+                    'YTickLabel',       [],...
+                    'Zoom',             0.1);
                 assignInputs(inStruct, varargin, 'structOnly');
                 
                 % Determine the type of data based on its dimensionality
@@ -295,10 +310,12 @@ classdef BrainPlot < Window
             set(get(H.Axes.Primary, 'Title'), 'FontSize', fsize);
             set(get(H.Axes.Primary, 'XLabel'), 'FontSize', fsize);
             set(get(H.Axes.Primary, 'YLabel'), 'FontSize', fsize);
+            H.MajorFontSize = fsize;
         end
         function set.MinorFontSize(H, fsize)
             set(H.Colorbar, 'FontSize', fsize);
             set(H.Axes.Primary, 'FontSize', fsize);
+            H.MinorFontSize = fsize;
         end
         function set.Title(H, title)
             set(get(H.Axes.Primary, 'Title'), 'String', title);
@@ -315,7 +332,15 @@ classdef BrainPlot < Window
         function set.YTickLabel(H, tlabels)
             set(H.Axes.Primary, 'YTick', H.YTick, 'YTickLabel', tlabels);
         end
-        
+        function set.Zoom(H, margin)
+            
+            assert(isscalar(margin) & margin < 1, 'The new element margin must be a scalar less than 0.5 (half the image size).');
+            H.Zoom = margin;
+            margin = [0, 1] + ([1, -1] .* margin * 0.5);
+            for a = 1:numel(H.Axes.Montage)
+                set(H.Axes.Montage(a), 'XLim', margin, 'YLim', margin);
+            end
+        end
     end
     
     

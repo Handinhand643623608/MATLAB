@@ -3,6 +3,9 @@ classdef Files < hgsetget
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20141016
+%       20141110:   Changed the ColinBrain static property to refer instead to a permanently adjusted Colin Brain data
+%                   set, since this is what is most frequently used. The raw Colin Brain data set will now have to be
+%                   used manually. 
 
 
 
@@ -15,8 +18,7 @@ classdef Files < hgsetget
         end
         function F = ColinBrain
         % Gets the File object referencing the Colin Brain data set.
-            P = Path.Where('boldObj');
-            F = P.FileSearch('colinBrain.mat');
+            F = File([Paths.Common '/ColinBrainAdjusted.mat']);
         end
         function F = EEG
         % Gets a File array referencing all current infraslow EEG data objects.

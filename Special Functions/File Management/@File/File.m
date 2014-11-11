@@ -453,9 +453,6 @@ classdef File < Path
                      size(F, 2),...
                      nameCell{:});
             end
-                    
-                
-                
         end
     end
     

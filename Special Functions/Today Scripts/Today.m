@@ -5,6 +5,12 @@ classdef Today < hgsetget
 %   Written by Josh Grooms on 20141015
 %       20141022:   Implemented functions for saving Today Script data and images automatically to the appropriate
 %                   folder. Implemented current Today Data folder generation inside of the CreateScript method.
+%       20141106:   Moved the section creation logic to this class under the new method CreateSection. Filled in
+%                   documentation for that method and for CreateScript. Set storage of BrainPlot images to overwrite any
+%                   existing files since this can only occur here when Today Script sections are run multiple times,
+%                   usually to correct an error or augment a prototype process.
+%       20141110:   Implemented some standard assertions to use as this class grows in function. Implemented the ability
+%                   to save images to subdirectories of the currently dated Today Data folder.
     
 
 
@@ -13,19 +19,19 @@ classdef Today < hgsetget
     methods (Static)
         
         function P = Data
-            % Gets the path to the data folder for the current date.
+        % Gets the path to the data folder for the current date.
             P = [Paths.TodayData '/' Today.Date];
         end
         function d = Date
-            % Gets the current date string in the format YYYYMMDD.
+        % Gets the current date string in the format YYYYMMDD.
             d = datestr(now, 'yyyymmdd');
         end
         function t = Time
-            % Gets the current time string in the 24-hour format HHMM.
+        % Gets the current time string in the 24-hour format HHMM.
             t = datestr(now, 'HHMM');
         end
         function F = Script
-            % Gets the path to the Today Script log file for the current date.
+        % Gets the path to the Today Script log file for the current date.
             F = File([Paths.TodayScripts '/' Today.Date '.m']);
         end
         
@@ -39,9 +45,29 @@ classdef Today < hgsetget
 
         function CreateScript()
         % CREATESCRIPT - Creates and opens a new script to serve as a record of daily activities.
+        %   This function creates a new today script, which is a script intended to serve as a log of daily research
+        %   activities that take place in MATLAB. To this end, it automatically creates a new MATLAB .m script file
+        %   inside of the designated log script repository, which is defined by the personalized PATHS dictionary.
+        %
+        %   Newly created scripts are always named after the date that NTS is invoked on (in YYYYMMDD format) and are
+        %   always initialized to contain the very first time-stamped log section. Afterward, if a new section is
+        %   desired, the related class method CREATESECTION should be invoked within the script.
+        %
+        %   INSTRUCTIONS:
+        %       1. Once per day (and only once), type "Today.CreateScript()" without quotes into the MATLAB console
+        %          window and press the Enter keyboard key. A log file will be created with the current date as its file 
+        %          name.
+        %           1a. Invoking this method when a file named with the current date already exists is an error.
+        %       2. Use "Today.CreateSection()" to create any subsequent time-stamped log sections as desired.
+        %
+        %   TIP:
+        %   Use the shortcut function NTS to avoid having to write out the full class and method name every time a new
+        %   daily log script is created.
         %
         %   SYNTAX:
         %       Today.CreateScript()
+        %   
+        %   See also:   NTS, NTSS, CREATESECTION
             
             date = Today.Date;
             time = Today.Time;
@@ -55,7 +81,7 @@ classdef Today < hgsetget
                  '\n'...
                  '\n'...
                  '%%%% %s - \n'...
-                 '%% Today''s parameters\n'...
+                 '%% Log parameters\n'...
                  'timeStamp = ''%s'';\n'...
                  'analysisStamp = '''';\n'...
                  'dataSaveName = ''%s/%s - '';\n'...
@@ -73,6 +99,64 @@ classdef Today < hgsetget
              script.Edit();
              
              if (~Today.Data.Exists); mkdir(Today.Data); end
+        end
+        function CreateSection()
+        % CREATESECTION - Creates a new log section inside of the current Today Script.
+        %   This function creates a new section inside of today's working script that is titled with the time of
+        %   creation. It also automatically initializes some commonly used variables at the top of the section for
+        %   convenience.
+        %
+        %   CREATESECTION only works on Today Scripts named with the current date (in YYYYMMDD format). The "current
+        %   date" is whatever day the system time evaluates to when CREATESECTION is run. It will not work on scripts
+        %   with differently formatted file names or scripts from past dates.
+        %   
+        %   This function takes no input arguments, returns nothing, and can only be used from within the Today Script
+        %   itself.
+        %   
+        %   INSTRUCTIONS:
+        %       1. Open and view the Today Script named with the current date.
+        %       2. Click on the empty line in the script where a new log section is to be created.
+        %       3. Type this function's name, "Today.CreateSection()" without quotes, on the line.
+        %       4. Highlight the function's name, right-click, and select "Evaluate Selection" from the context menu.
+        %           4a. The default shortcut for selection evaluation is the F9 keyboard key.
+        %
+        %   TIP:
+        %   Use the shortcut function NTSS to avoid having to write out the full class and method name every time a new 
+        %   section is created.
+        %
+        %   SYNTAX:
+        %       Today.CreateSection()
+        %
+        %   See also:   NTS, NTSS, CREATESCRIPT
+
+            date = Today.Date;
+            time = Today.Time;
+            
+            tsFile = matlab.desktop.editor.getActive;
+            [~, tsName, ~] = fileparts(tsFile.Filename);
+            if ~strcmpi(tsName, date)
+                tsFile = matlab.desktop.editor.findOpenDocument([date '.m']);
+            end
+
+            % Error out if the today script isn't open (probably trying to call this function from the command window)
+            assert(~isempty(tsFile), 'No today script for %s is open. You must create and open this script before creating new sections in it.', date); 
+
+            % Replace the new section command with text
+            newText = sprintf(...
+                ['%%%% %s - \n'...
+                '%% Log parameters\n'...
+                'timeStamp = ''%s'';\n'...
+                'analysisStamp = '''';\n'...
+                'dataSaveName = ''%s/%s - '';\n'...
+                '\n'...
+                '%% Get references to infraslow BOLD & EEG data sets\n'...
+                'boldFiles = get(Paths, ''InfraslowBOLD'');\n'...
+                'eegFiles = get(Paths, ''InfraslowBOLD'');'],...
+                time,...
+                [date time],...
+                Today.Data.ToString(),...
+                [date time]);
+            tsFile.Text = regexprep(tsFile.Text, 'Today.CreateSection(\(\))?|ntss(\(\))?', newText);
         end
         function SaveData(timeStamp, fileName, varargin)
         % SAVEDATA - Saves a time-stamped .MAT file to the current Today Data archive folder.
@@ -176,30 +260,77 @@ classdef Today < hgsetget
         %                       etc.). If omitted, this method saves images as MATLAB .FIG files.
         %                       DEFAULT: 'fig'
             
-            % Error check
             assert(nargin >= 3, 'A graphics handle, time stamp, and file name must be specified for saving images.');
-            assert(ishandle(H) || isa(H, 'BrainPlot'), 'Inputted figure handle must point to an open graphics window.');
-            assert(ischar(timeStamp), 'Images must be saved with a valid date-time string.');
-            assert(length(timeStamp) == 12, 'Date-time strings should be formatted as yyyymmddHHMM.');
-            [p, fileName, e] = fileparts(fileName);
-            assert(isempty(p), 'The directory to which files are saved cannot be specified using this function.');
+            Today.SaveImageIn(H, [], timeStamp, fileName, extension);
+        end
+        function SaveImageIn(H, subFolder, timeStamp, fileName, extension)
+        % SAVEIMAGEIN - Saves a time-stamped image to a subdirectory of the current Today Data archive folder.
+        %
+        %   SYNTAX:
+        %       Today.SaveImageIn(H, subFolder, timeStamp, fileName)
+        %       Today.SaveImageIn(H, subFolder, timeStamp, fileName, extension)
+        %
+        %   INPUTS:
+        %       H:              INTEGER FIGURE HANDLE
+        %                       An integer handle for a valid MATLAB graphics objects whose contents are to be saved as
+        %                       an image. This handle can be attained either using the GCF function or by any other
+        %                       documented means.
+        %
+        %       subFolder:      STRING
+        %                       A path string indicating a single subdirectory in which to save the inputted graphics
+        %                       handle as an image. This path will always be relative to a time-stamped folder created
+        %                       in the currently dated Today Data archive. Any number of subdirectory levels may be
+        %                       specified. 
+        %
+        %                       EXAMPLE:
+        %                           Today.SaveImageIn(H, 'Child/Directory', '201411101620', 'FileToSave', 'png')
+        %
+        %                           The command above saves an image of H to the file:
+        %                               'X:/Data/Today/20141110/201411101620/Child/Directory/FileToSave.png'
+        %
+        %       timeStamp:      STRING
+        %                       A string representing the date and time that a particular Today Script section was run.
+        %                       This is the time stamp that is automatically generated at the beginning of each
+        %                       individual section, and it is recommended that this always be used. The time stamp will
+        %                       appear in the saved file at the very beginning of the file name.
+        %
+        %                       If manually specified, this string should always be formatted as 'yyyymmddHHMM'. Failure
+        %                       to do so is an error.
+        %
+        %       fileName:       STRING
+        %                       A string representing the name that the resulting image file will have after the save
+        %                       operation. The full file name will consist of the time stamp and this name separated by
+        %                       a dash ('-'), followed lastly by the image extension. This argument must always be a
+        %                       string literal; formatting or escape characters will not be processed.
+        %
+        %   OPTIONAL INPUT:
+        %       extension:      STRING or { STRINGS }
+        %                       A string or cell array of strings specifying the extension(s) that figure image will
+        %                       take once saved. Multiple extensions are supported, including all of those that are
+        %                       supported by the MATLAB-native SAVEAS function. Specifying multiple extensions results
+        %                       in multiple files with identical names but different formats (e.g. BMP, JPEG, PNG,
+        %                       etc.). If omitted, this method saves images as MATLAB .FIG files.
+        %                       DEFAULT: 'fig'
+            assert(nargin >= 4, 'A sub-folder, graphics handle, time stamp, and file name must be specified for saving images.');
+            Today.AssertGraphicsHandle(H);
+            Today.AssertDateString(timeStamp);
+            Today.AssertFileNameOnly(fileName);
             
-            % Fill in & format the optional extension argument, if needed
-            if (nargin == 3)
-                if (isempty(e)); extension = {'fig'};
-                else extension = e; end
-            end 
+            if (nargin == 4); extension = {'fig'}; end
             if (~iscell(extension)); extension = {extension}; end
-            extension = cellfun(@(x) strrep(x, '.', ''), extension, 'UniformOutput', false);
             
-            % Save a file for each specified image extension
+            if (isempty(subFolder)); savePath = Today.Data;
+            else savePath = [Today.Data '/' timeStamp '/' subFolder]; end
+            saveName = sprintf('%s - %s', timeStamp, fileName);
+            
+            if (~savePath.Exists); mkdir(savePath); end
+            
             if (isa(H, 'BrainPlot'))
-                saveStr = sprintf('%s - %s', timeStamp, fileName);
-                H.Store('Path', Today.Data.ToString(), 'Name', saveStr, 'Ext', extension);
+                H.Store('Path', savePath.ToString(), 'Name', saveName, 'Ext', extension, 'Overwrite', true);
             else
-                saveStr = sprintf('%s/%s - %s.', Today.Data.ToString(), timeStamp, fileName);
+                saveStr = [savePath.ToString() '/' saveName];
                 for a = 1:length(extension)
-                    saveas(H, [saveStr extension{a}], extension{a});
+                    saveas(H, [saveStr '.' extension{a}], extension{a});
                 end
             end
         end
@@ -235,6 +366,28 @@ classdef Today < hgsetget
             F = dateFolder.FileSearch(timeStamp);
         end
 
+    end
+    
+    
+    methods (Static, Access = private)
+        
+        function AssertDateString(timeStamp)
+        % ASSERTDATESTRING - Checks for errors in user-inputted time stamp strings.
+            assert(ischar(timeStamp), 'Images must be saved with a valid date-time string.');
+            assert(length(timeStamp) == 12, 'Date-time strings should be formatted as yyyymmddHHMM.');
+        end
+        function AssertGraphicsHandle(H)
+        % ASSERTGRAPHICSHANDLE - Ensures that a user input is a graphics handle or BrainPlot object.
+            assert(ishandle(H) || isa(H, 'BrainPlot'), 'Inputted figure handle must point to an open graphics window.');
+        end
+        function AssertFileNameOnly(fileName)
+        % ASSERTFILENAMEONLY - Ensures that a user input contains only a file name and not a path or an extension.
+            [p, f, e] = fileparts(fileName);
+            assert(isempty(p), 'File names cannot contain paths or directory specifications.');
+            assert(isempty(e), 'File names cannot contain extension specifications.');
+            assert(~isempty(f), 'File names must contain a valid name.');
+        end
+    
     end
     
     

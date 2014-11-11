@@ -11,10 +11,15 @@ function ntss
 %   
 %   INSTRUCTIONS:
 %       1. Open and view the Today Script named with the current date.
-%       2. Click on the empty line in the script where a new time section is to be created.
+%       2. Click on the empty line in the script where a new log section is to be created.
 %       3. Type this function's name, "ntss" without quotes, on the line.
 %       4. Highlight the function's name, right-click, and select "Evaluate Selection" from the context menu.
 %           4a. The default shortcut for selection evaluation is the F9 keyboard key.
+%
+%   SYNTAX:
+%       ntss
+%
+%   See also:   NTS, TODAY, TODAY.CREATESCRIPT, TODAY.CREATESECTION
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20140627
@@ -25,41 +30,10 @@ function ntss
 %                   instead of an incomplete line of code.
 %       20141016:   Renamed this function from "newSection" to "ntss" to facilitate easier entry of the command in Today
 %                   Scripts. Updated to work with the new Today class.
+%       20141106:   Moved the section creation logic out of this function and to a dedicated method in the Today static
+%                   class. This function will now just serve as a shorthand/shortcut for that method.
 
 
 
 %% Create a New Today-Script Section
-% Initialize important file name & time strings
-date = Today.Date;
-time = Today.Time;
-
-
-
-%% Create Section Using Undocumented MATLAB
-% Find a reference to the today script document object
-tsFile = matlab.desktop.editor.getActive;
-[~, tsName, ~] = fileparts(tsFile.Filename);
-if ~strcmpi(tsName, date)
-    tsFile = matlab.desktop.editor.findOpenDocument([date '.m']);
-end
-
-% Error out if the today script isn't open (probably trying to call this function from the command window)
-assert(~isempty(tsFile), 'No today script for %s is open. You must create and open this script before creating new sections in it.', date); 
-
-% Replace the new section command with text
-newText = sprintf(...
-    ['%%%% %s - \n'...
-    '%% Today''s parameters\n'...
-    'timeStamp = ''%s'';\n'...
-    'analysisStamp = '''';\n'...
-    'dataSaveName = ''%s/%s - '';\n'...
-    '\n'...
-    '%% Get references to infraslow BOLD & EEG data sets\n'...
-    'boldFiles = get(Paths, ''InfraslowBOLD'');\n'...
-    'eegFiles = get(Paths, ''InfraslowBOLD'');'],...
-    time,...
-    [date time],...
-    Today.Data.ToString(),...
-    [date time]);
-tsFile.Text = regexprep(tsFile.Text, 'ntss', newText);
-
+Today.CreateSection();

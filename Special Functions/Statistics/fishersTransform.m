@@ -39,7 +39,7 @@ function z = fishersTransform(r, n)
 %   This results in a z-score distribution that is suitable for statistical significance tests. The reason for this
 %   normalization step is to scale the data so that a null distribution of transformed r values would approximate a
 %   true standard normal distribution (with zero mean and unit standard deviation). Such a null distribution might be
-%   derived by estimating and transforming the correlation coefficients for data sets that known to be uncorrelated. 
+%   derived by estimating and transforming the correlation coefficients for data sets that are known to be uncorrelated. 
 %   
 %
 %   SYNTAX:

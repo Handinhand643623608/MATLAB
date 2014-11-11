@@ -1,7 +1,7 @@
 function varargout = scale2rgb(inData, varargin)
-%SCALE2RGB Scales an array of input numerical magnitude data to a colormapping.
+%SCALE2RGB - Scales an array of input numerical magnitude data to a colormapping.
 %   This function accomplishes the same thing that is done in the native function "imagesc", where image data are
-%   automatically scaled and mapped onto a range of colors. Data are 
+%   automatically scaled and mapped onto a range of colors.
 % 
 %   Syntax
 %   rgbData = scale2rgb(inData)

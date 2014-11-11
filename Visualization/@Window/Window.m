@@ -19,6 +19,8 @@ classdef Window < hgsetget
 %                   function now that native figure properties are no longer accessible through this class.
 %       20140807:   Implemented a wrapping property and get/set methods for the window title bar name string.
 %       20140828:   Implemented a property controlling the figure color mapping.
+%       20141110:   Changed the Window class to open a full screen window by default, since this is almost universally
+%                   how it's used.
 
 %% TODOS
 %   - Change access permissions for the COLORBAR (shouldn't be able to set it publicly)

@@ -21,7 +21,8 @@ function y = fastBinoCDF(x,n,p,uflag)
 %% CHANGELOG
 %   Modified by Josh Grooms on 20140127
 %       20140127:   Custom version of this builtin function created. Increased memory limits implemented in this
-%                   function for enormous speed boosts.
+%                   function for enormous speed boosts (from 1e5 to 1e7).
+%       20141105:   Further increased the memory limits of this function to 1e10. 
 
 
 if nargin < 3, 
@@ -81,7 +82,7 @@ k = k(:);
 % Compute the values not handled above as special cases
 if any(k)
     smallp = 1e-4;  % to maintain accuracy, don't switch tails below here
-    bign = 1e7;     % to conserve memory, sum over smaller range above here
+    bign = 1e10;     % to conserve memory, sum over smaller range above here
     
     % for the simplest case, sum the probabilities from 0
     np = n(k).*p(k);

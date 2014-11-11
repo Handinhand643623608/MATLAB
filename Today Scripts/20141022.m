@@ -69,7 +69,7 @@ end
 
 
 
-%% 1641 - 
+%% 1641 - Imaging Thresholded Averaged Z-Scored BOLD-EEG Correlations
 % Today's parameters
 timeStamp = '201410221641';
 analysisStamp = 'Thresholded Averaged FWER-Uncorrected BOLD-%s Correlation';
@@ -118,7 +118,7 @@ end
 
 
 
-%% 1713 - 
+%% 1713 - Imaging Thresholded Averaged Z-Scored BOLD-EEG Correlations
 % Let's try thresholding based on a null distribution parameterized by the empirical null from yesterday (PO10). Since
 % that curve is similarly narrow, I'm betting these results will look a lot better. FWER will remain uncontrolled for
 % the time being.

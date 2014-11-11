@@ -20,28 +20,36 @@ classdef  Path < hgsetget
     
 %% CHANGELOG
 %   Written by Josh Grooms on 20141010
+%       20141110:   Reorganized some of the properties of this class. Completely rewrote the ParseFullPath method to be
+%                   more effective. Implemented some string formatting methods to ensure standardization of path
+%                   components.
 
     
     
     %% Properties
     properties (Dependent)
         Exists                  % A Boolean indicating whether or not the file or folder exists on the computer.
-        ParentDirectory;        % A path object for the directory immediately above the full path.
-        ParentDrive;            % The path object for drive letter (for Windows PCs only) of the full path.
+        FullName                % The full name of the file or folder that the object points to, excluding the parent path.
+        FullPath                % The full path string that the object points to.
+        IsFile                  % A Boolean that indicates whether or not the full path points to a file.
+        IsFolder                % A Boolean that indicates whether or not the full path points to a folder.
     end
     
     properties (SetAccess = protected)
-        FullName;               % The full name of the file or folder that the object points to, excluding the parent path.
-        FullPath;               % The full path string that the object points to.
-        Extension;              % Either 'Folder' or the extension string of the file that the full path points to.
-        IsFile;                 % A Boolean that indicates whether or not the full path points to a file.
-        IsFolder;               % A Boolean that indicates whether or not the full path points to a folder.
-        Name;                   % The name string of the file or folder that the full path points to.
+        Extension               % Either 'Folder' or the extension string of the file that the full path points to.
+        Name                    % The name string of the file or folder that the full path points to.
+        ParentDirectory         % A path object for the directory immediately above the full path.
+        ParentDrive             % The path object for drive letter (for Windows PCs only) of the full path.
+    end
+
+    properties (Access = protected)
+        Directory
+        Drive
     end
     
     methods (Static)
         function P = PWD
-            % Gets the current working directory as a Path object.
+        % Gets the current working directory as a Path object.
             P = Path(pwd);
         end
     end
@@ -99,21 +107,25 @@ classdef  Path < hgsetget
             else type = 'dir'; end
             e = logical(exist(P.FullPath, type));
         end
+        function n = get.FullName(P)
+            if (P.IsFile); n = [P.Name '.' P.Extension];
+            else n = P.Name; end
+        end
+        function p = get.FullPath(P)
+            if (isempty(P.Name)); p = P.Directory;
+            else p = [P.Directory '/' P.FullName]; end
+        end
+        function b = get.IsFile(P)
+            b = ~P.IsFolder;
+        end
+        function b = get.IsFolder(P)
+            b = isempty(P.Extension);
+        end
         function U = get.ParentDirectory(P)
-            P.AssertSingleObject();
-            if (P.IsFile); pattern = '(.*)[\\/][^\\/]+\.[^\\/]+$';
-            else pattern = '(.*)[\\/][^\\/]+$'; end
-            parentPath = regexp(P.FullPath, pattern, 'tokens');
-            U = Path(parentPath{1}{1}); 
+            U = Path(P.Directory);
         end
         function D = get.ParentDrive(P)
-            if (ispc)
-                drivePattern = '^([^\\/]:).*';
-                driveLetter = regexp(P.FullPath, drivePattern, 'tokens');
-                D = Path(driveLetter{1}{1});
-            else
-                D = Path('/');
-            end
+            D = Path(P.Drive);
         end
         
         % Object Conversion Methods
@@ -142,7 +154,7 @@ classdef  Path < hgsetget
         %               inputting a reference to a folder here is an error.
         %
         %   See also:   FILE
-            if (~P.IsFile); error('Only paths to files may be converted into a file object.'); end
+            assert(P.IsFile, 'Only paths to files may be converted into a file object.');
             F = File(P);
         end
         function s = ToString(P)
@@ -312,7 +324,6 @@ classdef  Path < hgsetget
     end
     
     methods (Static)
-        
         function P = Where(fileName)
         % WHERE - Returns the path to the directory containing a function or file.
             if (isa(fileName, 'Path') || isa(fileName, 'File'))
@@ -321,8 +332,6 @@ classdef  Path < hgsetget
             end
             P = Path(where(fileName));
         end
-        
-        
     end
     
     
@@ -524,23 +533,19 @@ classdef  Path < hgsetget
             P.AssertSingleObject();
             Path.AssertSingleString(pathStr);
             
-            P.FullPath = regexprep(pathStr, '[\\/]$', '');
-            P.FullPath = regexprep(pathStr, '\\', '/');
+            [p, n, e] = fileparts(pathStr);
             
-            filePattern = '([^\\/\.]*)\.?([^\\/]*)$';
-            fileParts = regexp(P.FullPath, filePattern, 'tokens');
-            P.IsFolder = isempty(fileParts{1}{2});
-            P.IsFile = ~P.IsFolder;
+            P.Directory = Path.FormatPathString(p);
+            P.Name = n;
+            P.Extension = Path.FormatExtensionString(e);
             
-            P.Name = fileParts{1}{1};
-            
-            if (P.IsFolder); 
-                P.Extension = 'Folder';
-                P.FullName = P.Name;
+            if (ispc)
+                drivePattern = '^([^\\/]:).*';
+                driveLetter = regexp(P.Directory, drivePattern, 'tokens');
+                P.Drive = driveLetter{1}{1};
             else
-                P.Extension = fileParts{1}{2};
-                P.FullName = [P.Name '.' P.Extension];
-            end 
+                P.Drive = '/';
+            end
         end 
     end
     
@@ -558,6 +563,16 @@ classdef  Path < hgsetget
         % BOOLEANSTRING - Converts Boolean values into equivalent string representations.
             if (bool); s = 'true'; 
             else s = 'false'; end
+        end
+        function e = FormatExtensionString(e)
+        % FORMATEXTENSIONSTRING - Removes dots from file extension strings.
+            if (iscell(e)); e = cellfun(@(x) strrep(x, '.', ''), e, 'UniformOutput', false);
+            else e = strrep(e, '.', ''); end
+        end
+        function p = FormatPathString(p)
+        % FORMATPATHSTRING - Forces the use of the universal separator character and removes trailing separators.
+            p = strrep(p, '\', '/');
+            if (p(end) == '/'); p(end) = []; end
         end
     end
                 
