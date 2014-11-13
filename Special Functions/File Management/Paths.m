@@ -28,6 +28,9 @@ classdef Paths < hgsetget
 %       20141110:   Changed the behavior of the ComputerName method to always return an all lowercase name. Updated the
 %                   properties that use this method accordingly. Implemented a new Common static property to hold a
 %                   reference to the folder containing some commonly used data sets.
+%		20141113:	Changed the name of the Globals property to Library to better reflect its purpose (nearly everything
+%					is a global function in MATLAB and this is a library of functions I didn't write). Also changed the
+%					path string to point to the appropriate folder on my flash drive after it was removed from Dropbox.
    
     
     %% Important Paths
@@ -78,15 +81,13 @@ classdef Paths < hgsetget
                     error('Flash drive identity on this computer is unknown.');
             end
         end
-        function P = Globals
+        function P = Library
         % Gets a path to my global functions folder.
              switch (Paths.ComputerName)
-                case 'desktop'
-                    P = Path('C:/Users/Josh/Dropbox/Globals');
-                case 'shella-bigboy1'
-                    P = Path('C:/Users/jgrooms/Dropbox/Globals');
+                case {'desktop', 'shella-bigboy1'}
+					P = Path('X:/Code/MATLAB/Library');
                 otherwise
-                    P = Path('/home/jgrooms/Dropbox/Globals');
+                    error('The library path reference for this computer has not yet been set.');
             end
         end
         function P = Main

@@ -12,6 +12,8 @@
 %                   function with either a completely broken version or one that (stupidly) uses global variables.
 %       20141016:   Updated so that this procedure is universal between computers (no need for separate versions
 %                   anymore). Also updated this script for compatibility with the Paths class rewrite.
+%		20141113:	Removed automatic addition of Globals folder to MATLAB's working path altogether. These functions
+%					just aren't used often enough to justify the headache and overhead they cause.
 
 
 %% Setup MATLAB Environment
@@ -30,10 +32,6 @@ Paths.Main.NavigateTo();
 
 % Add data paths to MATLAB's working directories
 addpath(genpath(Paths.DataObjects));
-addpath(genpath(Paths.Globals));
-
-% SPM, with its boundlessly terrible programming, decided to overload the builtin nanmean function with its broken one
-rmpath([where('spm') '/external/fieldtrip/src']);
 
 % Wipe the command window
 clc
