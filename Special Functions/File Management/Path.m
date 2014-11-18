@@ -23,6 +23,8 @@ classdef  Path < hgsetget
 %       20141110:   Reorganized some of the properties of this class. Completely rewrote the ParseFullPath method to be
 %                   more effective. Implemented some string formatting methods to ensure standardization of path
 %                   components.
+%       20141117:   Implemented a method for getting both file and folder contents from a path to a directory.
+%		20141118:	Changed the name of the method ViewInExplorer to just View to make it easier to use.
 
     
     
@@ -191,6 +193,11 @@ classdef  Path < hgsetget
         end
 
         % Directory Searching Methods
+        function P = Contents(P)
+        % CONTENTS - Gets a list of all file and folder contents in a directory.
+            assert(P.IsFolder, 'Contents can only be retrieved for paths to directories, not files.');
+            P = Path(contents(P.FullPath));
+        end
         function F = FileContents(P)
         % FILECONTENTS - Gets a list of all files in a directory.
         %
@@ -312,8 +319,8 @@ classdef  Path < hgsetget
             else cd([P.FullPath '/']);
             end
         end
-        function ViewInExplorer(P)
-            % VIEWINEXPLORER - Opens a directory or a file's parent directory in Windows Explorer.
+        function View(P)
+		% VIEW - Opens a directory or a file's parent directory in Windows Explorer.
             assert(ispc, 'This function is only available on Windows PCs.');
             if (P.IsFile); P.ParentDirectory.ViewInExplorer();
             else winopen(P.FullPath);
@@ -333,6 +340,7 @@ classdef  Path < hgsetget
             P = Path(where(fileName));
         end
     end
+    
     
     
     %% Overloaded MATLAB Methods

@@ -31,7 +31,7 @@ end
 Paths.Main.NavigateTo();
 
 % Add data paths to MATLAB's working directories
-addpath(genpath(Paths.DataObjects));
+addpath(genpath(Paths.Data));
 
 % Wipe the command window
 clc

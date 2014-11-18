@@ -52,40 +52,44 @@ n(isnan(n) | n == 0) = [];
 
 % Initialize a flattened p-value storage array
 lenX = length(x);
-lenN = length(n);
-fp = zeros(lenX, 2);
+lenN = length(x);
+
+pLow = zeros(lenX, 1);
+pHigh = zeros(lenX, 1);
+
+gx = gpuArray(single(x));
+gn = gpuArray(single(n));
+gpLow = gpuArray(single(pLow));
+gpHigh = gpuArray(single(pHigh));
 
 
 
 %% Generate Empirical P-Values
-% Calculate how much of the work can be vectorized
-numReps = floor(Memory.MaxNumDoubles / (2 * lenN));
-nrep = repmat(n', numReps, 1);
-
-% Loop through the real data distribution in chunks as large as possible
-for a = 1:numReps:lenX
-    % Identify where values are greater than null values (lower tail)
-    xrep = repmat(x(a:a + numReps - 1), 1, lenN);
-    xrep = xrep >= nrep;
-    
-    % Calculate one-tailed p-values
-    fp(a:a + numReps - 1, 1) = sum(xrep, 2) ./ lenN;
-    fp(a:a + numReps - 1, 2) = sum(~xrep, 2) ./ lenN;
+% Loop through the real data distribution to determine p-values
+pb = Progress('-fast', 'P-Value Generation');
+parfor (a = 1:lenX)
+    s = sum(x(a) >= n);
+    pLow(a) = s / lenN;
+    pHigh(a) = 1 - pLow(a);
+    pb.Update(a/lenX);
 end
 
+% pb = Progress('-fast', 'P-Value Generation');
+% for a = 1:lenX
+%     s = sum(gx(a) >= gn);
+%     gpLow(a) = s / lenN;
+%     gpHigh(a) = 1 - gpLow(a);
+%     pb.Update(a/lenX);
+% end
+
 % Get rid of large data that's not needed anymore
-clear n nrep xrep;
+clear n s;
 
 % Calculate two-tailed p-values
-fp = 2 * min(fp, [], 2);
+% fp = gather(2 * min(gpLow, gpHigh));
+fp = 2 * min(pLow, pHigh);
 
 % Reshape the p-values to match the inputted real data
 p = nan(length(idsRemoved));
 p(~idsRemoved) = fp;
 p = reshape(p, szx);
-
-
-
-
-
-
