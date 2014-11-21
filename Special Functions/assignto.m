@@ -11,13 +11,16 @@ function assignto(defaults, args)
 %   input arguments, which are impractical to users especially when only a select few optional inputs are being used.
 %
 %   ASSIGNTO improves upon the features of that older function by eliminating the need for a structure that hides
-%   variable initialization and in turn frequently confuses the MATLAB code analyzer. By de
+%   variable initialization and in turn frequently confuses the MATLAB code analyzer. It also does away with alternative
+%   acceptable variable names (which is bad programming practice) and with the automated formatting of inputted
+%   variables (which should be a part of the function logic if desired). 
 %
 %   DEFAULTS BLOCKS:
 %   ASSIGNTO works by determining the names of the variables that are contained within a special default variable
 %   blocks, henceforth referred to as Defaults blocks. These blocks are simple nested functions that should be located
 %   at or near the beginning of the caller function's logic. Defaults blocks should only contain variable declarations
-%   and initializations; there should not be any logic or computation placed inside. 
+%   and initializations; there should not be any logic or computation performed inside. Additionally, this function
+%   should never be called explicitly in the function that implements it.
 %
 %   EXAMPLE USAGE:
 %   As an example, consider the following MATLAB function:
