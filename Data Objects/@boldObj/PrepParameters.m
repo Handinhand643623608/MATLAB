@@ -49,11 +49,11 @@ function paramStruct = PrepParameters
 %% General Preprocessing Parameters (Will Frequently Change)
 % Provide input & output data paths
 paramStruct.DataPaths = struct(...
-    'MNIBrainTemplate',         [get(Paths, 'Globals') '/MNI/template/T1.nii'],...          % The path to the MNI brain template image
-    'MNIFolder',                [get(Paths, 'Globals') '/MNI'],...                          % The path to the general MNI folder
-    'OutputPath',               get(Paths, 'BOLD'),...                                      % Choose where preprocessed data should be saved
-    'RawDataPath',              get(Paths, 'Raw'),...                                       % Specify the top-level raw data path (where each subject data folder is)
-    'SegmentsFolder',           [get(Paths, 'Globals') '/MNI/segments']);                   % Specify where MNI segment maps are stored
+    'MNIBrainTemplate',         [Paths.Common '/MNI/template/T1.nii'],...                   % The path to the MNI brain template image
+    'MNIFolder',                [Paths.Common '/MNI'],...                                   % The path to the general MNI folder
+    'OutputPath',               Paths.BOLD,...                                              % Choose where preprocessed data should be saved
+    'RawDataPath',              Paths.Raw,...                                               % Specify the top-level raw data path (where each subject data folder is)
+    'SegmentsFolder',           [Paths.Common '/MNI/segments']);                            % Specify where MNI segment maps are stored
 
 % Provide data folder signatures that uniquely identify subject- & scan-specific data (use REGEXP metacharacters if necessary)
 paramStruct.DataFolderIDs = struct(...

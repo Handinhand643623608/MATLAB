@@ -203,7 +203,7 @@ for a = scans.SubjectsToProcess
         step = step + 1;
         
         % [ TESTED ] Mask out non-brain areas using the mean functional image
-        Mask(boldData, boldData.Data.Masks.Mean, 0, NaN);
+        Mask(boldData, boldData.Data.Masks.Mean, NaN);
         
         % [ TESTED ] Apply temporal filtering to the time series data
         if stages.UseTemporalFiltering

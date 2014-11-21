@@ -51,6 +51,8 @@ function Filter(boldData, varargin)
 %       20141001:   Removed the option to use arrays of BOLD data objects with this method.
 %       20141002:   Had to change the name of the window parameter to WindowName to avoid conflicts that were cropping
 %                   up with my Window class. 
+%		20141118:	Bug fix for how FIR filter phase delay was being accounted for. Before, the whole window length was
+%					being cropped out of the time series, but it's only necessary to crop half of that length.
 
 %% TODOS
 % Immediate Todos
@@ -99,11 +101,13 @@ if (istrue(UseZeroPhaseFilter))
 else
     funData = filter(filterParams, 1, funData);
     funData = funData';
-    funData(:, 1:WindowLength) = [];
+	
+	sampleDelay = ceil(WindowLength/2);
+    funData(:, 1:sampleDelay) = [];
     nuisanceData = filter(filterParams, 1, nuisanceData);
     nuisanceData = nuisanceData';
-    nuisanceData(:, 1:WindowLength) = [];
-    filterShift = floor(WindowLength/(2*1/TR));
+    nuisanceData(:, 1:sampleDelay) = [];
+    filterShift = sampleDelay * TR;
 end
 
 % Replace the nuisance data in the data object

@@ -47,6 +47,8 @@ classdef eegObj < humanObj
 %                   number of this software to 2 to reflect these changes.
 %       20140925:   Implemented a subscript reference function for this class so that EEG channel data can be extracted
 %                   quickly and easily. Channels can now be inputted as if they were matrix indices of the object.
+%		20141120:	Removed the subscript reference function. It interferes too much with other ways of indexing into
+%					the data objects. Fixed some bugs that were preventing the method Resample from working properly.
 
 %% TODOS
 %   - Rewrite the power spectrum generation methods.
@@ -113,37 +115,36 @@ classdef eegObj < humanObj
     methods        
         varargout   = Plot(eegData, varargin)
         
-        
         function GenerateClusterSignals(eegData, maxNumClusters)
-            %GENERATECLUSTERSIGNALS - Generates average signals by clustering EEG time series.
-            %   This function produces and stores a set of average EEG signals using hierarchical clustering. Signals
-            %   are grouped according to how well their time series correlate with one another. A single user input
-            %   provides optional control over the number of individual clusters that are allowed to form.
-            %
-            %   Identifying average signals may be useful when trying to reduce the dimensionality of an EEG data set or
-            %   when trying to identify common mode components. Either case relies on the fact that electrophysiological
-            %   recordings often contain redundant information, especially when acquired from surface electrodes.
-            %   Identifying such components can be critical to certain analyses and removing them can reduce
-            %   computational demands.
-            %
-            %   SYNTAX:
-            %   GenerateClusterSignals(eegData)
-            %
-            %   INPUT:
-            %   eegData:            EEGOBJ
-            %                       A single EEG data object.
-            %
-            %   OPTIONAL INPUT:
-            %   maxNumClusters:     INTEGER
-            %                       The maximum number of clusters that will be allowed to form. 
-            %                       DEFAULT: 5
-            
+		% GENERATECLUSTERSIGNALS - Generates average signals by clustering EEG time series.
+		%   This function produces and stores a set of average EEG signals using hierarchical clustering. Signals are
+		%   grouped according to how well their time series correlate with one another. A single user input provides
+		%   optional control over the number of individual clusters that are allowed to form.
+		%
+		%   Identifying average signals may be useful when trying to reduce the dimensionality of an EEG data set or
+		%   when trying to identify common mode components. Either case relies on the fact that electrophysiological
+		%   recordings often contain redundant information, especially when acquired from surface electrodes.
+		%   Identifying such components can be critical to certain analyses and removing them can reduce computational
+		%   demands.
+		%
+		%   SYNTAX:
+		%   GenerateClusterSignals(eegData)
+		%
+		%   INPUT:
+		%   eegData:            EEGOBJ
+		%                       A single EEG data object.
+		%
+		%   OPTIONAL INPUT:
+		%   maxNumClusters:     INTEGER
+		%                       The maximum number of clusters that will be allowed to form. 
+		%                       DEFAULT: 5
+
             % Error check
             if nargin == 1; maxNumClusters = 5; end
-            eegData.AssertSingleObject;
+            eegData.AssertSingleObject();
             
             % Pull the EEG data from the object & remove dead channels
-            ephysData = eegData.ToArray;
+            ephysData = eegData.ToArray();
             idsNaN = isnan(ephysData(:, 1));
             ephysData(idsNaN, :) = [];
 
@@ -192,15 +193,7 @@ classdef eegObj < humanObj
             % Store the array in the data object
             eegData.Data.EEG = stdData;
             eegData.Channels = channels;
-        end
-        
-        function data = subsref(eegData, s)
-            % SUBSREF - Subscript reference shortcut to extract data from the EEG data object.
-            
-            if isequal(s(1).type, '()'); data = eegData.ToArray(s.subs);
-            else data = builtin('subsref', eegData, s);
-            end
-        end
+		end
     end
     
     
@@ -210,43 +203,42 @@ classdef eegObj < humanObj
         [eegArray, legend] = ToArray(eegData, dataStr)      % Convert specific EEG data to a 2D array format
         
         function [eegMatrix, idsNaN] = ToMatrix(eegData, removeNaNs)
-            %TOMATRIX - Extracts EEG channel data and automatically removes dead channels, if called for.
-            %
-            %   SYNTAX:
-            %   eegMatrix = ToMatrix(eegData)
-            %   eegMatrix = ToMatrix(eegData, removeNaNs);
-            %   [eegMatrix, idsNaN] = ToMatrix(...);
-            %
-            %   OUTPUT:
-            %   eegMatrix:      2D ARRAY
-            %                   The channel data stored inside the EEG data object with or without dead channels
-            %                   removed, depending on the REMOVENANS argument value. 
-            %
-            %   OPTIONAL OUTPUT:
-            %   idsNaN:         [BOOLEANS]
-            %                   The indices of NaN voxels. This parameter is a vector of Booleans of length equal to the
-            %                   number of channels that the full EEG data array contains (before NaN time series
-            %                   removal). Elements of this vector are true when corresponding elements in the first
-            %                   column of the EEG matrix are NaN. If this output is requested without providing a value
-            %                   for the REMOVENANS argument, then that argument defaults to TRUE and NaNs are
-            %                   automatically removed from the data.
-            %
-            %   INPUT:
-            %   eegData:        EEGOBJ
-            %                   A single EEG data object. Arrays of EEG objects are not supported.
-            %
-            %   OPTIONAL INPUT:
-            %   removeNaNs:     BOOLEAN
-            %                   Remove any channels with time series composed entirely of NaNs. These frequently
-            %                   represent dead channels in the data array. If this parameter is not supplied as an input
-            %                   argument, then it defaults to true only if the IDSNAN output is requested by the
-            %                   caller. Otherwise, if only one output is requested (EEGMATRIX), this defaults to
-            %                   FALSE and NaNs are not removed from the data matrix. Manually specifying this argument
-            %                   overrides these default behaviors. 
-            %                   DEFAULT:
-            %                       true    - If two outputs are requested (i.e. including idsNaN)
-            %                       false   - If only one output is requested
-            
+		% TOMATRIX - Extracts EEG channel data and automatically removes dead channels, if called for.
+		%
+		%   SYNTAX:
+		%   eegMatrix = ToMatrix(eegData)
+		%   eegMatrix = ToMatrix(eegData, removeNaNs);
+		%   [eegMatrix, idsNaN] = ToMatrix(...);
+		%
+		%   OUTPUT:
+		%   eegMatrix:      2D ARRAY
+		%                   The channel data stored inside the EEG data object with or without dead channels removed,
+		%                   depending on the REMOVENANS argument value.
+		%
+		%   OPTIONAL OUTPUT:
+		%   idsNaN:         [ BOOLEANS ]
+		%                   The indices of NaN voxels. This parameter is a vector of Booleans of length equal to the
+		%                   number of channels that the full EEG data array contains (before NaN time series removal).
+		%                   Elements of this vector are true when corresponding elements in the first column of the EEG
+		%                   matrix are NaN. If this output is requested without providing a value for the REMOVENANS
+		%                   argument, then that argument defaults to TRUE and NaNs are automatically removed from the
+		%                   data.
+		%
+		%   INPUT:
+		%   eegData:        EEGOBJ
+		%                   A single EEG data object. Arrays of EEG objects are not supported.
+		%
+		%   OPTIONAL INPUT:
+		%   removeNaNs:     BOOLEAN
+		%                   Remove any channels with time series composed entirely of NaNs. These frequently represent
+		%                   dead channels in the data array. If this parameter is not supplied as an input argument,
+		%                   then it defaults to true only if the IDSNAN output is requested by the caller. Otherwise, if
+		%                   only one output is requested (EEGMATRIX), this defaults to FALSE and NaNs are not removed
+		%                   from the data matrix. Manually specifying this argument overrides these default behaviors.
+		%                   DEFAULT:
+		%                       true    - If two outputs are requested (i.e. including idsNaN)
+		%                       false   - If only one output is requested
+
             % Deal with missing inputs
             if nargin == 1
                 if (nargout == 2); removeNaNs = true;
@@ -255,10 +247,10 @@ classdef eegObj < humanObj
             end
             
             % Error check
-            eegData.AssertSingleObject;
+            eegData.AssertSingleObject();
             
             % Pull the EEG data matrix from the object
-            eegMatrix = eegData.ToArray;
+            eegMatrix = eegData.ToArray();
             
             % Identify & remove dead channel entries if called for
             idsNaN = isnan(eegMatrix(:, 1));
@@ -273,31 +265,31 @@ classdef eegObj < humanObj
         Filter(eegData, varargin)               % FIR filter EEG data
         
         function Detrend(eegData, order)
-            %DETREND - Detrend EEG data time series using a polynomial of the specified order.
-            %
-            %   SYNTAX:
-            %   Detrend(eegData, order)
-            %
-            %   INPUTS:
-            %   eegData:    EEGOBJ
-            %               An EEG data object containing electrode time series to be detrended.
-            %
-            %   order:      INTEGER
-            %               Any positive integer representing the order of the polynomial used for detrending. 
-            %               EXAMPLES:
-            %                   1 - Linear detrend
-            %                   2 - Quadratic detrend
-            %                   3 - Cubic detrend
-            %                   .
-            %                   .
-            %                   .
+		% DETREND - Detrend EEG data time series using a polynomial of the specified order.
+		%
+		%   SYNTAX:
+		%   Detrend(eegData, order)
+		%
+		%   INPUTS:
+		%   eegData:    EEGOBJ
+		%               An EEG data object containing electrode time series to be detrended.
+		%
+		%   order:      INTEGER
+		%               Any positive integer representing the order of the polynomial used for detrending. 
+		%               EXAMPLES:
+		%                   1 - Linear detrend
+		%                   2 - Quadratic detrend
+		%                   3 - Cubic detrend
+		%                   .
+		%                   .
+		%                   .
             
             % Error check
-            eegData.AssertSingleObject;
-            eegData.LoadData;
+            eegData.AssertSingleObject();
+            eegData.LoadData();
             
             % Get the EEG data array
-            ephysData = eegData.ToArray;
+            ephysData = eegData.ToArray();
             
             % Detrend the EEG time series
             for a = 1:size(ephysData, 1)
@@ -316,115 +308,103 @@ classdef eegObj < humanObj
             
         end
         function Resample(eegData, fs)
-            %RESAMPLE - Resamples EEG temporal data to a new sampling frequency.
-            %
-            %   SYNTAX:
-            %   Resample(eegData, fs)
-            %
-            %   INPUT:
-            %   eegData:    EEGOBJ        
-            %               A single EEG data object.
-            %
-            %   fs:         DOUBLE
-            %               The new sampling frequency (in Hertz) for the EEG time series.
+		% RESAMPLE - Resamples EEG temporal data to a new sampling frequency.
+		%
+		%   SYNTAX:
+		%   Resample(eegData, fs)
+		%
+		%   INPUT:
+		%   eegData:    EEGOBJ        
+		%               A single EEG data object.
+		%
+		%   fs:         DOUBLE
+		%               The new sampling frequency (in Hertz) for the EEG time series.
             
             % Error check
-            eegData.AssertSingleObject;
-            eegData.LoadData;
+            eegData.AssertSingleObject();
+            eegData.LoadData();
             
             % Get the EEG data matrix
-            ephysData = eegData.ToMatrix;
+			[ephysData, idsNaN] = eegData.ToMatrix();
+			ephysData = ephysData';
             szEEG = size(ephysData);
             
             % Calculate the number of time points the resampled series will have
-            numPoints = floor(szEEG(2) * (fs / eegData.Fs));
-            rsEphysData = nan(szEEG(1), numPoints);
+            numPoints = floor(szEEG(1) * (fs / eegData.Fs));
+			rsEphysData = nan(numPoints, length(idsNaN));
             
             % Resample the EEG data
-            for a = 1:szEEG(1);
-                if ~isnan(ephysData(a, 1))
-                    rsEphysData(a, :) = resample(ephysData, numPoints, szEEG(2));
-                end
-            end
-            
-            % Resample any existing BCG data
+			rsEphysData(:, ~idsNaN) = resample(ephysData, numPoints, szEEG(1));
             if ~isempty(eegData.Data.BCG); 
-                eegData.Data.BCG = resample(eegData.Data.BCG, numPoints, szEEG(2));
-            end
-            
-            % Resample any existing global data
+                eegData.Data.BCG = resample(eegData.Data.BCG, numPoints, szEEG(1));
+			end
             if ~isempty(eegData.Data.Global)
-                szGlobal = size(eegData.Data.Global);
-                rsGlobal = zeros(szGlobal(1), numPoints);
-                for a = 1:szGlobal(1)
-                    rsGlobal(a, :) = resample(eegData.Data.Global(c, :), numPoints, szGlobal(2));
-                end
-                eegData.Data.Global = rsGlobal;
+				rsGlobal = resample(eegData.Data.Global', numPoints, szEEG(1));
+                eegData.Data.Global = rsGlobal';
             end
             
             % Store the results in the data object
-            eegData.Data.EEG = rsEphysData;
+            eegData.Data.EEG = rsEphysData';
             Resample@humanObj(eegData, eegData.Fs, fs);
             eegData.Fs = fs;
             eegData.IsZScored = false;
         end
         function Regress(eegData, signal)
-            %REGRESS - Linearly regress signals from EEG time series.
-            %   This function performs a simple linear regression between a set of signals and all EEG channel time
-            %   series, finding the best fit (in the least-squares sense) for the signals to the data. It then scales
-            %   the signals according to the fitting parameters and subtracts them from the EEG time series. Thus, the
-            %   EEG data that exists after this method is called are the residual time series left over from the
-            %   regression.
-            %
-            %   Linear regression is currently a popular method of removing artifacts from the EEG data and accounting
-            %   for signals that are not likely to be neuronal in origin. Partial correlation, for instance, uses this
-            %   approach to control for a set of variables while estimating how two other data sets covary.
-            %
-            %   However, assuming simple linear relationships between complicated data (i.e. physiological data) is
-            %   rarely exactly correct. Care must be taken to ensure that the data fitting is approximately valid. If it
-            %   is not, more complex methods of regression may be called for.
-            %
-            %   SYNTAX:
-            %   Regress(eegData, signal)
-            %
-            %   INPUTS:
-            %   eegData:    EEGOBJ
-            %               A single EEG data object.
-            %
-            %   signal:     1D ARRAY or 2D ARRAY
-            %               A vector or array of signals to be regressed from the EEG channel data. This argument must
-            %               be provided in the format [SIGNALS x TIME], where time points span the columns of the
-            %               matrix. The number of signals (i.e. number of rows) here can be any number, but the number
-            %               of time points must equal the number of time points in the EEG data.
-            %
-            %               It is not necessary to provide a signal of all ones in this array (i.e. to account for
-            %               constant terms), although you may provide one if you wish. This function automatically adds
-            %               in a constant signal if one is not present.
-            
+		% REGRESS - Linearly regress signals from EEG time series.
+		%   This function performs a simple linear regression between a set of signals and all EEG channel time series,
+		%   finding the best fit (in the least-squares sense) for the signals to the data. It then scales the signals
+		%   according to the fitting parameters and subtracts them from the EEG time series. Thus, the EEG data that
+		%   exists after this method is called are the residual time series left over from the regression.
+		%
+		%   Linear regression is currently a popular method of removing artifacts from the EEG data and accounting for
+		%   signals that are not likely to be neuronal in origin. Partial correlation, for instance, uses this approach
+		%   to control for a set of variables while estimating how two other data sets covary.
+		%
+		%   However, assuming simple linear relationships between complicated data (i.e. physiological data) is rarely
+		%   exactly correct. Care must be taken to ensure that the data fitting is approximately valid. If it is not,
+		%   more complex methods of regression may be called for.
+		%
+		%   SYNTAX:
+		%   Regress(eegData, signal)
+		%
+		%   INPUTS:
+		%   eegData:    EEGOBJ
+		%               A single EEG data object.
+		%
+		%   signal:     1D ARRAY or 2D ARRAY
+		%               A vector or array of signals to be regressed from the EEG channel data. This argument must be
+		%               provided in the format [SIGNALS x TIME], where time points span the columns of the matrix. The
+		%               number of signals (i.e. number of rows) here can be any number, but the number of time points
+		%               must equal the number of time points in the EEG data.
+		%
+		%               It is not necessary to provide a signal of all ones in this array (i.e. to account for constant
+		%               terms), although you may provide one if you wish. This function automatically adds in a constant
+		%               signal if one is not present.
+
             % Error check
-            eegData.AssertSingleObject;
-            eegData.LoadData;
+            eegData.AssertSingleObject();
+            eegData.LoadData();
             
             % Perform the regression & store the residuals
             eegData.Data.EEG = humanObj.RegressTimeSeries(eegData.Data.EEG, signal);
             eegData.IsZScored = false;
         end
         function ZScore(eegData)
-            %ZSCORE - Scales EEG channel time courses to zero mean and unit variance.
-            %
-            %   SYNTAX:
-            %   ZScore(eegData)
-            %
-            %   INPUT:
-            %   eegData:    EEGOBJ
-            %               A single EEG data object.
+		% ZSCORE - Scales EEG channel time courses to zero mean and unit variance.
+		%
+		%   SYNTAX:
+		%   ZScore(eegData)
+		%
+		%   INPUT:
+		%   eegData:    EEGOBJ
+		%               A single EEG data object.
             
             % Error check
-            eegData.AssertSingleObject;
-            eegData.LoadData;
+            eegData.AssertSingleObject();
+            eegData.LoadData();
             
             % Z-Score & store the data
-            ephysData = eegData.ToArray;
+            ephysData = eegData.ToArray();
             ephysData = zscore(ephysData, 0, 2);
             eegData.Data.EEG = ephysData;
             eegData.IsZScored = true;

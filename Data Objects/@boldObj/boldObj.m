@@ -83,6 +83,9 @@ classdef boldObj < humanObj
 %                   to 2 to reflect these changes.
 %       20140929:   Changed the TR & TE fields to dependent properties that pull from the acquisition structure.
 %       20141002:   Bug fixes for the BLUR and IDENTIFYSEGMENTS methods. 
+%		20141118:	Moved the logic for the methods GenerateNuisance and Mask to this class definition file. Modified
+%					the Mask method so that it only accepts logical arrays as masks and doesn't accept string inputs at
+%					all anymore.
 
 %% DEPENDENCIES
 %
@@ -122,11 +125,7 @@ classdef boldObj < humanObj
 
 
     
-    %% Set the Object Properties
-    properties
-        Orientation             % The orientation of the functional data array.
-    end
-    
+    %% Set the Object Properties    
     properties (Dependent)
         IsBlurred               % Boolean indicating whether the functional data has been spatially blurred.
         NumTimePoints           % The total number of time points in the functional image series.
@@ -147,7 +146,7 @@ classdef boldObj < humanObj
     %% Constructor Method
     methods
         function boldData = boldObj(varargin)
-            %BOLDOBJ - Constructs a BOLD data object for storing and analyzing functional MRI data.
+        %BOLDOBJ - Constructs a BOLD data object for storing and analyzing functional MRI data.
             
             % Construct a new BOLD data object based on the parameters provided
             if (nargin == 0); return
@@ -163,8 +162,10 @@ classdef boldObj < humanObj
                     'IsGlobalRegressed', [],...
                     'IsZScored', [],...
                     'Preprocessing', [],...
+					'Postprocessing', [],...
                     'Scan', [],...
                     'ScanState', [],...
+					'SoftwareVersion', [],...
                     'Subject', [],...
                     'TE', [],...
                     'TR', [],...
@@ -185,20 +186,63 @@ classdef boldObj < humanObj
     
     %% General Utilities
     methods
-        GenerateNuisance(boldData)                                      % Generate & store nuisance signals
-        
-        varargout   = Mask(boldData, maskData, confPct, replaceWith)    % Mask BOLD data
+		
+		function GenerateNuisance(boldData)
+		% GENERATENUISANCE - Estimate and store BOLD nuisance signals.
+		%
+		%   SYNTAX:
+		%   GenerateNuisance(boldData)
+		%	boldData.GenerateNuisance()
+		%
+		%   INPUTS:
+		%   boldData:       BOLDOBJ
+		%                   A single BOLD data object.
+		
+			% Error checking
+			boldData.AssertSingleObject;
+			boldData.LoadData;
+			
+			% Store a list of nuisance parameters (order here is critical for other functions)
+			nuisanceNames = {'Global', 'WM', 'CSF'};
+			
+			% Get & flatten the functional data
+			funData = boldData.ToArray;
+			funData = mask(funData, boldData.Data.Masks.Mean, NaN);
+			funData = reshape(funData, [], boldData.NumTimePoints);
+			funData = funData';
+			
+			% Regress constant terms & motion parameters first
+			motionSigs = boldData.Data.Nuisance.Motion';
+			motionSigs = cat(2, ones(size(motionSigs, 1), 1), motionSigs);
+			funData = funData - motionSigs * (motionSigs \ funData);
+			
+			for a = 1:length(nuisanceNames)
+				% Generate the nuisance signals & store them in the data object
+				if (strcmpi(nuisanceNames{a}, 'global'))
+					nuisanceData = nanmean(funData, 2);
+					boldData.Data.Nuisance.Global = nuisanceData';
+				else
+					segMask = boldData.Data.Masks.(nuisanceNames{a})(:);
+					nuisanceData = nanmean(funData(:, segMask), 2);
+					boldData.Data.Nuisance.(nuisanceNames{a}) = nuisanceData';
+				end
+
+				% Regress the current nuisance signal so that the next one isn't influenced by it
+				funData = funData - nuisanceData * (nuisanceData \ funData);
+			end
+		end
+		function Mask(boldData, m, r)
+		% MASK - Masks BOLD functional images with the inputted logical array.
+			if (nargin == 2); r = NaN; end
+			boldData.Data.Functional = mask(boldData.ToArray(), m, r);
+		end
+
         varargout   = Plot(boldData, varargin)                          % Plot BOLD data as an image montage            
-    end
-    
-    methods
+
+		% Property get & set methods
         function isBlurred      = get.IsBlurred(boldData)
             isBlurred = boldData.IsPostprocessed('Blurring', 'IsBlurred');
-        end
-        function orientation    = get.Orientation(boldData)
-            orientation = NaN;
-            error('This functionality has not yet been implemented.');
-        end
+		end
         function numPoints      = get.NumTimePoints(boldData)
             numPoints = size(boldData.Data.Functional, 4);
         end
@@ -208,10 +252,7 @@ classdef boldObj < humanObj
         function tr             = get.TR(boldData)
             tr = boldData.Acquisition.RepetitionTime;
         end
-        
-        function set.Orientation(boldData, orientation)
-            error('This functionality has not yet been implemented.');
-        end
+
     end
     
     
@@ -221,83 +262,78 @@ classdef boldObj < humanObj
         varargout = ToArray(boldData, dataStr)                  % Extract data from a data object & return it as an array
         
         function ToIMG(boldData, outputPath)
-            %TOIMG Converts BOLD data matrices to NIFTI .img format.
-            %   This function converts the functional images in BOLD data objects to IMG files that are used by other
-            %   programs, such as GIFT. It extracts the 4-dimensional numerical array (functional volumes over time) and
-            %   creates one IMG file for every time point available.
-            %
-            %   The outputted IMG files are numbered sequentially according to the time point their volume represents.
-            %   They are stored in folders organized by subject and scan numbers (the preferred format for GIFT). All of
-            %   these subject and scan folders can be found inside one top-level folder called "Preprocessed IMG Files",
-            %   which is placed in either a user-specified directory or wherever BOLD objects were stored after
-            %   preprocessing.
-            %
-            %   INPUT
-            %   boldData:       BOLDOBJ
-            %                   A single BOLD data object containing functional data that should be converted to IMG 
-            %                   files.
-            %
-            %   OPTIONAL INPUT:
-            %   outputPath:     STRING
-            %                   A string indicating the directory where all IMG files will be stored. If no path string
-            %                   is provided, this location will default to wherever the inputted data objects were
-            %                   stored after preprocessing was performed.
-            %
-            %                   DEFAULT: boldData.Preprocessing.Parameters.General.OutputPath
+		% TOIMG - Converts BOLD data matrices to NIFTI .img format.
+		%   This function converts the functional images in BOLD data objects to IMG files that are used by other
+		%   programs, such as GIFT. It extracts the 4-dimensional numerical array (functional volumes over time) and
+		%   creates one IMG file for every time point available.
+		%
+		%   The outputted IMG files are numbered sequentially according to the time point their volume represents. They
+		%   are stored in folders organized by subject and scan numbers (the preferred format for GIFT). All of these
+		%   subject and scan folders can be found inside one top-level folder called "Preprocessed IMG Files", which is
+		%   placed in either a user-specified directory or wherever BOLD objects were stored after preprocessing.
+		%
+		%   INPUT
+		%   boldData:       BOLDOBJ
+		%                   A single BOLD data object containing functional data that should be converted to IMG files.
+		%
+		%   OPTIONAL INPUT:
+		%   outputPath:     STRING
+		%                   A path string referencing the directory where all outputted IMG files will be stored.
             
             % Error check & convert
             boldData.AssertSingleObject;
-            boldObj.ArrayToIMG(boldData.ToArray, outputPath);
+            boldObj.ArrayToIMG(boldData.ToArray(), outputPath);
         end
         function [boldMatrix, idsNaN] = ToMatrix(boldData, removeNaNs)
-            %TOMATRIX - Extracts a flattened BOLD functional data matrix and removes dead voxels, if called for.
-            %
-            %   SYNTAX:
-            %   boldMatrix = ToMatrix(boldData)
-            %   boldMatrix = ToMatrix(boldData, removeNaNs);
-            %   [boldMatrix, idsNaN] = ToMatrix(...);
-            %
-            %   OUTPUT:
-            %   boldMatrix:     2D ARRAY
-            %                   The functional image data stored inside the BOLD data object flattened into a
-            %                   two-dimensional array. This array is formatted as [VOXELS x TIME]. Each row represents a
-            %                   single voxel. Each column represents a single time point. To restore the original
-            %                   functional data array, use RESHAPE with the original data dimensions as the size input.
-            %
-            %                   EXAMPLE:
-            %                       % Create a 2D array out of the functional data
-            %                       funData = ToMatrix(boldData);
-            %                       % Restore the original array
-            %                       funData = reshape(funData, [91, 109, 91, 218]);
-            %
-            %   OPTIONAL OUTPUT:
-            %   idsNaN:         [BOOLEANS]
-            %                   The indices of NaN voxels. This parameter is a vector of Booleans of length equal to the
-            %                   number of rows of the flattened functional data matrix (before NaN time series removal).
-            %                   Elements of this vector are true when corresponding elements in the first column of the
-            %                   BOLD matrix are NaN. If this output is requested without providing a value for the
-            %                   'removeNaNs' argument, then that argument defaults to true and NaNs are automatically
-            %                   removed from the data.
-            %
-            %                   The primary use of this variable is to restore the original size of the flattened data
-            %                   matrix, which is a necessary step prior to reshaping it into a volume array (see the
-            %                   example above).
-            %
-            %   INPUT:
-            %   boldData:       BOLDOBJ
-            %                   A single BOLD data object. Arrays of BOLD objects are not supported.
-            %
-            %   OPTIONAL INPUT:
-            %   removeNaNs:     BOOLEAN
-            %                   Remove any voxels with time series composed entirely of NaNs. These frequently represent
-            %                   non-brain space in volume (such as the volume surrounding the brain or the ventricles).
-            %                   Removing these filler values significantly reduces the size of the data array. If this
-            %                   parameter is not supplied as an input argument, then it defaults to true only if the
-            %                   'idsNaN' output is requested by the caller. Otherwise, if only one output is requested
-            %                   ('boldMatrix'), this defaults to false and NaNs are not removed from the data matrix.
-            %                   Manually specifying this argument overrides these default behaviors. DEFAULT:
-            %                       true    - If two outputs are requested (i.e. including idsNaN)
-            %                       false   - If only one output is requested
+		%TOMATRIX - Extracts a flattened BOLD functional data matrix and removes dead voxels, if called for.
+		%
+		%   SYNTAX:
+		%   boldMatrix = ToMatrix(boldData)
+		%   boldMatrix = ToMatrix(boldData, removeNaNs);
+		%   [boldMatrix, idsNaN] = ToMatrix(...);
+		%
+		%   OUTPUT:
+		%   boldMatrix:     2D ARRAY
+		%                   The functional image data stored inside the BOLD data object flattened into a
+		%                   two-dimensional array. This array is formatted as [VOXELS x TIME]. Each row represents a
+		%                   single voxel. Each column represents a single time point. To restore the original functional
+		%                   data array, use RESHAPE with the original data dimensions as the size input.
+		%
+		%                   EXAMPLE:
+		%                       % Create a 2D array out of the functional data
+		%                       funData = ToMatrix(boldData);
+		%                       % Restore the original array
+		%                       funData = reshape(funData, [91, 109, 91, 218]);
+		%
+		%   OPTIONAL OUTPUT:
+		%   idsNaN:         [BOOLEANS]
+		%                   The indices of NaN voxels. This parameter is a vector of Booleans of length equal to the
+		%                   number of rows of the flattened functional data matrix (before NaN time series removal).
+		%                   Elements of this vector are true when corresponding elements in the first column of the BOLD
+		%                   matrix are NaN. If this output is requested without providing a value for the 'removeNaNs'
+		%                   argument, then that argument defaults to true and NaNs are automatically removed from the
+		%                   data.
+		%
+		%                   The primary use of this variable is to restore the original size of the flattened data
+		%                   matrix, which is a necessary step prior to reshaping it into a volume array (see the example
+		%                   above).
+		%
+		%   INPUT:
+		%   boldData:       BOLDOBJ
+		%                   A single BOLD data object. Arrays of BOLD objects are not supported.
+		%
+		%   OPTIONAL INPUT:
+		%   removeNaNs:     BOOLEAN
+		%                   Remove any voxels with time series composed entirely of NaNs. These frequently represent
+		%                   non-brain space in volume (such as the volume surrounding the brain or the ventricles).
+		%                   Removing these filler values significantly reduces the size of the data array. If this
+		%                   parameter is not supplied as an input argument, then it defaults to true only if the
+		%                   'idsNaN' output is requested by the caller. Otherwise, if only one output is requested
+		%                   ('boldMatrix'), this defaults to false and NaNs are not removed from the data matrix.
+		%                   Manually specifying this argument overrides these default behaviors.
+		%					DEFAULT:
+		%                       true    - If two outputs are requested (i.e. including idsNaN)
+		%                       false   - If only one output is requested
             
             % Deal with missing inputs
             if nargin == 1
@@ -321,20 +357,20 @@ classdef boldObj < humanObj
     
     methods (Static)
         function ArrayToIMG(boldArray, outputPath)
-            %ARRAYTOIMG - Converts 4D functional data arrays to NIFTI .img files.
-            %
-            %   SYNTAX:
-            %   boldObj.ArrayToIMG(array, savePath)
-            %
-            %   INPUTS:
-            %   array:          4D ARRAY
-            %                   A 4-dimensional data array ([Space x Time] formatted as [X Y Z T]) representing 3D
-            %                   functional images over time. Each outputted IMG file corresponds with a volume at a
-            %                   single time point.
-            %
-            %   outputPath:     STRING
-            %                   A string indicating the top-level directory where all IMG files will be stored.
-            
+		% ARRAYTOIMG - Converts 4D functional data arrays to NIFTI .img files.
+		%
+		%   SYNTAX:
+		%   boldObj.ArrayToIMG(array, savePath)
+		%
+		%   INPUTS:
+		%   array:          4D ARRAY
+		%                   A 4-dimensional data array ([Space x Time] formatted as [X Y Z T]) representing 3D
+		%                   functional images over time. Each outputted IMG file corresponds with a volume at a single
+		%                   time point.
+		%
+		%   outputPath:     STRING
+		%                   A string indicating the top-level directory where all IMG files will be stored.
+
             if ~exist(outputPath, 'dir'); mkdir(outputPath); end
             szBOLD = size(boldArray);
             pbar = Progress('-fast', 'Converting BOLD Array to IMG Files');
@@ -355,29 +391,32 @@ classdef boldObj < humanObj
         Resample(boldData, fs)
         
         function Blur(boldData, hsize, sigma, applyToSegments)
-            % BLUR - Spatially Gaussian blur BOLD image series.
-            %
-            %   SYNTAX:
-            %   Blur(boldData, hsize, sigma)
-            %
-            %   INPUTS:
-            %   boldData:           BOLDOBJ
-            %                       A single BOLD data object.
-            %
-            %   hsize:              INTEGER or [INTEGER, INTEGER]
-            %                       An integer or 2-element vector of integers representing the size (in [HEIGHT, WIDTH]
-            %                       pixels) of the Gaussian used to blur the data. A single scalar input generates a
-            %                       symmetric Gaussian.
-            %
-            %   sigma:              DOUBLE
-            %                       The standard deviation (in pixels) of the Gaussian used to blur the data. This must
-            %                       be a single double-precision value.
-            %
-            %   OPTIONAL INPUTS:
-            %   applyToSegments:    BOOLEAN
-            %                       A Boolean indicating whether or not to blur the anatomical segment images using the
-            %                       same parameters as for the functional data.
-            
+		% BLUR - Spatially Gaussian blur BOLD image series.
+		%
+		%   SYNTAX:
+		%   Blur(boldData, hsize, sigma)
+		%	Blur(boldData, hsize, sigma, applyToSegments)
+		%	boldData.Blur(hsize, sigma)
+		%	boldData.Blur(hsize, sigma, applyToSegments)
+		%
+		%   INPUTS:
+		%   boldData:           BOLDOBJ
+		%                       A single BOLD data object.
+		%
+		%   hsize:              INTEGER or [INTEGER, INTEGER]
+		%                       An integer or 2-element vector of integers representing the size (in [HEIGHT, WIDTH]
+		%                       pixels) of the Gaussian used to blur the data. A single scalar input generates a
+		%                       symmetric Gaussian.
+		%
+		%   sigma:              DOUBLE
+		%                       The standard deviation (in pixels) of the Gaussian used to blur the data. This must
+		%                       be a single double-precision value.
+		%
+		%   OPTIONAL INPUTS:
+		%   applyToSegments:    BOOLEAN
+		%                       A Boolean indicating whether or not to blur the anatomical segment images using the
+		%                       same parameters as for the functional data.
+
             % Deal with missing inputs
             if nargin == 3; applyToSegments = true; end
             
@@ -411,24 +450,25 @@ classdef boldObj < humanObj
             boldData.IsZScored = false;
         end
         function Detrend(boldData, order)
-            %DETREND - Detrend BOLD data time series using a polynomial of the specified order.
-            %
-            %   SYNTAX:
-            %   Detrend(boldData, order)
-            %
-            %   INPUTS:
-            %   boldData:   BOLDOBJ
-            %               A BOLD data object containing a functional image time series to be detrended.
-            %
-            %   order:      INTEGER
-            %               Any positive integer representing the order of the polynomial used for detrending. 
-            %               EXAMPLES:
-            %                   1 - Linear detrend
-            %                   2 - Quadratic detrend
-            %                   3 - Cubic detrend
-            %                   .
-            %                   .
-            %                   .
+		% DETREND - Detrend BOLD data time series using a polynomial of the specified order.
+		%
+		%   SYNTAX:
+		%   Detrend(boldData, order)
+		%	boldData.Detrend(order)
+		%
+		%   INPUTS:
+		%   boldData:   BOLDOBJ
+		%               A BOLD data object containing a functional image time series to be detrended.
+		%
+		%   order:      INTEGER
+		%               Any positive integer representing the order of the polynomial used for detrending. 
+		%               EXAMPLES:
+		%                   1 - Linear detrend
+		%                   2 - Quadratic detrend
+		%                   3 - Cubic detrend
+		%                   .
+		%                   .
+		%                   .
             
             % Error check
             boldData.AssertSingleObject;
@@ -453,38 +493,38 @@ classdef boldObj < humanObj
             Detrend@humanObj(boldData, order);
         end
         function Regress(boldData, signal)
-            %REGRESS - Linearly regress signals from BOLD functional time series.
-            %   This function performs a simple linear regression between a set of signals and all BOLD voxel time
-            %   series, finding the best fit (in the least-squares sense) for the signals to the data. It then scales
-            %   the signals according to the fitting parameters and subtracts them from the BOLD time series. Thus, the
-            %   BOLD data that exists after this method is called are the residual time series left over from the
-            %   regression.
-            %
-            %   Linear regression is currently a popular method of removing artifacts from the BOLD data and accounting
-            %   for signals that are not likely to be neuronal in origin. Partial correlation, for instance, uses this
-            %   approach to control for a set of variables while estimating how two other data sets covary.
-            %
-            %   However, assuming simple linear relationships between complicated data (i.e. physiological data) is
-            %   rarely exactly correct. Care must be taken to ensure that the data fitting is approximately valid. If it
-            %   is not, more complex methods of regression may be called for.
-            %
-            %
-            %   SYNTAX:
-            %   Regress(boldData, signal)
-            %
-            %   INPUTS:
-            %   boldData:       BOLDOBJ
-            %                   A single BOLD data object.
-            %
-            %   signal:     1D ARRAY or 2D ARRAY
-            %               A vector or array of signals to be regressed from the BOLD functional data. This argument
-            %               must be provided in the format [SIGNALS x TIME], where time points span the columns of the
-            %               matrix. The number of signals (i.e. number of rows) here can be any number, but the number
-            %               of time points must equal the number of time points in the BOLD data.
-            %
-            %               It is not necessary to provide a signal of all ones in this array (i.e. to account for
-            %               constant terms), although you may provide one if you wish. This function automatically adds
-            %               in a constant signal if one is not present.
+		% REGRESS - Linearly regress signals from BOLD functional time series.
+		%   This function performs a simple linear regression between a set of signals and all BOLD voxel time series,
+		%   finding the best fit (in the least-squares sense) for the signals to the data. It then scales the signals
+		%   according to the fitting parameters and subtracts them from the BOLD time series. Thus, the BOLD data that
+		%   exists after this method is called are the residual time series left over from the regression.
+		%
+		%   Linear regression is currently a popular method of removing artifacts from the BOLD data and accounting for
+		%   signals that are not likely to be neuronal in origin. Partial correlation, for instance, uses this approach
+		%   to control for a set of variables while estimating how two other data sets covary.
+		%
+		%   However, assuming simple linear relationships between complicated data (i.e. physiological data) is rarely
+		%   exactly correct. Care must be taken to ensure that the data fitting is approximately valid. If it is not,
+		%   more complex methods of regression may be called for.
+		%
+		%
+		%   SYNTAX:
+		%   Regress(boldData, signal)
+		%	boldData.Regress(signal)
+		%
+		%   INPUTS:
+		%   boldData:       BOLDOBJ
+		%                   A single BOLD data object.
+		%
+		%   signal:     1D ARRAY or 2D ARRAY
+		%               A vector or array of signals to be regressed from the BOLD functional data. This argument must
+		%               be provided in the format [SIGNALS x TIME], where time points span the columns of the matrix.
+		%               The number of signals (i.e. number of rows) here can be any number, but the number of time
+		%               points must equal the number of time points in the BOLD data.
+		%
+		%               It is not necessary to provide a signal of all ones in this array (i.e. to account for constant
+		%               terms), although you may provide one if you wish. This function automatically adds in a constant
+		%               signal if one is not present.
             
             % Error check
             boldData.AssertSingleObject;
@@ -496,20 +536,21 @@ classdef boldObj < humanObj
             boldData.IsZScored = false;
         end
         function ZScore(boldData)
-            %ZSCORE - Scales BOLD voxel time courses to zero mean and unit variance.
-            %   This function converts BOLD voxel time series with arbitrary amplitude units to standard scores.
-            %   Standard scoring re-expresses data as a fraction of the data's standard deviation. In this case, for any
-            %   given BOLD voxel data point, the average amplitude over all time is subtracted away and the data point
-            %   is then divided by the standard deviation of the voxel signal.
-            %
-            %
-            %   SYNTAX:
-            %   ZScore(boldData)
-            %
-            %   INPUT:
-            %   boldData:       BOLDOBJ
-            %                   A BOLD data object with functional time series to be standard scored.
-            
+		%ZSCORE - Scales BOLD voxel time courses to zero mean and unit variance.
+		%   This function converts BOLD voxel time series with arbitrary amplitude units to standard scores. Standard
+		%   scoring re-expresses data as a fraction of the data's standard deviation. In this case, for any given BOLD
+		%   voxel data point, the average amplitude over all time is subtracted away and the data point is then divided
+		%   by the standard deviation of the voxel signal.
+		%
+		%
+		%   SYNTAX:
+		%   ZScore(boldData)
+		%	boldData.ZScore()
+		%
+		%   INPUT:
+		%   boldData:       BOLDOBJ
+		%                   A BOLD data object with functional time series to be standard scored.
+
             % Error check
             boldData.AssertSingleObject;
             boldData.LoadData;
@@ -549,7 +590,7 @@ classdef boldObj < humanObj
         PrepSliceTime(boldData)
         
         function PrepRegressNuisance(boldData)
-            % PREPREGRESSNUISANCE - Regress nuisance parameters from BOLD functional data.
+		% PREPREGRESSNUISANCE - Regress nuisance parameters from BOLD functional data and detrend the time series.
             
             % Error checking
             boldData.AssertSingleObject;
@@ -560,7 +601,7 @@ classdef boldObj < humanObj
             
             % Detrend the data first, then generate nuisance parameters
             boldData.Detrend(regParams.DetrendOrder);
-            GenerateNuisance(boldData)
+			boldData.GenerateNuisance();
             
             % Build a list of parameters to regress from the functional time series
             regSignal = ones(1, boldData.NumTimePoints);
@@ -586,7 +627,7 @@ classdef boldObj < humanObj
     methods
         
         function GenerateSegmentMasks(boldData)
-            % GENERATESEGMENTMASKS - Converts segmented anatomical images in binary volumetric data masks.
+		% GENERATESEGMENTMASKS - Converts segmented anatomical images in binary volumetric data masks.
             
             % Initial error checking
             boldData.AssertSingleObject;
@@ -610,24 +651,24 @@ classdef boldObj < humanObj
             
         end
         function IdentifySegments(boldData)
-            % IDENTIFYSEGMENTS - Attempts to automatically identify preprocessed anatomical segments.
-            %   This function attempts to autonomously resolve the identities of the imported anatomical segments
-            %   created during the BOLD preprocessing procedure. It does this by loading the standard MNI segment
-            %   templates (which must have been present for preprocessing) and calculating the correlation coefficients
-            %   between those volumes and the ones that exist in the inputted data object. The final segment identities
-            %   correspond to whichever pairwise correlation coefficient is highest. 
-            %
-            %   WARNING:
-            %   This function may not always correctly resolve segment identities. It is imperative that segments are
-            %   manually inspected once the preprocessing procedure concludes. 
-            %
-            %   SYNTAX:
-            %   PrepIdentifySegments(boldData)
-            %   boldData.PrepIdentifySegments
-            %
-            %   INPUTS:
-            %   boldData:   BOLDOBJ
-            %               A single BOLD data object undergoing preprocessing.
+		% IDENTIFYSEGMENTS - Attempts to automatically identify preprocessed anatomical segments.
+		%   This function attempts to autonomously resolve the identities of the imported anatomical segments created
+		%   during the BOLD preprocessing procedure. It does this by loading the standard MNI segment templates (which
+		%   must have been present for preprocessing) and calculating the correlation coefficients between those volumes
+		%   and the ones that exist in the inputted data object. The final segment identities correspond to whichever
+		%   pairwise correlation coefficient is highest.
+		%
+		%   WARNING: 
+		%	This function may not always correctly resolve segment identities. It is imperative that segments are 
+		%	manually inspected once the preprocessing procedure concludes.
+		%
+		%   SYNTAX:
+		%   IdentifySegments(boldData)
+		%   boldData.IdentifySegments()
+		%
+		%   INPUTS:
+		%   boldData:   BOLDOBJ
+		%               A single BOLD data object undergoing preprocessing.
             
             % Initial error checks
             boldData.AssertSingleObject;
@@ -684,7 +725,7 @@ classdef boldObj < humanObj
             
         end
         function MaskSegments(boldData, maskImage)
-            % MASKSEGMENTS - Masks segmented anatomical images.
+		% MASKSEGMENTS - Masks segmented anatomical images.
             
             % Error checking
             boldData.AssertSingleObject;
@@ -708,18 +749,17 @@ classdef boldObj < humanObj
             boldData.Data.Segments = segData;
         end
         function NormalizeSegments(boldData)
-            % NORMALIZESEGMENTS - Normalizes anatomical segment data to fractional probability values.
-            %
-            %   SYNTAX:
-            %   NormalizeSegments(boldData)
-            %   boldData.NormalizeSegments
-            %
-            %   INPUT:
-            %   boldData:   BOLDOBJ
-            %               A single BOLD data object with a complete set of anatomical segments. Typically this object
-            %               will be nearing the end of its preprocessing procedure, and as such it is required that all
-            %               segments be properly identified and sorted into individual fields of the segment data
-            %               structure. 
+		% NORMALIZESEGMENTS - Normalizes anatomical segment data to fractional probability values.
+		%
+		%   SYNTAX:
+		%   NormalizeSegments(boldData)
+		%   boldData.NormalizeSegments()
+		%
+		%   INPUT:
+		%   boldData:   BOLDOBJ
+		%               A single BOLD data object with a complete set of anatomical segments. Typically this object will
+		%               be nearing the end of its preprocessing procedure, and as such it is required that all segments
+		%               be properly identified and sorted into individual fields of the segment data structure.
             
             % Initial error checking
             boldData.AssertSingleObject;
