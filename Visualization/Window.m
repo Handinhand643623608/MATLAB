@@ -21,6 +21,9 @@ classdef Window < hgsetget
 %       20140828:   Implemented a property controlling the figure color mapping.
 %       20141110:   Changed the Window class to open a full screen window by default, since this is almost universally
 %                   how it's used.
+%		20141121:	Rewrote the constructor method to use the new input assignment system and to get rid of the
+%					externally defined Initialize function.
+%		
 
 %% TODOS
 %   - Change access permissions for the COLORBAR (shouldn't be able to set it publicly)
@@ -60,8 +63,44 @@ classdef Window < hgsetget
     %% Constructor Method
     methods 
         function H = Window(varargin)
-            %WINDOW - Construct a window object with multiple features.
-            Initialize(H, varargin{:});
+		% WINDOW - Construct a window object with multiple features.
+		
+			function Defaults
+				Color = [0.9400 0.9400 0.9400];
+				Colormap = jet(64);
+				FigureNumber = [];
+				InvertHardcopy = 'off';
+				MenuBar = 'none';
+				Name = '';
+				NumberTitle = 'off';
+				PaperPositionMode = 'auto';
+				PaperSize = [8.5, 11];
+				Position = WindowPositions.CenterCenter;
+				Resize = 'on';
+				Size = WindowSizes.FullScreen;
+				Tag = 'WindowObject';
+				Units = 'pixels';
+				Visible = 'on';
+			end
+			assignto(@Defaults, varargin);
+			
+			H.CreateFigure(FigureNumber);
+			
+			H.Color = Color;
+			H.Colormap = Colormap;
+			H.Name = Name;
+			H.Position = Position;
+			H.Size = Size;
+			
+			set(H.FigureHandle, 'InvertHardcopy', InvertHardcopy);
+			set(H.FigureHandle, 'MenuBar', MenuBar);
+			set(H.FigureHandle, 'NumberTitle', NumberTitle);
+			set(H.FigureHandle, 'PaperPositionMode', PaperPositionMode);
+			set(H.FigureHandle, 'PaperSize', PaperSize);
+			set(H.FigureHandle, 'Resize', Resize);
+			set(H.FigureHandle, 'Tag', Tag);
+			set(H.FigureHandle, 'Units', Units);
+			set(H.FigureHandle, 'Visible', Visible);
         end
     end
 
@@ -70,15 +109,13 @@ classdef Window < hgsetget
     %% Overloaded MATLAB Methods
     methods
 
-        function Store(H, filename)
-            saveas(H.FigureHandle, filename);
-        end
-        
-        
-        function close(H, varargin)
-            %CLOSE - Close the window and delete the associated variable in the calling workspace.
+		function close(H, varargin)
+		% CLOSE - Close the window and delete the associated variable in the calling workspace.
             delete(H.FigureHandle)
             evalin('caller', ['clear ' inputname(1)]);
+        end
+        function Store(H, filename)
+            saveas(H.FigureHandle, filename);
         end
         
         % Get methods
@@ -136,11 +173,8 @@ classdef Window < hgsetget
                 H.Rectangle(3:4) = size.ToPixels;
                 H.SizeEnum = size;
             elseif isnumeric(size)
-                if isvector(size) && length(size) == 2
-                    H.Rectangle(3:4) = size;
-                else
-                    error('Window sizes can only be specified using two-element vectors or string shortcuts.');
-                end
+				assert(isvector(size) && length(size) == 2, 'Window sizes can only be specified using two-element vectors or string shortcuts.');
+                H.Rectangle(3:4) = size;
             else
                 error('Window size must be specified as either as WindowSize enumerator or a two-element numeric vector');
             end
@@ -155,6 +189,20 @@ classdef Window < hgsetget
     methods (Access = protected)
         % Add input property values to the object
         Initialize(windowHandle, varargin)
+		
+		function CreateFigure(H, figNum)
+		% CREATEFIGURE - Creates a native MATLAB figure and captures a reference to it.
+			if (isempty(figNum)) 
+				H.FigureHandle = figure; 
+				return;
+			else
+				while (ishandle(figNum))
+					figNum = figNum + 1;
+				end
+				H.FigureHandle = figure(figNum);
+			end
+		end
+		
     end
     
     
