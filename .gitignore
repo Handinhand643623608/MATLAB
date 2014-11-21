@@ -14,6 +14,13 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 
+# Prototyping & Sandboxing Functions
+Prototyping/
+
+# Daily Research Activity Logs
+Today Scripts/
+
+
 # =========================
 # Operating System Files
 # =========================
@@ -26,7 +33,8 @@ $RECYCLE.BIN/
 .LSOverride
 
 # Icon must ends with two \r.
-Icon
+Icon
+
 
 # Thumbnails
 ._*
