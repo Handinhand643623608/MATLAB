@@ -25,6 +25,8 @@ classdef  Path < hgsetget
 %                   components.
 %       20141117:   Implemented a method for getting both file and folder contents from a path to a directory.
 %		20141118:	Changed the name of the method ViewInExplorer to just View to make it easier to use.
+%		20141124:	Implemented an overload for the function "rmpath" so that directories can be removed from the MATLAB
+%					working path list.
 
     
     
@@ -347,16 +349,16 @@ classdef  Path < hgsetget
     methods
                         
         function addpath(P)
-            % ADDPATH - Adds a path to MATLAB's current working path list.            
+		% ADDPATH - Adds a path to MATLAB's current working path list.            
             for a = 1:numel(P); addpath(P(a).FullPath); end
         end
         function cd(P)
-            % CD - Navigates to the inputted directory or parent directory if the object points to a file.
-            %
-            %   This method is provided as a shortcut for the NAVIGATETO method and overloads the native CD function for
-            %   Path objects.
-            %
-            %   See also:   CD
+		% CD - Navigates to the inputted directory or parent directory if the object points to a file.
+		%
+		%   This method is provided as a shortcut for the NAVIGATETO method and overloads the native CD function for
+		%   Path objects.
+		%
+		%   See also:   CD
             P.NavigateTo()
         end
         function display(P)
@@ -413,7 +415,11 @@ classdef  Path < hgsetget
                      pathCell{:});
             end      
         end
-        
+        function rmpath(P)
+		% RMPATH - Removes a path from MATLAB's current working path list.
+			for (a = 1:numel(P)); rmpath(P(a).FullPath); end
+		end
+			
         function str        = char(P)
         % CHAR - Converts a Path object into a fully formed path string.
         %
@@ -429,7 +435,7 @@ classdef  Path < hgsetget
             exists = exist(P.FullPath, type);
         end        
         function paths      = genpath(P)
-            % GENPATH - Recursively generates directory paths starting at the inputted object's path.
+		% GENPATH - Recursively generates directory paths starting at the inputted object's path.
             P.AssertSingleObject();
             paths = Path(genpath(P.FullPath));
         end
@@ -507,7 +513,7 @@ classdef  Path < hgsetget
         %
         %   See also: MKDIR
             [s, m, id] = mkdir(P.FullPath);
-        end        
+		end
         function catP       = vertcat(P, varargin)
             
             if (~all(cellfun(@(x) isa(x, 'Path'), varargin)))
