@@ -1,8 +1,8 @@
-function p = empiricalcdf(x, n, tail)
-% EMPIRICALCDF - 
+function p = empiricalcdf(r, n, tail)
+% EMPIRICALCDF - Generates p-values for data using an empirically derived null distribution.
 %
 %   SYNTAX:
-%       p = empiricalcdf(x, n)
+%       p = empiricalcdf(r, n)
 %
 %   OUTPUT:
 %       p:      [ DOUBLES ]
@@ -12,7 +12,7 @@ function p = empiricalcdf(x, n, tail)
 %               the null hypothesis is true.
 %
 %   INPUTS:
-%       x:      [ NUMERICS ]
+%       r:      [ NUMERICS ]
 %               An array of values constituting the real data distribution. 
 %
 %       n:      [ NUMERICS ]
@@ -37,59 +37,25 @@ function p = empiricalcdf(x, n, tail)
 if (nargin == 2); tail = 'both'; end
 
 % Error check
-assert(isnumeric(x), 'The real data distribution x must be an array of single- or double-precision values.');
+assert(isnumeric(r), 'The real data distribution x must be an array of single- or double-precision values.');
 assert(isnumeric(n), 'The null data distribution n must be an array of single- or double-precision values.');
 
 % Flatten the data distributions
-szx = size(x);
-x = x(:);
+szx = size(r);
+r = r(:);
 n = n(:);
 
 % Remove any null values (zeros & NaNs)
-idsRemoved = isnan(x) | x == 0;
-x(idsRemoved) = [];
+idsRemoved = isnan(r) | r == 0;
+r(idsRemoved) = [];
 n(isnan(n) | n == 0) = [];
 
-% Initialize a flattened p-value storage array
-lenX = length(x);
-lenN = length(x);
-
-pLow = zeros(lenX, 1);
-pHigh = zeros(lenX, 1);
-
-gx = gpuArray(single(x));
-gn = gpuArray(single(n));
-gpLow = gpuArray(single(pLow));
-gpHigh = gpuArray(single(pHigh));
-
-
-
-%% Generate Empirical P-Values
-% Loop through the real data distribution to determine p-values
-pb = Progress('-fast', 'P-Value Generation');
-parfor (a = 1:lenX)
-    s = sum(x(a) >= n);
-    pLow(a) = s / lenN;
-    pHigh(a) = 1 - pLow(a);
-    pb.Update(a/lenX);
-end
-
-% pb = Progress('-fast', 'P-Value Generation');
-% for a = 1:lenX
-%     s = sum(gx(a) >= gn);
-%     gpLow(a) = s / lenN;
-%     gpHigh(a) = 1 - gpLow(a);
-%     pb.Update(a/lenX);
-% end
-
-% Get rid of large data that's not needed anymore
-clear n s;
-
-% Calculate two-tailed p-values
-% fp = gather(2 * min(gpLow, gpHigh));
-fp = 2 * min(pLow, pHigh);
+% Call the MEX function to do the heavy processing
+fprintf(1, '\n\nStarting MEX Processing...\n\n');
+fp = MexEmpiricalCDF(r, n);
+fprintf(1, '\n\nProcessing Complete!\n\n');
 
 % Reshape the p-values to match the inputted real data
-p = nan(length(idsRemoved));
+p = nan(length(idsRemoved), 1);
 p(~idsRemoved) = fp;
 p = reshape(p, szx);
