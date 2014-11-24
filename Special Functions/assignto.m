@@ -1,4 +1,4 @@
-function assignto(defaults, args)
+function assignto(Defaults, args)
 % ASSIGNTO - Assigns inputted name/value function arguments to variables declared in a Defaults block.
 %   
 %   This function is meant to replace the very old ASSIGNINPUTS function that I wrote a long time ago after discovering
@@ -79,11 +79,11 @@ function assignto(defaults, args)
 %% Assign Input Arguments to Defaults Variables
 % Formatting checks
 assert(nargin == 2, 'Both a default variable function handle and a list of name/value arguments must be provided.');
-assert(isa(defaults, 'function_handle'), 'The Defaults argument must be a valid function handle.');
+assert(isa(Defaults, 'function_handle'), 'The Defaults argument must be a valid function handle.');
 assert(iscellstr(args(1:2:end)), 'Argument names must always be given as a string.');
 
 % Get the variables inside the defaults block
-vars = getvars(defaults);
+vars = getvars(Defaults);
 
 % Ensure that argument names have corresponding variables that already exist
 memberCheck = all(ismember(args(1:2:end), vars));
