@@ -14,6 +14,10 @@
 %                   anymore). Also updated this script for compatibility with the Paths class rewrite.
 %		20141113:	Removed automatic addition of Globals folder to MATLAB's working path altogether. These functions
 %					just aren't used often enough to justify the headache and overhead they cause.
+%		20141124:	Removed automatic addition of data directories to MATLAB's working path. These are almost always
+%					specified using Path objects anyway nowadays, and this sometimes added data that I no longer want
+%					added. Implemented automatic removal of code prototyping directories so code in here doesn't
+%					accidentally get used.
 
 
 %% Setup MATLAB Environment
@@ -30,8 +34,8 @@ end
 % Navigate to the main coding area
 Paths.Main.NavigateTo();
 
-% Add data paths to MATLAB's working directories
-addpath(genpath(Paths.Data));
+% Remove the code prototyping directory
+rmpath(genpath([Paths.Main '/Prototyping']));
 
 % Wipe the command window
 clc
