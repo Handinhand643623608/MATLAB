@@ -1,7 +1,7 @@
 %% 20141117 
 
 
-%% 1746 - 
+%% 1746 - Prototyping Empirical CDF Generation
 % Log parameters
 timeStamp = '201411171746';
 analysisStamp = '';
@@ -123,3 +123,7 @@ for a = 1:length(boldFiles)
     pb.Update(1, a/length(boldFiles));
 end
 pb.close();
+
+% NOTE FROM 201411201524:
+% This section was never properly run. I needed to do some work on both the BOLD and EEG data objects to get them ready
+% for this analysis. Work on coherence picks up again on in section 201411201508.
