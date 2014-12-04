@@ -1,6 +1,7 @@
 classdef BrainPlot < Window
 % BRAINPLOT - Displays data in an EEG- or fMRI-style plot or montage of plots.
-%   This object displays EEG or MRI data in a montage. It accepts 3-4D MRI images and 2-3D EEG data arrays, as described
+%   
+%	This object displays EEG or MRI data in a montage. It accepts 3-4D MRI images and 2-3D EEG data arrays, as described
 %   below. For MRI data, data are displayed as color-coded images. EEG data is displayed as a color-coded scaled spatial
 %   layout of EEG electrodes.
 %
@@ -142,13 +143,17 @@ classdef BrainPlot < Window
 %       20141106:   Implemented the ability to zoom in on montage element images by cropping out some of the image
 %                   margins. This is controlled by the new public property Zoom. Set a new default value for this
 %                   property of 0.1, which works well for BOLD volumes.
+%		20141204:	Updated to use the new input argument assignment system. Changed the constructor to always require a
+%					data set input. Implemented a function that recycles an existing montage and overwrites the plotted
+%					images using a new inputted data set. Implemented a refresh method for updating displayed data.
+%					Removed the line border around the primary axes because this no longer displays correctly. Removed
+%					the graphics buffer flush that occurred after plotting to each montage element. This always looked
+%					nice to me, but it's bogging down the new HG2 graphics system in R2014b too much to be kept.
 
 %% TODOS
 %   - Merge PLOTEEG static method & the separate EEGMAP function.
 %   - Make axis tick labels that can be rotated & more finely controlled.
 %   - Implement variable numbers of axis tick labels
-%   - Implement optional cropping of montage images
-%   - Implement refresh method (to redraw the montage on demand)
 
 
 
@@ -187,66 +192,69 @@ classdef BrainPlot < Window
     methods
         function H = BrainPlot(plotData, varargin)
         %BRAINPLOT - Constructs a window object & initializes the plotting environment.
-            
+		
             % Initialize a window object for displaying the data
             H = H@Window(...
-                'Color', 'k',...
-                'Colormap', jet(256),...
                 'MenuBar', 'none',...
                 'NumberTitle', 'off',...
                 'Position', WindowPositions.CenterCenter,...
                 'Size', WindowSizes.FullScreen); drawnow
-            
-            if nargin ~= 0
-                
-                % Ensure only numeric arrays were inputted
-                assert(isnumeric(plotData), 'Only numeric data arrays may be displayed using BrainPlot');
-                
-                % Override defaults with any user inputs
-                climBound = max(abs(plotData(:)));
-                inStruct = struct(...
-                    'Anatomical',       [],...
-                    'AxesColor',        'w',...
-                    'CLim',             [-climBound, climBound],...
-                    'Color',            'k',...
-                    'ColorbarLabel',    [],...
-                    'Colormap',         jet(256),...
-                    'MajorFontSize',    25,...
-                    'MinorFontSize',    20,...
-                    'Title',            [],...
-                    'XLabel',           [],...
-                    'XTickLabel',       [],...
-                    'YLabel',           [],...
-                    'YTickLabel',       [],...
-                    'Zoom',             0.1);
-                assignInputs(inStruct, varargin, 'structOnly');
-                
-                % Determine the type of data based on its dimensionality
-                if (size(plotData, 1) == 68); H.PlotType = BrainPlotTypes.EEG;
-                else H.PlotType = BrainPlotTypes.MRI; end
-                
-                % Fill in object properties (ordering of events here is important)
-                H.Data = plotData;
-                H.InitializePrimaryAxes;
-                H.Colorbar = colorbar('EastOutside');
-                H.DetermineMontageDimensionality;
-                H.CalculateElementSize;
-                H.CalculateAxesTickSpacing;
-                H.FitPrimaryAxesToMontage;
-                H.InitializeMontageAxes;
-                
-                % Transfer user inputs to object properties
-                propNames = fieldnames(inStruct);
-                for a = 1:length(propNames)
-                    if ~isempty(inStruct.(propNames{a})); 
-                        set(H, propNames{a}, inStruct.(propNames{a}));
-                    end
-                end
-                
-                % Plot the data
-                H.Plot;
-                
-            end
+			
+			% Ensure that a numeric data array was inputted
+			assert(nargin >= 1, 'Constructing an image montage requires an inputted data set at minimum.');
+			assert(isnumeric(plotData), 'Only numeric data arrays may be displayed using BrainPlot');
+			
+			% Override defaults with any user inputs
+			function Defaults	
+				Anatomical = [];
+				AxesColor = 'k';
+				CLim = [];
+				Color = 'w';
+				ColorbarLabel = [];
+				Colormap = jet(256);
+				MajorFontSize = 25;
+				MinorFontSize = 20;
+				Title = [];
+				XLabel = [];
+				XTickLabel = [];
+				YLabel = [];
+				YTickLabel = [];
+				Zoom = 0.025;		
+			end
+			assignto(@Defaults, varargin);
+
+			% Determine the type of data based on its dimensionality
+			if (size(plotData, 1) == 68); H.PlotType = BrainPlotTypes.EEG;
+			else H.PlotType = BrainPlotTypes.MRI; end
+
+			% Construct the montage (ordering of events here is important)
+			H.Data = plotData;
+			H.InitializePrimaryAxes;
+			H.Colorbar = colorbar('EastOutside');
+			H.DetermineMontageDimensionality;
+			H.CalculateElementSize;
+			H.CalculateAxesTickSpacing;
+			H.FitPrimaryAxesToMontage;
+			H.InitializeMontageAxes;
+			
+			% Transfer user inputs to object properties
+			H.Anatomical = Anatomical;
+			H.AxesColor = AxesColor;
+			H.CLim = CLim;
+			H.Color = Color;
+			H.ColorbarLabel = ColorbarLabel;
+			H.Colormap = Colormap;
+			H.MajorFontSize = MajorFontSize;
+			H.MinorFontSize = MinorFontSize;
+			H.Title = Title;
+			H.XLabel = XLabel;
+			H.XTickLabel = XTickLabel;
+			H.YLabel = YLabel;
+			H.YTickLabel = YTickLabel;
+			H.Zoom = Zoom;
+			
+			H.Plot();
+			
         end
     end
     
@@ -258,6 +266,54 @@ classdef BrainPlot < Window
         % Store the image
         Store(brainData, varargin)
         
+		function Recycle(H, data, title)
+		% RECYCLE - Recycles an existing montage object by replacing the plotted data with a new data set.
+		%
+		%	SYNTAX:
+		%		H.Recycle(data)
+		%		H.Recycle(data, title)
+		%		Recycle(H,...)
+		%
+		%	INPUTS:
+		%		H:			BRAINPLOT
+		%					A reference to a single pre-existing BRAINPLOT montage object.
+		%
+		%		data:		[ NUMERICS ]
+		%					A new array of numeric data to be plotted. This array must be the same size as the data
+		%					array that was used to construct the original montage (i.e. through the constructor method).
+		%					In other words, SIZE(data) must be equal to SIZE(H.DATA).
+		%
+		%	OPTIONAL INPUT:
+		%		title:		STRING
+		%					A new title string to be displayed above the montage that will replace any existing title.
+		%					If this argument is omitted, the title from the previous montage will remain unchanged.
+		%					DEFAULT: H.Title
+			if (nargin == 2); title = H.Title; end
+			assert(isequal(size(data), size(H.Data)),...
+				'Recycling an existing montage requires subsequent data sets to be the same size as the original.');
+			H.Data = data;
+			H.Title = title;
+			H.Plot();
+		end
+		function Refresh(H)
+		% REFRESH - Redraws the plots in each individual montage element using stored data.
+		%
+		%	This function refreshes the plots across the entire montage, overwritting any existing plots with updated
+		%	renderings. REFRESH is useful when changing properties of the figure axes that are required by the
+		%	individual plots themselves in order to be displayed properly (e.g. the CLim property). In such cases, the
+		%	existing plots must be completely redrawn in order to incorporate those changes. REFRESH uses the montage
+		%	object's stored data array to redraw the images.
+		%
+		%	SYNTAX:
+		%		H.Refresh()
+		%		Refresh(H)
+		%
+		%	INPUT:
+		%		H:		BRAINPLOT
+		%				A reference to a single BrainPlot montage object.
+			H.Plot();
+		end
+		
     end
     
     
@@ -300,7 +356,14 @@ classdef BrainPlot < Window
             set(get(H.Colorbar, 'YLabel'), 'Color', color);
         end
         function set.CLim(H, clim)
+			if (isempty(clim))
+				climBound = max(abs(H.Data(:)));
+				clim = [-climBound, climBound];
+			elseif (length(clim) == 1)
+				clim = [-clim, clim];
+			end
             set(H.Axes.Primary, 'CLim', clim);
+			H.Refresh();
         end
         function set.ColorbarLabel(H, clabel)
             set(get(H.Colorbar, 'YLabel'), 'String', clabel);
@@ -383,15 +446,15 @@ classdef BrainPlot < Window
         end
         function DetermineMontageDimensionality(H)
         % DETERMINEMONTAGEDIMENSIONALITY - Determines montage size [NUMROWS, NUMCOLS] & the aspect ratio of elements.
-            switch (H.PlotType) 
-                case BrainPlotTypes.EEG
-                    H.MontageSize = [size(H.Data, 3), size(H.Data, 2)];         % [numRows, numCols]
-                    H.ElementAspect = [1, 1];                                   % [width, height], square plots
-                case BrainPlotTypes.MRI
-                    H.MontageSize = [size(H.Data, 3), size(H.Data, 4)];         % [numRows, numCols]
-                    H.ElementAspect = [size(H.Data, 1), size(H.Data, 2)];       % Reversed (MRI data are permuted later)
-                    H.ElementAspect = H.ElementAspect./max(H.ElementAspect);    % [width, height], scaled to max value
-            end
+			switch (H.PlotType) 
+				case BrainPlotTypes.EEG
+					H.MontageSize = [size(H.Data, 3), size(H.Data, 2)];         % [numRows, numCols]
+					H.ElementAspect = [1, 1];                                   % [width, height], square plots
+				case BrainPlotTypes.MRI
+					H.MontageSize = [size(H.Data, 3), size(H.Data, 4)];         % [numRows, numCols]
+					H.ElementAspect = [size(H.Data, 1), size(H.Data, 2)];       % Reversed (MRI data are permuted later)
+					H.ElementAspect = H.ElementAspect./max(H.ElementAspect);    % [width, height], scaled to max value
+			end
         end
         function FitPrimaryAxesToMontage(H)
         % FITPRIMARYAXESTOMONTAGE - Fits the primary axes to the montage.
@@ -407,7 +470,6 @@ classdef BrainPlot < Window
                 'Units', 'pixels',...
                 'Box', 'on',...
                 'Color', 'none',...
-                'LineWidth', 5,...
                 'Parent', H.FigureHandle,...
                 'TickLength', [0 0],...
                 'XLim', [0 1],...
@@ -465,7 +527,6 @@ classdef BrainPlot < Window
                                 'Parent', H.Axes.Montage(a, b),...
                                 'XData', [0, 1],...
                                 'YData', [0, 1]);
-                            drawnow;
                         end
                     end       
                     
