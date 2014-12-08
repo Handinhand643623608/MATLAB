@@ -2,6 +2,7 @@ function mx = mask(x, m, r)
 % MASK - Nullifies values in a data array using a logical masking array.
 %
 %	SYNTAX:
+%       mx = mask(x, m)
 %		mx = mask(x, m, r)
 %
 %	OUTPUT:
@@ -30,6 +31,7 @@ function mx = mask(x, m, r)
 %		r:		NUMERIC
 %				A single value of any numeric type that replaces any nullified values in x. By default, masked values
 %				are replaced with zeros in this function, but NaN is another value that is commonly used for r.
+%               DEFAULT: 0
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20141001
@@ -37,6 +39,8 @@ function mx = mask(x, m, r)
 %		20141118:	Added documentation for this function. Also changed the name of the function from "maskImageSeries"
 %					to "mask" in order to better reflect its capabilities (and because the function name "mask" isn't in
 %					use elsewhere like I thought it was).
+%		20141208:	Bug fix for array sizing assertion being tripped when trying to mask a two-dimensional array with a
+%					vector, for which size is always specified using two numbers.
 
 
 
@@ -58,9 +62,9 @@ if (isequal(szArray, szMask))
 end
 
 % If the inputted data don't match along all but the last dimension, error out
-if (szMask ~= szArray(1:end-1))
-    error('The mask must be the same size as the inputted data array over all but the last dimension.');
-end
+dimArray = ndims(x);
+szCheck = isequal(szMask(1:dimArray - 1), szArray(1:end - 1));
+assert(szCheck, 'The mask must be the same size as the inputted data array over all but the last dimension.');
 
 % Mask the time series
 mx = reshape(x, [], szArray(end));
