@@ -23,6 +23,7 @@ classdef Window < hgsetget
 %                   how it's used.
 %		20141121:	Rewrote the constructor method to use the new input assignment system and to get rid of the
 %					externally defined Initialize function.
+%		20141210:	Implemented a method that converts a window object into a native MATLAB figure handle.
 %		
 
 %% TODOS
@@ -109,14 +110,19 @@ classdef Window < hgsetget
     %% Overloaded MATLAB Methods
     methods
 
-		function close(H, varargin)
+		function Close(H, varargin)
 		% CLOSE - Close the window and delete the associated variable in the calling workspace.
             delete(H.FigureHandle)
             evalin('caller', ['clear ' inputname(1)]);
         end
         function Store(H, filename)
             saveas(H.FigureHandle, filename);
-        end
+		end
+		
+		function F = ToFigure(H)
+		% TOFIGURE - Converts a window object into a native MATLAB figure handle.
+			F = H.FigureHandle;
+		end
         
         % Get methods
         function color      = get.Color(H)
@@ -193,13 +199,12 @@ classdef Window < hgsetget
 		function CreateFigure(H, figNum)
 		% CREATEFIGURE - Creates a native MATLAB figure and captures a reference to it.
 			if (isempty(figNum)) 
-				H.FigureHandle = figure; 
-				return;
+				H.FigureHandle = figure('CloseRequestFcn', @H.Close); 
 			else
 				while (ishandle(figNum))
 					figNum = figNum + 1;
 				end
-				H.FigureHandle = figure(figNum);
+				H.FigureHandle = figure('CloseRequestFcn', @H.Close, 'Number', figNum);
 			end
 		end
 		
