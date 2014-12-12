@@ -27,6 +27,8 @@ classdef  Path < hgsetget
 %		20141118:	Changed the name of the method ViewInExplorer to just View to make it easier to use.
 %		20141124:	Implemented an overload for the function "rmpath" so that directories can be removed from the MATLAB
 %					working path list.
+%		20141210:	Implemented new methods for deep cloning path objects and for copying referenced files to a new
+%					location accessible by the computer.
 
     
     
@@ -62,7 +64,7 @@ classdef  Path < hgsetget
     
     %% Constructor Method
     methods
-        function P = Path(pathStr)
+        function P = Path(p)
         % PATH - Constructs a new Path object or array of objects around path strings.
         %
         %   This is the constructor method for any path object. To use it, simply input a path string pointing to any
@@ -80,22 +82,27 @@ classdef  Path < hgsetget
         %                   array of strings is inputted, this will be an array of objects of the same dimensionality.
         %
         %   INPUT:
-        %       pathStr:    STRING or { STRINGS }
+        %       p:			STRING or { STRINGS }
         %                   A path string or cell array of path strings pointing to files, folders, or any combination
         %                   thereof. Cell arrays must be used for multiple path string inputs, but may be of any size
         %                   and dimensionality.
         %
         %   See also:   DIR, FILE, FILEPARTS, FOLDER, FULLFILE, LS
         
-            if (nargin ~= 0)                    
-                Path.AssertStringContents(pathStr);
-                
-                if (~iscell(pathStr)); pathStr = { pathStr }; end
-                P(numel(pathStr)) = Path;
-                for a = 1:numel(pathStr)
-                    P(a).ParseFullPath(pathStr{a});
-                end
-                P = reshape(P, size(pathStr));
+            if (nargin ~= 0)
+				if isa(p, 'Path')
+					P = p.Clone();
+					return
+				else
+					Path.AssertStringContents(p);
+
+					if (~iscell(p)); p = { p }; end
+					P(numel(p)) = Path;
+					for a = 1:numel(p)
+						P(a).ParseFullPath(p{a});
+					end
+					P = reshape(P, size(p));
+				end
             end 
         end
     end
@@ -199,7 +206,7 @@ classdef  Path < hgsetget
         % CONTENTS - Gets a list of all file and folder contents in a directory.
             assert(P.IsFolder, 'Contents can only be retrieved for paths to directories, not files.');
             P = Path(contents(P.FullPath));
-        end
+		end
         function F = FileContents(P)
         % FILECONTENTS - Gets a list of all files in a directory.
         %
@@ -328,8 +335,75 @@ classdef  Path < hgsetget
             else winopen(P.FullPath);
             end
             
-        end
-        
+		end
+		
+		% Utilities
+		function C = Clone(P)
+		% CLONE - Creates deep copies of inputted path objects.
+		%
+		%	CLONE performs a deep copy process on PATH objects, meaning that although the output is identical to the
+		%	input, the two do not contain any common object references. This is important when programming by reference
+		%	in order to avoid unintentionally changing properties across class instances.
+		%
+		%	SYNTAX:
+		%		C = P.Clone()
+		%		C = Clone(P)
+		%
+		%	OUTPUT:
+		%		C:		PATH or [ PATHS ]
+		%				An identical clone of the path(s) in P. Properties of this output that contain objects do not
+		%				reference the same objects as the corresponding properties in P.
+		%
+		%	INPUT:
+		%		P:		PATH or [ PATHS ]
+		%				A path object or array of objects that are to be copied.
+			C(numel(P)) = Path;
+			for a = 1:numel(pathStr)
+				C(a).Extension = P(a).Extension;
+				C(a).Name = P(a).Name;
+				C(a).ParentDirectory = P(a).ParentDirectory.Clone();
+				C(a).ParentDrive = P(a).ParentDrive.Clone();
+			end
+			C = reshape(C, size(P));
+		end
+		function b = CopyTo(P, destination)
+		% COPYTO - Copies source files and folders to a destination path.
+		%
+		%	COPYTO copies files and folders to a location that is accessible by the computer. This method works just
+		%	like copying and pasting does in the computer's file viewer and like the MATLAB-native function COPYFILE.
+		%	
+		%	SYNTAX:
+		%		b = P.CopyTo(destination)
+		%		b = CopyTo(P, destination)
+		%
+		%	OUTPUT:
+		%		b:				BOOLEAN or [ BOOLEANS ]
+		%						A Boolean indicating whether or not the copy operation was successful. If it was
+		%						completed successfully, a logical TRUE is returned.
+		%
+		%	INPUT:
+		%		P:				PATH or [ PATHS ]
+		%						A path object or array of objects referencing files or folders that will be copied over
+		%						to DESTINATION. Object arrays of any size and dimensionality are supported.
+		%
+		%		destination:	STRING or PATH
+		%						A path string or object referencing the destination directory into which the files
+		%						referenced by P will be copied. This must always point to a directory and not to a file.
+		%						Any destination directories that do not exist will be created automatically.
+		%
+		%	See also: COPYFILE
+			D = Path(destination);
+			D.AssertSingleObject();
+			assert(~D.IsFile,...
+				'The destination of a copy must reference a directory. Files cannot be copied to other files.');
+			if (~D.Exists); mkdir(D); end
+			
+			b = false(size(P));
+			for a = 1:numel(P)
+				[b(a), ~, ~] = copyfile(P.FullPath, D.FullPath);
+			end
+		end
+		
     end
     
     methods (Static)
@@ -542,7 +616,7 @@ classdef  Path < hgsetget
             end
         end
         function ParseFullPath(P, pathStr)
-            % PARSEFULLPATH - Deconstructs a full path string and populates the Path object properties with it.
+		% PARSEFULLPATH - Deconstructs a full path string and populates the Path object properties with it.
             
             P.AssertSingleObject();
             Path.AssertSingleString(pathStr);
