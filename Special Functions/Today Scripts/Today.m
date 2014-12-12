@@ -15,6 +15,14 @@ classdef Today < hgsetget
 %					in the future if needed. Updated CreateScript and CreateSection methods to utilize it. Also removed
 %					the dataSaveName variable from this text since it's not really used anymore.
 %		20141120:	Bug fix for first section creation not being done properly when new Today Scripts are created.
+%		20141210:	Implemented a method for archiving Today Data.
+%		20141212:	Implemented a method for automatically loading global variables stored at the very beginning of a
+%					Today Script research log. Implemented static fields containing the desired formatting of date,
+%					time, and date-time strings in case these need to be changed in the future. Added some standard
+%					assertions for date- and time-related strings. Added in an automatic placement of the global
+%					variable loading method at the beginning of the text for each section. Removed the automatic
+%					placement of infraslow data set references from each section. These aren't used nearly as often as I
+%					initially thought they would be.
     
 
 
@@ -28,18 +36,35 @@ classdef Today < hgsetget
         end
         function d = Date
         % Gets the current date string in the format YYYYMMDD.
-            d = datestr(now, 'yyyymmdd');
+            d = datestr(now, Today.DateFormat);
         end
         function t = Time
         % Gets the current time string in the 24-hour format HHMM.
-            t = datestr(now, 'HHMM');
+            t = datestr(now, Today.TimeFormat);
         end
         function F = Script
         % Gets the path to the Today Script log file for the current date.
             F = File([Paths.TodayScripts '/' Today.Date '.m']);
         end
         
-    end
+	end
+	
+	methods (Static, Access = private)
+		
+		function f = DateFormat
+		% Gets the format of date strings.
+			f = 'yyyymmdd';
+		end
+		function f = DateTimeFormat
+		% Gets the format of date-time strings.
+			f = 'yyyymmddHHMM';
+		end
+		function f = TimeFormat
+		% Gets the standard format of time strings.	
+			f = 'HHMM';
+		end
+		
+	end
     
     
     
@@ -47,6 +72,33 @@ classdef Today < hgsetget
     
     methods (Static)
 
+		function Archive()
+		% ARCHIVE - Performs a simple copy of new Today Data to the locally stored archive.
+		%
+		%	ARCHIVE copies data stored in the portable Today Data repository (i.e. my flash drive) to a local archive
+		%	whose location depends on the computer being worked on.
+		%
+		%	SYNTAX:
+		%		Today.Archive()
+			
+			pc = Paths.TodayData.Contents();
+			pdirs = {pc.Name}';
+			ac = Paths.TodayArchive.Contents();
+			adirs = {ac.Name}';
+			
+			idsNewFolders = ~ismember(pdirs, adirs);
+			dirsToCopy = pcontents(idsNewFolders);
+			
+			wasCopied = dirsToCopy.CopyTo(Paths.TodayArchive);
+			
+			if any(~wasCopied)
+				idsNotCopied = find(~wasCopied);
+				fprintf('The following directories could not be automatically copied to the data archive:\n\n');
+				for a = 1:length(idsNotCopied)
+					fprintf('\t%s\n', dirsToCopy(a).Name);
+				end
+			end
+		end
         function CreateScript()
         % CREATESCRIPT - Creates and opens a new script to serve as a record of daily activities.
         %   This function creates a new today script, which is a script intended to serve as a log of daily research
@@ -126,12 +178,49 @@ classdef Today < hgsetget
             end
 
             % Error out if the today script isn't open (probably trying to call this function from the command window)
-            assert(~isempty(tsFile), 'No today script for %s is open. You must create and open this script before creating new sections in it.', date); 
+            assert(~isempty(tsFile),...
+				'No today script for %s is open. You must create or open this script before creating new sections in it.', date); 
 
             % Replace the new section command with text
 			newText = Today.SectionText(date, time);
             tsFile.Text = regexprep(tsFile.Text, 'Today.CreateSection(\(\))?|ntss(\(\))?', newText);
-        end
+		end
+		function LoadGlobals(date)
+		% LOADGLOBALS - Executes global variables and code written in the very first section of a Today Script.
+		%
+		%	LOADGLOBALS evaluates the first section of a Today Script (i.e. the very first section that starts with the
+		%	date of the script and ends with the first time-stamped section). This section is intended to hold variables
+		%	that are globally applicable throughout every or at least most sections of the script.
+		%
+		%	SYNTAX:
+		%		Today.LoadGlobals(date)
+		%
+		%	INPUT:
+		%		date:		STRING
+		%					A string containing the date of script from which the call to this method is being made.
+		%					This date string must be in the format 'yyyymmdd'.
+			Today.AssertDateString(date);
+			
+			tsFile = matlab.desktop.editor.getActive;
+			[~, tsName, ~] = fileparts(tsFile.Filename);
+            if ~strcmpi(tsName, date)
+                tsFile = matlab.desktop.editor.findOpenDocument([date '.m']);	
+			end
+			
+			% Error out if the today script isn't open (probably trying to call this function from the command window)
+            assert(~isempty(tsFile),...
+				'No today script for %s is open. You must create or open this script before loading global variables in it.', date); 
+			
+			% Find any code written in the very first section of the script
+			allText = tsFile.Text;
+			idxGV = regexp(allText, '%% \d{4} - ', 'once');
+			
+			% Execute the code in the base workspace
+			if ~isempty(idxGV)
+				gvSection = allText(1:idxGV);
+				evalin('base', gvSection);
+			end
+		end
         function SaveData(timeStamp, fileName, varargin)
         % SAVEDATA - Saves a time-stamped .MAT file to the current Today Data archive folder.
         %
@@ -182,8 +271,7 @@ classdef Today < hgsetget
             
             % Error check
             assert(nargin >= 3, 'A time stamp, file name, and at least one variable must be specified for saving data.');
-            assert(ischar(timeStamp), 'Data must be saved with a valid date-time string.');
-            assert(length(timeStamp) == 12, 'Date-time strings should be formatted as yyyymmddHHMM.');
+			Today.AssertDateTimeString(timeStamp);
             [p, fileName, e] = fileparts(fileName);
             assert(isempty(p), 'The directory to which files are saved cannot be specified using this function.');
             assert(isempty(e) || strcmpi(e, '.mat'), 'Only .MAT files can be saved using this function.');
@@ -233,7 +321,6 @@ classdef Today < hgsetget
         %                       in multiple files with identical names but different formats (e.g. BMP, JPEG, PNG,
         %                       etc.). If omitted, this method saves images as MATLAB .FIG files.
         %                       DEFAULT: 'fig'
-            
             assert(nargin >= 3, 'A graphics handle, time stamp, and file name must be specified for saving images.');
             Today.SaveImageIn(H, [], timeStamp, fileName, extension);
         end
@@ -287,7 +374,7 @@ classdef Today < hgsetget
         %                       DEFAULT: 'fig'
             assert(nargin >= 4, 'A sub-folder, graphics handle, time stamp, and file name must be specified for saving images.');
             Today.AssertGraphicsHandle(H);
-            Today.AssertDateString(timeStamp);
+            Today.AssertDateTimeString(timeStamp);
             Today.AssertFileNameOnly(fileName);
             
             if (nargin == 4); extension = {'fig'}; end
@@ -299,14 +386,11 @@ classdef Today < hgsetget
             
             if (~savePath.Exists); mkdir(savePath); end
             
-            if (isa(H, 'BrainPlot'))
-                H.Store('Path', savePath.ToString(), 'Name', saveName, 'Ext', extension, 'Overwrite', true);
-            else
-                saveStr = [savePath.ToString() '/' saveName];
-                for a = 1:length(extension)
-                    saveas(H, [saveStr '.' extension{a}], extension{a});
-                end
-            end
+            if (isa(H, 'Window')); H = H.ToFigure(); end
+			saveStr = [savePath.ToString() '/' saveName];
+			for a = 1:length(extension)
+				saveas(H, [saveStr '.' extension{a}], extension{a});
+			end
         end
         
         function F = FindFiles(timeStamp)
@@ -333,7 +417,7 @@ classdef Today < hgsetget
         %
         %   See also:   DATESTR
             assert(nargin == 1, 'A time stamp must be provided in order to find Today Data files.');
-            assert(ischar(timeStamp), 'The time stamp must be provided as a date string.');
+            Today.AssertDateTimeString(timeStamp);
             dateStamp = timeStamp(1:8);
             dateFolder = [Paths.TodayData '/' dateStamp];
             assert(dateFolder.Exists, 'Cannot find the Today Data folder from %s. No files can be returned.', dateStamp);
@@ -345,14 +429,21 @@ classdef Today < hgsetget
     
     methods (Static, Access = private)
         
-        function AssertDateString(timeStamp)
-        % ASSERTDATESTRING - Checks for errors in user-inputted time stamp strings.
-            assert(ischar(timeStamp), 'Images must be saved with a valid date-time string.');
-            assert(length(timeStamp) == 12, 'Date-time strings should be formatted as yyyymmddHHMM.');
+		function AssertDateString(t)
+		% ASSERTDATESTRING - Checks for errors in user-inputted date stamp strings.
+			f = Today.DateFormat;
+			assert(ischar(t), 'Dates must be provided as string-type variables.');
+			assert(length(t) == length(f), 'Dates must be provided in the format %s.', f);
+		end
+        function AssertDateTimeString(t)
+        % ASSERTDATETIMESTRING - Checks for errors in user-inputted date-time stamp strings.
+			f = Today.DateTimeFormat;
+            assert(ischar(t), 'Date-time strings must be provided as string-type variables.');
+            assert(length(t) == length(f), 'Date-time strings must be provided in the format %s.', f);
         end
         function AssertGraphicsHandle(H)
-        % ASSERTGRAPHICSHANDLE - Ensures that a user input is a graphics handle or BrainPlot object.
-            assert(ishandle(H) || isa(H, 'BrainPlot'), 'Inputted figure handle must point to an open graphics window.');
+        % ASSERTGRAPHICSHANDLE - Ensures that a user input is a graphics handle or a window object.
+            assert(ishandle(H) || isa(H, 'Window'), 'Inputted figure handle must point to an open graphics window.');
         end
         function AssertFileNameOnly(fileName)
         % ASSERTFILENAMEONLY - Ensures that a user input contains only a file name and not a path or an extension.
@@ -364,17 +455,14 @@ classdef Today < hgsetget
 		
 		function s = SectionText(date, time)
 		% SECTIONTEXT - Gets the standard text to be automatically placed in each script section.
-		
 			s = sprintf(...
 				['%%%% %s - \n'...
                  '%% Log parameters\n'...
+				 'Today.LoadGlobals(''%s'');\n',...
                  'timeStamp = ''%s'';\n'...
-                 'analysisStamp = '''';\n'...
-                 '\n'...
-                 '%% Get references to infraslow BOLD & EEG data sets\n'...
-                 'boldFiles = Files.BOLD;\n'...
-                 'eegFiles = Files.EEG;\n'],...
+                 'analysisStamp = '''';\n'],...
                  time,...
+				 date,...
                  [date time]);
 		end
     
