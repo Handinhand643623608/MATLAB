@@ -55,6 +55,8 @@ classdef Progress < Window
 %                   default bar title when adding new bars dynamically to prevent erroring out. Updated documentation to
 %                   discuss the '-fast' option.
 %		20141124:	Updated for compatibility with the latest change to the Window class.
+%		20141212:	Changed the name of the "close" method to "Close" for compatibility with that same recent change to
+%					the Window class.
 
 
 
@@ -179,9 +181,9 @@ classdef Progress < Window
         end
         
         % Overloaded MATLAB methods
-        function close(progData, varargin)
+        function Close(progData, varargin)
             evalin('caller', ['clear ' inputname(1)]);
-            close@Window(progData, varargin{:});
+            Close@Window(progData, varargin{:});
         end
     end
     

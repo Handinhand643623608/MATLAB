@@ -24,7 +24,11 @@ classdef Window < hgsetget
 %		20141121:	Rewrote the constructor method to use the new input assignment system and to get rid of the
 %					externally defined Initialize function.
 %		20141210:	Implemented a method that converts a window object into a native MATLAB figure handle.
-%		
+%		20141212:	Changed the name of "close" to "Close" for consistency with all my other class methods and because I 
+%					keep making that typo in code that I write. Fixed a bug that occurred when trying to create a figure
+%					with a specific figure number and with a close function callback assignment.
+
+
 
 %% TODOS
 %   - Change access permissions for the COLORBAR (shouldn't be able to set it publicly)
@@ -204,7 +208,8 @@ classdef Window < hgsetget
 				while (ishandle(figNum))
 					figNum = figNum + 1;
 				end
-				H.FigureHandle = figure('CloseRequestFcn', @H.Close, 'Number', figNum);
+				H.FigureHandle = figure(figNum);
+				set(H.FigureHandle, 'CloseRequestFcn', @H.Close);
 			end
 		end
 		

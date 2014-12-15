@@ -434,7 +434,7 @@ classdef BrainPlot < Window
                 width = height * (H.ElementAspect(1) / H.ElementAspect(2));
             end
             H.ElementSize = [width, height];
-        end        
+		end
         function CalculateAxesTickSpacing(H)
         % CALCULATEAXESTICKSPACKING - Determines the spacing between X- & Y-axis ticks.
             xSpacing = 1/H.MontageSize(2);
