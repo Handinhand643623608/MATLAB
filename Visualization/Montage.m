@@ -5,6 +5,12 @@ classdef Montage < Window
 
 %% CHANGELOG
 %	Written by Josh Grooms on 20141208
+%		20141212:	Changed how the y-axis tick labels are displayed by default. They are now flipped automatically by
+%					the getter/setter methods of this class so that first element of the inputted array is displayed at
+%					the top and subsequent tick labels are displayed under it (i.e. towards the origin). This was done
+%					because this is how the montage is created, meant to be read, and because I keep making the mistake
+%					of not flipping the labels myself in code that uses the montage.
+%		20141215:	Fixed some bugs in the titling of expanded element views.
 	
 	
 
@@ -368,6 +374,7 @@ classdef Montage < Window
         function ytick  = get.YTickLabel(H)
             ytick = get(H.Axes, 'YTickLabel');
 			if ischar(ytick); ytick = cellstr(ytick); end
+			ytick = flip(ytick);
         end
         
         % Set methods
@@ -432,7 +439,7 @@ classdef Montage < Window
 			set(H.ElementAxes, 'YLim', ylim);
 		end
         function set.YTickLabel(H, tlabels)
-            set(H.Axes, 'YTick', H.YTick, 'YTickLabel', tlabels);
+            set(H.Axes, 'YTick', H.YTick, 'YTickLabel', flip(tlabels));
 		end
 		
     end
@@ -563,10 +570,10 @@ classdef Montage < Window
 			else xl = H.XLabel; end
 			if isempty(H.YLabel); yl = 'Y';
 			else yl = H.YLabel; end
-			if isempty(H.XTickLabel); xt = num2str(idxRow);
+			if isempty(H.XTickLabel{idxCol}); xt = num2str(idxCol);
 			else xt = H.XTickLabel{idxRow}; end
-			if isempty(H.YTickLabel); yt = num2str(idxCol);
-			else yt = H.YTickLabel{idxCol}; end
+			if isempty(H.YTickLabel); yt = num2str(idxRow);
+			else yt = H.YTickLabel{idxRow}; end
 				
 			% Apply the title to the expanded view axes
 			expTitle = sprintf('%s: %s\n%s: %s', xl, xt, yl, yt);
