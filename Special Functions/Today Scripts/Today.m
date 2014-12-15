@@ -81,16 +81,20 @@ classdef Today < hgsetget
 		%	SYNTAX:
 		%		Today.Archive()
 			
+			% Get the portable & archive folder contents
 			pc = Paths.TodayData.Contents();
 			pdirs = {pc.Name}';
 			ac = Paths.TodayArchive.Contents();
 			adirs = {ac.Name}';
 			
+			% Determine which of the portable folders is new, compared to the archive contents
 			idsNewFolders = ~ismember(pdirs, adirs);
-			dirsToCopy = pcontents(idsNewFolders);
+			dirsToCopy = pc(idsNewFolders);
 			
+			% Copy the new folders
 			wasCopied = dirsToCopy.CopyTo(Paths.TodayArchive);
 			
+			% Warn of any uncopied data in the MATLAB console
 			if any(~wasCopied)
 				idsNotCopied = find(~wasCopied);
 				fprintf('The following directories could not be automatically copied to the data archive:\n\n');
