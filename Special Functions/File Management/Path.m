@@ -29,6 +29,7 @@ classdef  Path < hgsetget
 %					working path list.
 %		20141210:	Implemented new methods for deep cloning path objects and for copying referenced files to a new
 %					location accessible by the computer.
+%		20141215:	Fixed some bugs related to the Clone and CopyTo methods.
 
     
     
@@ -39,13 +40,13 @@ classdef  Path < hgsetget
         FullPath                % The full path string that the object points to.
         IsFile                  % A Boolean that indicates whether or not the full path points to a file.
         IsFolder                % A Boolean that indicates whether or not the full path points to a folder.
+		ParentDirectory         % A path object for the directory immediately above the full path.
+		ParentDrive             % The path object for drive letter (for Windows PCs only) of the full path.
     end
     
     properties (SetAccess = protected)
         Extension               % Either 'Folder' or the extension string of the file that the full path points to.
         Name                    % The name string of the file or folder that the full path points to.
-        ParentDirectory         % A path object for the directory immediately above the full path.
-        ParentDrive             % The path object for drive letter (for Windows PCs only) of the full path.
     end
 
     properties (Access = protected)
@@ -358,11 +359,11 @@ classdef  Path < hgsetget
 		%		P:		PATH or [ PATHS ]
 		%				A path object or array of objects that are to be copied.
 			C(numel(P)) = Path;
-			for a = 1:numel(pathStr)
+			for a = 1:numel(P)
 				C(a).Extension = P(a).Extension;
 				C(a).Name = P(a).Name;
-				C(a).ParentDirectory = P(a).ParentDirectory.Clone();
-				C(a).ParentDrive = P(a).ParentDrive.Clone();
+				C(a).Directory = P(a).Directory;
+				C(a).Drive = P(a).Drive;
 			end
 			C = reshape(C, size(P));
 		end
@@ -399,9 +400,16 @@ classdef  Path < hgsetget
 			if (~D.Exists); mkdir(D); end
 			
 			b = false(size(P));
+			pb = Progress('-fast', 'Copying Files');
 			for a = 1:numel(P)
-				[b(a), ~, ~] = copyfile(P.FullPath, D.FullPath);
+				if P(a).IsFolder
+					[b(a), ~, ~] = copyfile(P(a).FullPath, [D.FullPath '/' P(a).Name]);
+				else
+					[b(a), ~, ~] = copyfile(P(a).FullPath, D.FullPath);
+				end
+				pb.Update(a/numel(P));
 			end
+			pb.Close();
 		end
 		
     end

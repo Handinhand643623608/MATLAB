@@ -17,6 +17,8 @@ classdef File < Path
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20141010
+%		20141215:	Implemented the method Clone, which overloads the same Path method, for creating deep copies of file
+%					object arrays.
     
 
 
@@ -190,8 +192,31 @@ classdef File < Path
                 varargout{a} = content.(contentFields{a});
             end
             
-        end        
+		end        
         
+		function C = Clone(F)
+		% CLONE - Creates deep copies of inputted file objects.
+		%
+		%	CLONE performs a deep copy process on FILE objects, meaning that although the output is identical to the
+		%	input, the two do not contain any common object references. This is important when programming by reference
+		%	in order to avoid unintentionally changing properties across class instances.
+		%
+		%	SYNTAX:
+		%		C = F.Clone()
+		%		C = Clone(F)
+		%
+		%	OUTPUT:
+		%		F:		FILE or [ FILES ]
+		%				An identical clone of the file(s) in F. Properties of this output that contain objects do not
+		%				reference the same objects as the corresponding properties in F.
+		%
+		%	INPUT:
+		%		F:		FILE or [ FILES ]
+		%				A file object or array of objects that are to be copied.
+			C = Clone@Path(F);
+			C = File(C);
+		end
+		
         % File Stream Management Methods
         function Close(F)
         % CLOSE - Closes an open file stream.
@@ -395,7 +420,6 @@ classdef File < Path
     end
     
     methods (Static)
-        
         function F = Which(fileName)
         % WHICH - Finds the full path to a file that is on MATLAB's 
             F = File(which(fileName));
