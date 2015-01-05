@@ -19,6 +19,8 @@ classdef File < Path
 %   Written by Josh Grooms on 20141010
 %		20141215:	Implemented the method Clone, which overloads the same Path method, for creating deep copies of file
 %					object arrays.
+%		20141217:	Added some documentation to the WHICH static method. Implemented a new static method GETEXTENSION
+%					for getting the string extension parts of file names.
     
 
 
@@ -420,10 +422,54 @@ classdef File < Path
     end
     
     methods (Static)
-        function F = Which(fileName)
-        % WHICH - Finds the full path to a file that is on MATLAB's 
-            F = File(which(fileName));
-        end
+        function ext = GetExtension(fileName)
+		% GETEXTENSION - Gets the extension part of an inputted file name string.
+		%
+		%	SYNTAX:
+		%		ext = File.GetExtension(fileName)
+		%
+		%	OUTPUT:
+		%		ext:		STRING
+		%					The string extension part of the FILENAME input argument. This string will always include
+		%					the dot ('.') part of the extension. If no extension is found on the file name, this method
+		%					returns an empty string.
+		%
+		%	INPUT:
+		%		fileName:	STRING
+		%					The string name of a file.
+			assert(ischar(fileName), 'File names must be specified as string type arguments.');
+			[~, ~, ext] = fileparts(fileName);
+		end
+		function F = Which(fileName)
+        % WHICH - Creates a FILE object referencing a file that is on MATLAB's active search path.
+		%
+		%	WHICH searches the MATLAB active directories for a file whose name matches the input argument FILENAME. If a
+		%	match is found, this method automatically constructs and returns a fully resolved FILE object referencing
+		%	it. If multiple identically named files are on the MATLAB working path, this function returns a FILE object
+		%	referencing only the first match found.
+		%
+		%	WHICH is useful for resolving MATLAB functions or files whose exact locations on the computer are unknown.
+		%	Other than returning a FILE object instead of a path string, this method performs exactly the same function
+		%	as the MATLAB-native WHICH
+		%
+		%	SYNTAX:
+		%		F = File.Which(fileName)
+		%
+		%	OUTPUT:
+		%		F:				FILE
+		%						A fully resolved FILE object that references a file whose name is identical to the
+		%						inputted FILENAME string. If no files matching that string are found, then an empty FILE
+		%						object is returned.
+		%
+		%	INPUT:
+		%		fileName:		STRING
+		%						A string containing the name of the function or file being searched for.
+		%
+		%	See also: WHICH
+			f = which(fileName);
+			if isempty(f); F = File;
+			else F = File(f); end
+		end
     end
     
     
