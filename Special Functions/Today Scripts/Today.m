@@ -23,6 +23,9 @@ classdef Today < hgsetget
 %					variable loading method at the beginning of the text for each section. Removed the automatic
 %					placement of infraslow data set references from each section. These aren't used nearly as often as I
 %					initially thought they would be.
+%		20141217:	Implemented methods for finding open MATLAB documents (e.g. scripts and functions) and for replacing
+%					text inside of them. Replaced the relevant section of CreateSection with these new functions. Also
+%					implemented a new method CreateSubsection for creating comment line separators within log scripts.
     
 
 
@@ -171,23 +174,15 @@ classdef Today < hgsetget
         %       Today.CreateSection()
         %
         %   See also:   NTS, NTSS, CREATESCRIPT
-
             date = Today.Date;
             time = Today.Time;
-            
-            tsFile = matlab.desktop.editor.getActive;
-            [~, tsName, ~] = fileparts(tsFile.Filename);
-            if ~strcmpi(tsName, date)
-                tsFile = matlab.desktop.editor.findOpenDocument([date '.m']);
-            end
-
-            % Error out if the today script isn't open (probably trying to call this function from the command window)
-            assert(~isempty(tsFile),...
-				'No today script for %s is open. You must create or open this script before creating new sections in it.', date); 
-
-            % Replace the new section command with text
 			newText = Today.SectionText(date, time);
-            tsFile.Text = regexprep(tsFile.Text, 'Today.CreateSection(\(\))?|ntss(\(\))?', newText);
+			Today.ReplaceTextInOpenDoc([date '.m'], 'Today.CreateSection(\(\))?|ntss(\(\))?', newText);
+		end
+		function CreateSubsection()
+		% CREATESUBSECTION - Creates a new log subsection delineated by a comment line filled with '=' characters.
+			Today.ReplaceTextInOpenDoc([Today.Date '.m'], 'Today.CreateSubsection(\(\))?|ntsss(\(\))?',...
+				['%' repmat('=', 1, 119)]);
 		end
 		function LoadGlobals(date)
 		% LOADGLOBALS - Executes global variables and code written in the very first section of a Today Script.
@@ -457,6 +452,22 @@ classdef Today < hgsetget
             assert(~isempty(f), 'File names must contain a valid name.');
 		end
 		
+		function ReplaceTextInOpenDoc(fileName, oldText, newText)
+		% REPLACETEXTINOPENDOC - Finds and replaces text in a currently open script or function file.
+			assert(ischar(fileName) && ischar(oldText) && ischar(newText),...
+				'All input arguments must be specified as string type variables.');
+			D = Today.FindOpenDocument(fileName);
+			assert(~isempty(D), 'Could not find an open document named %s. Text replacement is not possible.', fileName);
+			D.Text = regexprep(D.Text, oldText, newText);
+		end
+		
+		function D = FindOpenDocument(fileName)
+		% FINDOPENDOCUMENT - Finds and returns a DOCUMENT object referencing a currently open script or function file.
+			assert(ischar(fileName), 'File names must be specified as string type arguments.');
+			ext = File.GetExtension(fileName);
+			if ~strcmpi(ext, '.m'); fileName = [fileName '.m']; end
+			D = matlab.desktop.editor.findOpenDocument(fileName);	
+		end
 		function s = SectionText(date, time)
 		% SECTIONTEXT - Gets the standard text to be automatically placed in each script section.
 			s = sprintf(...
