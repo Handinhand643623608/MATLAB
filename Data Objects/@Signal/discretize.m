@@ -1,5 +1,5 @@
 function y = discretize(x, nbins, partition)
-%DISCRETIZE Re-expresses signal amplitude in terms of its membership with discrete partitions. 
+% DISCRETIZE - Re-expresses signal amplitude in terms of its membership with discrete partitions. 
 %
 %   SYNTAX:
 %   y = discretize(x)
@@ -7,7 +7,7 @@ function y = discretize(x, nbins, partition)
 %   y = discretize(x, nbins, dist)
 %
 %   OUTPUT:
-%   y:              VECTOR
+%   y:              [ DOUBLES ]
 %                   A one-dimensional vector of data the same size as the input signal. This output represents the
 %                   discretized version of x, where continuous amplitude values have been converted into discrete
 %                   integers with a range of [1, nbins+1]. How continuous values are grouped together, or binned,
@@ -20,7 +20,7 @@ function y = discretize(x, nbins, partition)
 %                   bins requested.
 %
 %   INPUT:
-%   x:              VECTOR
+%   x:              [ DOUBLES ]
 %                   A one-dimensional vector of data representing a signal.
 %
 %   OPTIONAL INPUTS:
@@ -34,12 +34,14 @@ function y = discretize(x, nbins, partition)
 %                   a z-scored signal roughly by its standard deviations.
 %                   DEFAULT: 'Equidistant'
 %                   OPTIONS:
-%                            'Equidistant'  - Discretize amplitudes using evenly spaced bins that span the data range.
+%                            'Equidistant'  - Discretize using evenly spaced bins that span the signal amplitude range.
 %                            'Equiprobable' - Discretize by assigning an equal number of data points per individual bin.
 %                           
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20140623
+%		20141217:	Replaced a conditional error message with the ASSERT shortcut.
+%		20141219:	Updated some of the documentation for this function to conform with newer standards.
 
 
 
@@ -53,9 +55,7 @@ elseif nargin == 2
 end
 
 % Ensure that the input is a vector
-if ~isvector(x)
-    error('Inputted data must be a one-dimensional vector only. Multiple signals are not supported');
-end
+assert(~isvector(x), 'Inputted data must be a one-dimensional vector only. Multiple signals are not supported');
 
 
 

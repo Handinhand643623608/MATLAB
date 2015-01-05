@@ -1,9 +1,10 @@
 function H = entropy(x, y, kind)
-%ENTROPY Calculates the Shannon entropy of the inputted data set.
-%   This function calculates the information theoretic entropy (Shannon entropy) on a single data set or between two
-%   data sets and returns the entropy estimate in units of bits. If a single data set is inputted, the result is the
-%   marginal entropy of that set of values. Otherwise, either the joint or conditional entropy is calculated between two
-%   equally-sized data sets, depending on user input for KIND.
+% ENTROPY - Calculates the Shannon entropy of one or more inputted data sets in bits.
+%   
+%	ENTROPY calculates the information theoretic entropy (Shannon entropy) on a single data set or between two data sets
+%	and returns the entropy estimate in units of bits. If a single data set is inputted, the result is the marginal
+%	entropy of that set of values. Otherwise, either the joint or conditional entropy is calculated between two
+%	equally-sized data sets, depending on user input for KIND.
 %
 %   The returned value represents the average uncertainty present in the data. More specifically, it is an estimate of
 %   how many bits are required to store a single data point that would be a typical result of the experiment that
@@ -44,37 +45,42 @@ function H = entropy(x, y, kind)
 %   OUTPUT:
 %   H:          DOUBLE
 %               A single double-precision number representing the entropy estimate from the inputted data. This value is
-%               expressed in units of bits due to the base-2 logarithm used in all calculations. This number represent
-%               the marginal entropy if specified using the KIND variable or if only a single data set is entered.
+%               expressed in units of bits due to the base-2 logarithm used in all calculations. H here represents the
+%               marginal entropy if specified using the KIND variable or if only a single data set is entered. 
 %               Otherwise, it will represent either the joint or conditional entropy between two sets of data.
 %   
 %   INPUT:
-%   X:          [DOUBLE]
+%   X:          [ DOUBLES ]
 %               An array of double-precision numbers representing a single set of data. If this is the only data that is
 %               inputted, then the variable KIND has no effect and the marginal entropy is calculated.
 %
 %               IMPORTANT: These data must be discretized prior to use.
 %
 %   OPTIONAL INPUT:
-%   Y:          [DOUBLE]
+%   Y:          [ DOUBLES ]
 %               An array of double-precision numbers representing a second set of data. This array must be the same size
 %               as the array X and is for use in calculating either joint or conditional entropy between the two sets.
 %
 %               IMPORTANT: These data must be discretized prior to use.
 %
-%   kind:       'STR'
+%   kind:       STRING
 %               A string indicating what kind of entropy to calculate between two data sets. If only a single data set X
 %               is inputted, this variable has no effect and only marginal entropy will be calculated. If however Y is
 %               specified and is the same size as X, then this variable may be used to choose between either conditional
 %               or joint entropy calculation.
 %
-%               DEFAULT: 'conditional'
+%               DEFAULT: 
+%						 'marginal'		- When only one input argument (X) is provided.
+%						 'conditional'  - When only two input arguments (X & Y) are provided.
 %               OPTIONS:
 %                        'conditional'
 %                        'joint'
+%						 'marginal'
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20140610
+%		20141217:	Replaced some conditional warning messages with the WASSERT shortcut.
+%		20141219:	Updated some of the documentation for this function to conform with newer standards.
 
 
 
@@ -84,15 +90,10 @@ if nargin == 1
     y = [];
     kind = 'marginal';
 elseif nargin == 2
-    if all((size(x) == size(y)))
-        kind = 'conditional';
-    else
-        error('Size of the inputted data sets must match');
-    end
+    if all((size(x) == size(y))); kind = 'conditional';
+	else error('Size of the inputted data sets must match'); end
 else
-    if any((size(x) ~= size(y)))
-        error('Size of the inputted data sets must match');
-    end
+	assert(any((size(x) ~= size(y))), 'Size of the inputted data sets must match');
 end
 
 % Print a warning if attempting to calculate anything other than marginal entropy with a single input data set
@@ -119,18 +120,16 @@ end
 
 
 %% NESTED FUNCTIONS
-% Shannon marginal entropy calculation (in bits)
 function H = marginalentropy(x)
-    
+% MARGINALENTROPY - Calculates the Shannon marginal entropy of a data set in bits.
     % Get the unique values of the input data set
     uniqueValues = unique(x);
     numSamples = numel(x);
     
     % Do a rudimentary check for discretized data (but this will only sometimes catch the error)
-    if (length(uniqueValues) == numSamples)
-        warning('No values occur more than once in the input data. Was the data set properly discretized?');
-    end
-
+	wassert(length(uniqueValues) == numSamples,...
+		'No values occur more than once in the input data. Was the data set properly discretized?');
+    
     % Initialize the p-value array & entropy estimate
     p = zeros(size(uniqueValues));
     H = 0;
@@ -145,19 +144,16 @@ function H = marginalentropy(x)
     end
     
 end
-
-% Shannon joint entropy calculation (in bits)
 function H = jointentropy(x, y)
-    
+% JOINTENTROPY - Calculates the Shannon joint entropy of two data sets in bits.
     % Get the unique values from the input data sets
     uniqueX = unique(x);
     uniqueY = unique(y);
     numSamples = numel(x);
     
     % Do a rudimentary check for discretized data (but this will only sometimes catch the error)
-    if (length(uniqueX) == numSamples || length(uniqueY) == numSamples)
-        warning('No values occur more than once in the input data. Was the data set properly discretized?');
-    end
+	wassert(length(uniqueX) == numSamples || length(uniqueY) == numSamples,...
+        'No values occur more than once in the input data. Was the data set properly discretized?');
     
     % Initialize the p-value array & entropy estimate
     pXY = zeros(length(uniqueX), length(uniqueY));
@@ -174,11 +170,8 @@ function H = jointentropy(x, y)
         end
     end    
 end
-
-
-% Shannon conditional entropy calculation (in bits)
 function H = conditionalentropy(x, y)
-
+% CONDITIONALENTROPY - Calculates the Shannon conditional entropy of two data sets in bits.
     % Calculate conditional entropy: H(X|Y) = H(Y, X) - H(Y)
     H = jointentropy(y, x) - marginalentropy(y);
     
