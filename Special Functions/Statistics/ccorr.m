@@ -1,16 +1,11 @@
 % CCORR - Estimates the cross-correlation function between data sets.
 %
-%	CCORR computes the cross-correlation between data just like the MATLAB-native statistical function XCORR does,
-%	returning identical results. However, this function offers much better performance than the native function does by
-%	wrapping a compiled C MEX function that was created using the Intel C++ Optimizing Compiler (from the Composer XE
-%	2015 suite). Consequently, this function is always faster than XCORR, especially at large sample sizes (more than 2x
-%	faster at 1,000,000 samples). 
-%
-%	IMPORTANT WARNINGS:
-%		- This code is still in development and isn't nearly as functional as XCORR is.
-%		- CCORR currently only works on two signal vectors, although support for arrays is planned.
-%		- Inputted signals MUST currently be of equivalent length, although support for size differences is planned.
-%		- The scaling option Unbiased is currently not implemented. Attempting to use it will result in an error.
+%	CCORR computes the Pearson product-moment cross-correlation between data just like the MATLAB-native statistical function
+%	XCORR does, returning identical results when the 'coeff' scaling option is invoked. However, this function offers much
+%	better performance than the native function does by wrapping a compiled C MEX function that was created using the Intel
+%	C++ Optimizing Compiler (from the Composer XE 2015 suite). Consequently, this function is always faster than XCORR,
+%	especially at large sample sizes. Benchmarks on large data (x = y = 218 x 226394) show that CCORR is ~3x faster than
+%	XCORRARR and ~13x faster than using XCORR to accomplish the same task.
 %
 %	EXTREMELY IMPORTANT:
 %		- The path to the Intel MKL libraries (.dll, not .lib) must currently be on the system's PATH environment
@@ -20,7 +15,7 @@
 %
 %	SYNTAX:
 %		cc = ccorr(x, y)
-%		cc = ccorr(x, y, scaleOpt)
+%       cc = ccorr(x, y, dim)
 %		[cc, lags] = ccorr(...)
 %
 %	OUTPUTS:
@@ -29,72 +24,93 @@
 %		lags:			[ M x 1 INTEGERS ]
 %
 %	INPUTS:
-%		x:				[ L x 1 DOUBLES ]
+%		x:				[ DOUBLES ]
 %
-%		y:				[ L x 1 DOUBLES ]
+%		y:				[ DOUBLES ]
 %
-%		scaleOpt:		STRING
-%						A string indicating how the results in CC should be scaled before returning. These are the same
-%						scaling options that can be used with the MATLAB-native XCORR function. However, instead of no
-%						scaling, which is the default for XCORR, the results from this function are normalized to
-%						Pearson product-moment correlation coefficients.
-%
-%						DEFAULT: 'coeff'
-%						OPTIONS:
-%							'biased'	- Scales CC by (1 / M).
-%							'coeff'		- Scales CC such that autocorrelations are 1 at zero lag.
-%							'none'		- Does not scale CC.
-%							'unbiased'	- Scales CC by (1 / (M - abs(lags))). [ NOT IMPLEMENTED YET! ]
-%	
+%   OPTIONAL INPUT:
+%       dim:            INTEGER
 %
 %	See also: CORR2, CORR3, CORRCOEF, XCORR, XCORRARR
 
 %% CHANGELOG
-%	Written by Josh Grooms on 20150105
+%	Written by Josh Grooms on 20150106
 
 %% TODOS
-%	- Implement the biased scaling option
-%	- Implement support for cross-correlating arrays
 %	- Finish documenting this function
 
 
 
-function [cc, lags] = ccorr(x, y, scaleOpt)
+%% Function Definition
+function [cc, lags] = ccorr(x, y, dim)
 
 	% Deal with missing inputs
-	if nargin == 1; scaleOpt = 'coeff'; end	
+	if nargin < 2;		y = x;				end
+	if isempty(y);		y = x;				end
+	if nargin < 3;		dim = 1;			end
 	
-	% Error checking
-	assert(isvector(x) && isvector(y),...
-		'This function currently only works for data vectors (i.e. signals). Array support will be implemented later.');
-	assert(length(x) == length(y),...
-		'Signals must currently be of equivalent length. Differences in signal length will be supported later.');
+	% Check for errors in inputs
+	assert(~isempty(x), 'X cannot be an empty array.');
+	hasNaN = any(isnan(x(:))) || any(isnan(y(:)));
+	assert(~hasNaN, 'NaNs were detected in one or more inputted data sets. These must be removed or replaced.');
 	
-	% Convert data to column vectors if necessary
-	x = x(:);
-	y = y(:);
+	% Cache some frequently used checks
+	isvx = isvector(x);
+	isvy = isvector(y);
 	
-	% Computs the vector of sample lags
-	maxLag = length(x) - 1;
-	lags = -maxLag : maxLag;
-
-	% Convert the coefficient scaling option to work with the MEX function
-	switch lower(scaleOpt)
-		case 'biased'
-			opt = 0;
-		case 'coeff'
-			opt = 1;
-		case 'none'
-			opt = 2;
-		case 'unbiased'
-			error('The ''Unbiased'' scaling option is not yet implemented. Sorry!.');
-% 			opt = 3;
-		otherwise
-			error('Unrecognized scaling option %s. See this function''s documentation for supported values.', scaleOpt);
+	if (isvx && isvy)
+		x = x(:);
+		y = y(:);
+		dim = 1;
 	end
-			
+	
+	% Get the original data dimensionalities
+	szx = size(x);
+	szy = size(y);
+	xDimOrder = 1:ndims(x);
+	yDimOrder = 1:ndims(y);
+	
+	% If necessary, permute the data arrays so that correlation occurs along the first dimension
+	if dim ~= 1
+		xDimOrder(1) = xDimOrder(dim);
+		xDimOrder(dim) = 1;
+		yDimOrder(1) = yDimOrder(dim);
+		yDimOrder(dim) = 1;
+		
+		x = permute(x, xDimOrder);
+		y = permute(y, yDimOrder);
+	end
+	
+	% Capture any size changes if permutation took place
+	szpx = size(x);
+	szpy = size(y);
+	assert(szpx(1) == szpy(1), 'Data arrays must be of equivalent size over the correlation dimension.');
+	
+	% Flatten the data arrays to two dimensions
+	x = reshape(x, szpx(1), []);
+	y = reshape(y, szpy(1), []);
+	
+	% If necessary, replicate vectors to create equally sized arrays
+	if isvx; x = repmat(x, 1, size(y, 2)); end
+	if isvy; y = repmat(y, 1, size(x, 2)); end
+	assert(size(x, 2) == size(y, 2),...
+		'Cross-correlation can only be estimated between vectors, an array and a vector, or two equally sized arrays.');
+	
+	% Compute the vector of sample lags
+	maxLag = szpx(1) - 1;
+	lags = -maxLag : maxLag;
 	
 	% Estimate cross-correlation using the MEX function
-	cc = MexCrossCorrelate(x, y, opt);
+	cc = MexCrossCorrelate(x, y);
+    szcc = size(cc);
+	
+	% Reshape the correlation data array to
+	if (szcc(2) == prod(szpx(2:end)))
+		cc = reshape(cc, [szcc(1), szpx(2:end)]);
+		cc = permute(cc, xDimOrder);
+	else
+		cc = reshape(cc, [szcc(1), szpy(2:end)]);
+		cc = permute(cc, yDimOrder);
+	end
 	
 end
