@@ -259,7 +259,7 @@ classdef boldObj < humanObj
     
     %% Object Conversion Methods
     methods
-        varargout = ToArray(boldData, dataStr)                  % Extract data from a data object & return it as an array
+        varargout = ToArray(boldData, dataStr)                 % Extract data from a data object & return it as an array
         
         function ToIMG(boldData, outputPath)
 		% TOIMG - Converts BOLD data matrices to NIFTI .img format.
@@ -376,10 +376,10 @@ classdef boldObj < humanObj
             pbar = Progress('-fast', 'Converting BOLD Array to IMG Files');
             for a = 1:szBOLD(4)
                 currentSaveStr = sprintf('%s/%03d.img', outputPath, a);
-                writeimg(currentSaveStr, boldArray(:, :, :, b), 'double', [2 2 2], szBOLD(1:3));
-                pbar.Update(a/szBOLD(4));
+                writeimg(currentSaveStr, boldArray(:, :, :, a), 'double', [2 2 2], szBOLD(1:3));
+                pbar.Update(a / szBOLD(4));
             end
-            pbar.close;
+            pbar.Close();
         end
     end
     
