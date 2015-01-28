@@ -18,6 +18,9 @@
 %					specified using Path objects anyway nowadays, and this sometimes added data that I no longer want
 %					added. Implemented automatic removal of code prototyping directories so code in here doesn't
 %					accidentally get used.
+%       20150114:   Implemented checks for the latest versions of Microsoft Visual Studio and Intel Parallel Studio.
+%                   This is meant to warn users against running MEX functions I've developed if those programs are not
+%                   installed.
 
 
 %% Setup MATLAB Environment
@@ -37,5 +40,15 @@ Paths.Main.NavigateTo();
 % Remove the code prototyping directory
 rmpath(genpath([Paths.Main '/Prototyping']));
 
-% Wipe the command window
-clc
+% Check for the latest Microsoft Visual Studio installation
+wassert(~isempty(getenv('VS120COMNTOOLS')),...
+    'Microsoft Visual Studio 2013 not detected on this machine. Do not attempt to run MEX functions.');
+
+% Check for the presence of a path to MKL DLLs for running optimized MEX functions
+p = getenv('PATH');
+wassert(~isempty(strfind(p, 'C:\Program Files (x86)\Intel\Composer XE 2015\redist\intel64\mkl')),...
+    ['Intel MKL libraries were not found on the system PATH environment variable. Ensure that the path to these DLLs '...
+     'is placed there. Otherwise, do not attempt to run MEX functions.']);
+
+% Wipe the command window & variables
+cle
