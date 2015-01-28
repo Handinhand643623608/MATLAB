@@ -11,10 +11,11 @@ classdef Montage < Window
 %					because this is how the montage is created, meant to be read, and because I keep making the mistake
 %					of not flipping the labels myself in code that uses the montage.
 %		20141215:	Fixed some bugs in the titling of expanded element views.
+%		20150128:	Finished implementing a static constructor method for creating EEG channel mapping montages. 
 	
 	
 
-	%% Montage Properties
+	%% DATA
 	properties (Dependent)
         AxesColor               % The color of the primary plot axes.
 		Box
@@ -35,19 +36,130 @@ classdef Montage < Window
 	end
 	
 	properties (Access = protected, Hidden)
-		ElementAspect
-		ElementAxes
-		ElementIndex
-		ElementSize
-		ExpandedFigures
-		MontageSize
+		ElementAspect			% The [HEIGHT, WIDTH] aspect ratio of each montage element.
+		ElementAxes				% An array of dimensions MONTAGESIZE containing axes handles for each montage element.
+		ElementIndex			% The linear index of the montage element that will be plotted to next.
+		ElementSize				% Size [HEIGHT, WIDTH] of each montage element in pixels.
+		ExpandedFigures			% A list of figure handles that expanded element views that have been opened.
+		MontageSize				% The [NROWS, NCOLS] size of the montage.
+        Template				% A template of graphics objects that are shared across all montage elements.
 		XTick                   % The array of tick positions for the primary x-axis.
         YTick                   % The array of tick positions for the primary y-axis.
 	end
 
 
 
-	%% Constructor Method
+	%% PROPERTIES
+    methods
+        
+        % Get methods
+        function color  = get.AxesColor(H)
+            color = get(H.Axes, 'XColor');
+		end
+		function box	= get.Box(H)
+			box = get(H.ElementAxes(1), 'Box');
+		end
+        function clim   = get.CLim(H)
+            clim = get(H.Axes, 'CLim');
+        end
+        function clabel = get.ColorbarLabel(H)
+            clabel = get(get(H.Colorbar, 'YLabel'), 'String');
+        end
+        function title  = get.Title(H)
+            title = get(get(H.Axes, 'Title'), 'String');
+        end
+        function xlabel = get.XLabel(H)
+            xlabel = get(get(H.Axes, 'XLabel'), 'String');
+		end
+		function xlim	= get.XLim(H)
+			xlim = get(H.ElementAxes(1), 'XLim');
+		end
+        function xtick  = get.XTickLabel(H)
+            xtick = get(H.Axes, 'XTickLabel');
+			if ischar(xtick); xtick = cellstr(xtick); end
+        end
+        function ylabel = get.YLabel(H)
+            ylabel = get(get(H.Axes, 'YLabel'), 'String');
+		end
+		function ylim	= get.YLim(H)
+			ylim = get(H.ElementAxes(1), 'YLim');
+		end
+        function ytick  = get.YTickLabel(H)
+            ytick = get(H.Axes, 'YTickLabel');
+			if ischar(ytick); ytick = cellstr(ytick); end
+			ytick = flip(ytick);
+        end
+        
+        % Set methods
+        function set.AxesColor(H, color)
+            set(H.Axes, 'XColor', color, 'YColor', color);
+            set(get(H.Axes, 'Title'), 'Color', color);
+            set(get(H.Axes, 'XLabel'), 'Color', color);
+            set(get(H.Axes, 'YLabel'), 'Color', color);
+            set(get(H.Colorbar, 'YLabel'), 'Color', color);
+		end
+		function set.Box(H, box)
+			if istrue(box); box = 'on';
+			else box = 'off'; end
+			set(H.ElementAxes, 'Box', box);
+		end
+        function set.CLim(H, clim)
+			if (nargin == 1 || isempty(clim))
+				if isempty(H.Data)
+					set(H.Axes, 'CLimMode', 'auto');
+					return;
+				else
+					climBound = max(abs(H.Data(:)));
+					clim = [-climBound, climBound];
+				end
+			elseif (length(clim) == 1)
+				clim = [-clim, clim];
+			end
+            set(H.Axes, 'CLim', clim);
+			H.Refresh();
+        end
+        function set.ColorbarLabel(H, clabel)
+            set(get(H.Colorbar, 'YLabel'), 'String', clabel);
+        end
+        function set.MajorFontSize(H, fsize)
+            set(get(H.Colorbar, 'YLabel'), 'FontSize', fsize);
+            set(get(H.Axes, 'Title'), 'FontSize', fsize);
+            set(get(H.Axes, 'XLabel'), 'FontSize', fsize);
+            set(get(H.Axes, 'YLabel'), 'FontSize', fsize);
+            H.MajorFontSize = fsize;
+        end
+        function set.MinorFontSize(H, fsize)
+            set(H.Colorbar, 'FontSize', fsize);
+            set(H.Axes, 'FontSize', fsize);
+            H.MinorFontSize = fsize;
+        end
+        function set.Title(H, title)
+            set(get(H.Axes, 'Title'), 'String', title);
+        end
+        function set.XLabel(H, xlabel)
+            set(get(H.Axes, 'XLabel'), 'String', xlabel);
+		end
+		function set.XLim(H, xlim)
+			set(H.ElementAxes, 'XLim', xlim);
+		end
+        function set.XTickLabel(H, tlabels)
+            set(H.Axes, 'XTick', H.XTick, 'XTickLabel', tlabels);
+        end
+        function set.YLabel(H, ylabel)
+            set(get(H.Axes, 'YLabel'), 'String', ylabel);
+		end
+		function set.YLim(H, ylim)
+			set(H.ElementAxes, 'YLim', ylim);
+		end
+        function set.YTickLabel(H, tlabels)
+            set(H.Axes, 'YTick', H.YTick, 'YTickLabel', flip(tlabels));
+		end
+		
+	end
+	
+	
+	
+	%% CONSTRUCTORS
 	methods
 		function H = Montage(m, varargin)
 		% MONTAGE - Constructs a window object & initializes the plotting environment.
@@ -58,7 +170,6 @@ classdef Montage < Window
                 'NumberTitle', 'off',...
                 'Position', WindowPositions.CenterCenter,...
                 'Size', WindowSizes.FullScreen); drawnow
-% 			set(H.FigureHandle, 'CloseRequestFcn', @H.Close);
 			
 			% Error check
 			assert(nargin >= 1, 'Constructing a montage requires a size to be specified.');
@@ -77,6 +188,9 @@ classdef Montage < Window
 				Box = 'on';
 				CLim = [];
 				Color = 'w';
+                Colorbar = 'off';
+                ColorbarLabel = [];
+                Colormap = jet(256);
 				ElementAspect = [1, 1];
 				MajorFontSize = 25;
 				MinorFontSize = 20;
@@ -97,6 +211,8 @@ classdef Montage < Window
 			H.InitializePrimaryAxes();
 			H.SetAxesTickSpacing();
 			
+            if (istrue(Colorbar)); H.Colorbar = colorbar('EastOutside'); end
+            
 			H.SetElementSize();
 			H.RetrofitPrimaryAxes();
 			H.InitializeElementAxes();
@@ -105,6 +221,8 @@ classdef Montage < Window
 			H.Box = Box;
 			H.CLim = CLim;
 			H.Color = Color;
+            H.ColorbarLabel = ColorbarLabel;
+            H.Colormap = Colormap;
 			H.ExpandedFigures = gobjects(1);
 			H.MajorFontSize = MajorFontSize;
 			H.MinorFontSize = MinorFontSize;
@@ -117,19 +235,306 @@ classdef Montage < Window
 			H.YTickLabel = YTickLabel;
 			
 		end
-	end
+    end
 	
+	methods (Static)
+        function H = EEG(x, varargin)
+		% EEG - Creates a montage of colored EEG channel mappings.
+		%
+		%	SYNTAX:
+		%		H = Montage.EEG(x)
+		%		H = Montage.EEG(H, x)
+		%		H = Montage.EEG(..., 'PropertyName', PropertyValue,...)
+		%
+		%	OUTPUT:
+		%		H:					MONTAGE
+		%							A reference to the montage object that was created or updated.
+		%
+		%	INPUTS:
+		%		H:					MONTAGE
+		%							A reference to a montage object that has already been set up to display EEG channel
+		%							mappings. This input argument exists to allow the reuse of montages when imaging multiple
+		%							data sets. Doing so prevents having to load and copy the channel mapping graphics
+		%							template, which in turn greatly speeds up the display of data.
+		%
+		%		x:					[ 68 x M x N  DOUBLES ]
+		%							An array of EEG data. This argument must always be formatted as dictated above with a
+		%							single data point per channel stored along the rows of the array. The number of columns
+		%							M dictates how many columns will be present in the montage, while the number of pages N
+		%							dictates how many rows the montage will have. The size of this array must be constant
+		%							across calls when reusing pre-existing montages (i.e. when inputting H in addition to x).
+		%
+		%	PROPERTIES:
+		%		CLim:				DOUBLE or [ DOUBLE, DOUBLE ] or [ ]
+		%							A one- or two-element vector that dictates the maximum and minimum values that the
+		%							colormap will be scaled to. Inputting a single number here results in a CLim value that
+		%							is symmetric about zero. Inputting an empty array for this argument results in a CLim
+		%							value that is derived from the inputted data x.
+		%							DEFAULT: []
+		%
+		%		Colorbar:			STRING
+		%							A string that has a value of either 'on' or 'off' that in turn controls whether or not a
+		%							colorbar is visible on the montage.
+		%							DEFAULT: 'on'
+		%
+		%		Colormap:			[ NC x 3 DOUBLES ]
+		%							The colormapping that will be used to represent the numeric data present in x. The number
+		%							of discrete colors NC that are available for the mapping can be any positive integer.
+		%							DEFAULT: jet(256)
+		%
+		%		ColorbarLabel:		STRING
+		%							The string label that will be displayed to the right of the colorbar. This can be used to
+		%							display the units that colors on the montage represent. This label will only be visible
+		%							if the COLORBAR property is set to 'on'.
+		%							DEFAULT: []
+		%
+		%		XLabel:				STRING
+		%							The string label that will be displayed beneath the montage's primary x-axis and beneath
+		%							the XTICKLABEL entries. This can be used to describe what the columns of the montage
+		%							represent.
+		%							DEFAULT: []
+		%
+		%		XTickLabel:			{ STRINGS } or [ DOUBLES ]
+		%							The labels that will be displayed immediately beneath the x-axis. One label must be 
+		%							present for each column displayed in the montage. This can be used to provide additional
+		%							identifying information for the columns.
+		%							DEFAULT: 1:M
+		%
+		%		YLabel:				STRING
+		%							The string label that will be displayed to the left of the montage's primary y-axis and
+		%							to the left of the XTICKLABEL entries. This can be used to describe what the rows of the
+		%							montage represent.
+		%							DEFAULT: []
+		%
+		%		YTickLabel:			{ STRINGS } or [ DOUBLES ]
+		%							The labels that will be displayed immediately to the left of the y-axis. One label must
+		%							be present for each row displayed in the montage. This can be used to provide additional
+		%							identifying information for the rows.
+		%							DEFAULT: 1:N
+		%
+		%	See also: BRAINPLOT, MONTAGE
+		
+			H = [];
+            nchans = 68;
+            assert(nargin >= 1, 'EEG data must be supplied to create a montage of channel mappings.');
+			
+			if isa(x, 'Montage')
+				H = x;
+				x = varargin{1};
+				varargin(1) = [];
+			end
+			
+			assert(isnumeric(x), 'EEG data must be provided as a numeric array with %d rows.', nchans);
+			assert(size(x, 1) == nchans, 'EEG data must be correctly ordered and provided for all %d channels.', nchans);
+			
+			climBound = max(abs(x(:)));
+			nx = size(x, 2);
+			ny = size(x, 3);
+			
+			function Defaults
+				CLim = [-climBound, climBound];
+				Colorbar = 'on';
+				Colormap = jet(256);
+				ColorbarLabel = [];
+				XLabel = [];
+				XTickLabel = 1:nx;
+				YLabel = [];
+				YTickLabel = 1:ny;
+			end
+			assignto(@Defaults, varargin);
+			
+			if isempty(H)
+				H = Montage(ny, nx,...
+					'CLim',				CLim,...
+					'Colorbar',			Colorbar,...
+					'Colormap',			Colormap,...
+					'ColorbarLabel',	ColorbarLabel,...
+					'XLabel',			XLabel,...
+					'XTickLabel',		XTickLabel,...
+					'YLabel',			YLabel,...
+					'YTickLabel',		YTickLabel);
+			end
+			
+			H.Data = x;
+			x = scale2rgb(x, 'Colormap', H.Colormap, 'CLim', H.CLim);
+			x = permute(x, [1 3 2 4]);
+            x = reshape(x, [], 3);
+			
+			if isempty(H.Template)
+				set(H.ElementAxes, 'Color', 'k');
+				templateFile = File.Which('EEG Channel Map Template.fig');
+				H.Template = hgload(templateFile.ToString(), struct('Parent', H.ElementAxes(1)));
+				H.Patch = gobjects(size(x, 1), 1);
+				
+				for a = 1:numel(H.ElementAxes)
+					idx = (a - 1) * nchans + 1;
+					H.Patch(idx:(idx + nchans - 1)) = copyobj(H.Template, H.ElementAxes(a));
+				end
+			end
+            
+			for a = 1:size(x, 1)
+				set(H.Patch(a),...
+					'FaceColor',    x(a, :),...
+					'EdgeColor',    x(a, :));
+			end
+			
+			drawnow;
+        end
+    end
+    
+    
 	
-	
-	%% Public Utility Methods
-	methods
-        
-		function Close(H, varargin)
-		% CLOSE - Closes the montage window and any expanded element windows that remain open.
-			delete(H.ExpandedFigures);
-			Close@Window(H);
+	%% UTILITIES 
+	methods (Access = protected)
+		function ExpandElement(H, src, ~)
+		% EXPANDELEMENT - Copies the contents of a clicked montage element into a larger new figure window.
+		%
+		%	EXPANDELEMENT is a callback function tied to the BUTTONDOWNFCN property of all axes objects present in the
+		%	montage. It is automatically called when a left mouse click is detected over one of these axes. This method
+		%	then determines which particular axes detected the click and opens a new window that displays a larger
+		%	version of the montage element, which is useful for closer inspections of data that would otherwise be
+		%	difficult to see in montage form.
+			
+			% Generate a new figure & axes for the expanded view
+			H.ExpandedFigures = cat(1, H.ExpandedFigures, figure('CloseRequestFcn', @H.OnExpansionClosing));
+			AE = axes(...
+				'CLim', H.CLim,...
+				'CLimMode', 'manual',...
+				'Color', 'none',...
+				'Parent', H.ExpandedFigures(end),...
+				'XLim', H.XLim,...
+				'YLim', H.YLim);
+			
+			% Copy the data plotted in the montage into the expanded view
+			[idxRow, idxCol] = find(H.ElementAxes == src);
+			A = H.ElementAxes(idxRow, idxCol);
+			copyobj(get(A, 'Children'), AE);
+
+			% Generate a generic title to identify the displayed data            
+			if isempty(H.XLabel); xl = 'X';
+			else xl = H.XLabel; end
+			if isempty(H.YLabel); yl = 'Y';
+			else yl = H.YLabel; end
+            
+            xtl = H.XTickLabel;
+            ytl = H.YTickLabel;
+            if (length(xtl) >= idxCol) && (~isempty(xtl{idxCol})); xt = xtl{idxCol};
+            else xt = num2str(idxCol); end
+            if (length(ytl) >= idxRow) && (~isempty(ytl{idxRow})); yt = ytl{idxRow};
+            else yt = num2str(idxRow); end
+				
+			% Apply the title to the expanded view axes
+			expTitle = sprintf('%s: %s\n%s: %s', xl, xt, yl, yt);
+			title(AE, expTitle);
+		end
+		function InitializeElementAxes(H)
+        % INITIALIZEELEMENTAXES - Create an array of axes to serve as the individual montage elements.
+            apos = get(H.Axes, 'Position');
+            epos = [0, 0, H.ElementSize];
+			H.ElementAxes = gobjects(H.MontageSize(1), H.MontageSize(2));
+            for a = 1:H.MontageSize(1)
+                for b = 1:H.MontageSize(2)
+                    epos(1) = (b - 1) * H.ElementSize(1) + apos(1);
+                    epos(2) = (a - 1) * H.ElementSize(2) + apos(2);
+                    H.ElementAxes(a, b) = H.NewElement(epos);
+                end
+            end
+            H.ElementAxes = flip(H.ElementAxes, 1);    % Flipped so ordering starts from the upper left corner
+        end
+		function InitializePrimaryAxes(H)
+		% INITIALIZEPRIMARYAXES - Creates axes that contain and label the image montage.
+			H.Axes = axes(...
+                'Units',        'pixels',...
+                'Color',        'none',...
+                'Parent',       H.FigureHandle,...
+                'TickLength',   [0 0],...
+                'XLim',         [0 1],...
+                'XTick',        [],...
+                'YLim',         [0 1],...
+                'YTick',        []);
+		end
+		function OnExpansionClosing(H, src, ~)
+		% ONEXPANSIONCLOSING - Deletes expanded element windows and removes their handles from further tracking.
+		%
+		%	ONEXPANSIONCLOSING is a callback function tied to the CLOSEREQUESTFCN property of MATLAB figures. It is
+		%	called automatically when CLOSE (but not DELETE) is called on any open element expansion figures. This
+		%	method intercepts the native closing routing in order to first remove the figure handle from the list of
+		%	tracked secondary windows that a montage object maintains.
+			idxFE = H.ExpandedFigures == src;
+			delete(H.ExpandedFigures(idxFE));
+			H.ExpandedFigures(idxFE) = [];
+		end
+		function RetrofitPrimaryAxes(H)
+        % RETROFITPRIMARYAXES - Fits the primary axes to the montage once element sizing is finalized.
+            fpos = getpixelposition(H.FigureHandle);
+            apos = [0, 0, H.ElementSize .* [H.MontageSize(2) H.MontageSize(1)]];
+            apos(1) = (fpos(1) + fpos(3) - apos(3)) / 2;
+            apos(2) = (fpos(2) + fpos(4) - apos(4)) / 2;
+            set(H.Axes, 'Position', apos);
+        end
+		function SetElementSize(H)
+        % SETELEMENTSIZE - Calculates the size of montage elements.
+            apos = get(H.Axes, 'Position');
+            asize = apos(3:4);
+            width = asize(1)/H.MontageSize(2);
+            height = width * (H.ElementAspect(2) / H.ElementAspect(1));
+            if (height * H.MontageSize(1) > asize(2))
+                height = asize(2) / H.MontageSize(1);
+                width = height * (H.ElementAspect(1) / H.ElementAspect(2));
+            end
+            H.ElementSize = [width, height];
+		end
+		function SetAxesTickSpacing(H)
+        % SETAXESTICKSPACKING - Determines the spacing between X- & Y-axis ticks.
+            xSpacing = 1/H.MontageSize(2);
+            ySpacing = 1/H.MontageSize(1);
+            xHalfSpacing = 0.5*xSpacing;
+            yHalfSpacing = 0.5*ySpacing;
+            H.XTick = linspace(xHalfSpacing, 1 - xHalfSpacing, H.MontageSize(2));
+            H.YTick = linspace(yHalfSpacing, 1 - yHalfSpacing, H.MontageSize(1));
 		end
 		
+		function A = NewElement(H, position)
+        % NEWELEMENT - Creates individual montage element axes at the specified position.
+        %
+        %   SYNTAX:
+        %       A = NewElement(H, position)
+        %       A = H.NewElement(position)
+        %
+        %   OUTPUT:
+        %       A:          HANDLE
+        %                   A handle to the axes graphics object that is generated by this method.
+        %
+        %   INPUTS:
+        %       H:          BRAINPLOT
+        %                   A single BrainPlot object to which a new element should be added.
+        %
+        %       position:   [ DOUBLE, DOUBLE, DOUBLE, DOUBLE ] --> [ X, Y, WIDTH, HEIGHT ]
+        %                   A four-element position-size vector indicating where the new montage element should be
+        %                   placed in the figure and how big it should be. Position is specified using the first two
+        %                   elements of this vector and is relative to the boundaries of the primary axes. Size is
+        %                   specified through the last two elements of this vector.
+            A = axes(...
+                'Units',                    'pixels',...
+				'ButtonDownFcn',            @H.ExpandElement,...
+                'CLim',                     H.CLim,...
+                'CLimMode',                 'manual',...
+                'Color',                    'none',...
+                'Parent',                   H.FigureHandle,...
+                'Position',                 position,...
+                'TickLength',               [0, 0],...
+				'XColor',                   'k',...
+				'XLimMode',                 'manual',...
+                'XTick',                    [],...
+				'XTickLabelMode',           'manual',...
+				'YColor',                   'k',...
+				'YLimMode',                 'manual',...
+                'YTick',                    [],...
+				'YTickLabelMode',           'manual');
+		end
+	end
+	
+	methods		
 		function A = NextElement(H)
 		% NEXTELEMENT - Returns a handle to the next montage element axes to be plotted to.
 		%
@@ -162,8 +567,13 @@ classdef Montage < Window
 			assert(H.ElementIndex <= numel(H.ElementAxes), 'Attempted to access axes outside of montage dimensions.');
 			A = H.ElementAxes(H.ElementIndex);
 			H.ElementIndex = H.ElementIndex + 1;
-		end
+        end
 		
+        function Close(H, varargin)
+		% CLOSE - Closes the montage window and any expanded element windows that remain open.
+			if (H.ExpandedFigures ~= 0); delete(H.ExpandedFigures); end
+			Close@Window(H);
+		end
 		function Plot(H, x, y, varargin)
 		% PLOT - Creates a 2D plot in the next available montage element.
 		
@@ -223,7 +633,8 @@ classdef Montage < Window
 		%	INPUT:
 		%		H:		BRAINPLOT
 		%				A reference to a single BrainPlot montage object.
-% 			H.Plot();
+
+% 			error('This method has not yet been implemented.');
 		end
 		function ShadedPlot(H, x, y, z, varargin)
 		% SHADEDPLOT - Creates a 2D plot with a shaded region in the next available montage element.
@@ -331,267 +742,7 @@ classdef Montage < Window
 			plot(A, x, y, 'Color', LineColor, 'LineWidth', LineWidth);
 			
 		end
-		
-	end
-	
-	
-	
-	%% Get & Set Methods
-    methods
-        
-        % Get methods
-        function color  = get.AxesColor(H)
-            color = get(H.Axes, 'XColor');
-		end
-		function box	= get.Box(H)
-			box = get(H.ElementAxes(1), 'Box');
-		end
-        function clim   = get.CLim(H)
-            clim = get(H.Axes, 'CLim');
-        end
-        function clabel = get.ColorbarLabel(H)
-            clabel = get(get(H.Colorbar, 'YLabel'), 'String');
-        end
-        function title  = get.Title(H)
-            title = get(get(H.Axes, 'Title'), 'String');
-        end
-        function xlabel = get.XLabel(H)
-            xlabel = get(get(H.Axes, 'XLabel'), 'String');
-		end
-		function xlim	= get.XLim(H)
-			xlim = get(H.ElementAxes(1), 'XLim');
-		end
-        function xtick  = get.XTickLabel(H)
-            xtick = get(H.Axes, 'XTickLabel');
-			if ischar(xtick); xtick = cellstr(xtick); end
-        end
-        function ylabel = get.YLabel(H)
-            ylabel = get(get(H.Axes, 'YLabel'), 'String');
-		end
-		function ylim	= get.YLim(H)
-			ylim = get(H.ElementAxes(1), 'YLim');
-		end
-        function ytick  = get.YTickLabel(H)
-            ytick = get(H.Axes, 'YTickLabel');
-			if ischar(ytick); ytick = cellstr(ytick); end
-			ytick = flip(ytick);
-        end
-        
-        % Set methods
-        function set.AxesColor(H, color)
-            set(H.Axes, 'XColor', color, 'YColor', color);
-            set(get(H.Axes, 'Title'), 'Color', color);
-            set(get(H.Axes, 'XLabel'), 'Color', color);
-            set(get(H.Axes, 'YLabel'), 'Color', color);
-            set(get(H.Colorbar, 'YLabel'), 'Color', color);
-		end
-		function set.Box(H, box)
-			if istrue(box); box = 'on';
-			else box = 'off'; end
-			set(H.ElementAxes, 'Box', box);
-		end
-        function set.CLim(H, clim)
-			if (nargin == 1 || isempty(clim))
-				if isempty(H.Data)
-					set(H.Axes, 'CLimMode', 'auto');
-					return;
-				else
-					climBound = max(abs(H.Data(:)));
-					clim = [-climBound, climBound];
-				end
-			elseif (length(clim) == 1)
-				clim = [-clim, clim];
-			end
-            set(H.Axes, 'CLim', clim);
-			H.Refresh();
-        end
-        function set.ColorbarLabel(H, clabel)
-            set(get(H.Colorbar, 'YLabel'), 'String', clabel);
-        end
-        function set.MajorFontSize(H, fsize)
-            set(get(H.Colorbar, 'YLabel'), 'FontSize', fsize);
-            set(get(H.Axes, 'Title'), 'FontSize', fsize);
-            set(get(H.Axes, 'XLabel'), 'FontSize', fsize);
-            set(get(H.Axes, 'YLabel'), 'FontSize', fsize);
-            H.MajorFontSize = fsize;
-        end
-        function set.MinorFontSize(H, fsize)
-            set(H.Colorbar, 'FontSize', fsize);
-            set(H.Axes, 'FontSize', fsize);
-            H.MinorFontSize = fsize;
-        end
-        function set.Title(H, title)
-            set(get(H.Axes, 'Title'), 'String', title);
-        end
-        function set.XLabel(H, xlabel)
-            set(get(H.Axes, 'XLabel'), 'String', xlabel);
-		end
-		function set.XLim(H, xlim)
-			set(H.ElementAxes, 'XLim', xlim);
-		end
-        function set.XTickLabel(H, tlabels)
-            set(H.Axes, 'XTick', H.XTick, 'XTickLabel', tlabels);
-        end
-        function set.YLabel(H, ylabel)
-            set(get(H.Axes, 'YLabel'), 'String', ylabel);
-		end
-		function set.YLim(H, ylim)
-			set(H.ElementAxes, 'YLim', ylim);
-		end
-        function set.YTickLabel(H, tlabels)
-            set(H.Axes, 'YTick', H.YTick, 'YTickLabel', flip(tlabels));
-		end
-		
-    end
-	
-	
-	
-	
-	%% Protected Class Utility Methods
-	methods (Access = protected)
-		
-		function InitializeElementAxes(H)
-        % INITIALIZEELEMENTAXES - Create an array of axes to serve as the individual montage elements.
-            apos = get(H.Axes, 'Position');
-            epos = [0, 0, H.ElementSize];
-			H.ElementAxes = gobjects(H.MontageSize(1), H.MontageSize(2));
-            for a = 1:H.MontageSize(1)
-                for b = 1:H.MontageSize(2)
-                    epos(1) = (b - 1) * H.ElementSize(1) + apos(1);
-                    epos(2) = (a - 1) * H.ElementSize(2) + apos(2);
-                    H.ElementAxes(a, b) = H.NewElement(epos);
-                end
-            end
-            H.ElementAxes = flip(H.ElementAxes, 1);    % Flipped so ordering starts from the upper left corner
-        end
-		function InitializePrimaryAxes(H)
-		% INITIALIZEPRIMARYAXES - Creates axes that contain and label the image montage.
-			H.Axes = axes(...
-                'Color', 'none',...
-                'Parent', H.FigureHandle,...
-                'TickLength', [0 0],...
-                'XLim', [0 1],...
-                'XTick', [],...
-                'YLim', [0 1],...
-                'YTick', []);
-		end
-		function RetrofitPrimaryAxes(H)
-        % RETROFITPRIMARYAXES - Fits the primary axes to the montage once element sizing is finalized.
-            apos = [0, 0, H.ElementSize .* [H.MontageSize(2) H.MontageSize(1)]];
-            apos(1) = (1 - apos(3)) / 2;
-            apos(2) = (1 - apos(4)) / 2;
-            set(H.Axes, 'Position', apos);
-        end
-		function SetElementSize(H)
-        % SETELEMENTSIZE - Calculates the size of montage elements.
-            apos = get(H.Axes, 'Position');
-            asize = apos(3:4);
-            width = asize(1)/H.MontageSize(2);
-            height = width * (H.ElementAspect(2) / H.ElementAspect(1));
-            if (height * H.MontageSize(1) > asize(2))
-                height = asize(2) / H.MontageSize(1);
-                width = height * (H.ElementAspect(1) / H.ElementAspect(2));
-            end
-            H.ElementSize = [width, height];
-		end
-		function SetAxesTickSpacing(H)
-        % SETAXESTICKSPACKING - Determines the spacing between X- & Y-axis ticks.
-            xSpacing = 1/H.MontageSize(2);
-            ySpacing = 1/H.MontageSize(1);
-            xHalfSpacing = 0.5*xSpacing;
-            yHalfSpacing = 0.5*ySpacing;
-            H.XTick = linspace(xHalfSpacing, 1 - xHalfSpacing, H.MontageSize(2));
-            H.YTick = linspace(yHalfSpacing, 1 - yHalfSpacing, H.MontageSize(1));
-		end
-		
-		function A = NewElement(H, position)
-        % NEWELEMENT - Creates individual montage element axes at the specified position.
-        %
-        %   SYNTAX:
-        %       A = NewElement(H, position)
-        %       A = H.NewElement(position)
-        %
-        %   OUTPUT:
-        %       A:          HANDLE
-        %                   A handle to the axes graphics object that is generated by this method.
-        %
-        %   INPUTS:
-        %       H:          BRAINPLOT
-        %                   A single BrainPlot object to which a new element should be added.
-        %
-        %       position:   [ DOUBLE, DOUBLE, DOUBLE, DOUBLE ] --> [ X, Y, WIDTH, HEIGHT ]
-        %                   A four-element position-size vector indicating where the new montage element should be
-        %                   placed in the figure and how big it should be. Position is specified using the first two
-        %                   elements of this vector and is relative to the boundaries of the primary axes. Size is
-        %                   specified through the last two elements of this vector.
-            A = axes(...
-				'ButtonDownFcn', @H.ExpandElement,...
-                'CLim', H.CLim,...
-                'CLimMode', 'manual',...
-                'Color', 'none',...
-                'Parent', H.FigureHandle,...
-                'Position', position,...
-				'XColor', 'k',...
-				'XLimMode', 'manual',...
-                'XTick', [],...
-				'XTickLabelMode', 'manual',...
-				'YColor', 'k',...
-				'YLimMode', 'manual',...
-                'YTick', [],...
-				'YTickLabelMode', 'manual');
-		end
-		
-		function ExpandElement(H, src, ~)
-		% EXPANDELEMENT - Copies the contents of a clicked montage element into a larger new figure window.
-		%
-		%	EXPANDELEMENT is a callback function tied to the BUTTONDOWNFCN property of all axes objects present in the
-		%	montage. It is automatically called when a left mouse click is detected over one of these axes. This method
-		%	then determines which particular axes detected the click and opens a new window that displays a larger
-		%	version of the montage element, which is useful for closer inspections of data that would otherwise be
-		%	difficult to see in montage form.
-			
-			% Generate a new figure & axes for the expanded view
-			H.ExpandedFigures = cat(1, H.ExpandedFigures, figure('CloseRequestFcn', @H.OnExpansionClosing));
-			AE = axes(...
-				'CLim', H.CLim,...
-				'CLimMode', 'manual',...
-				'Color', 'none',...
-				'Parent', H.ExpandedFigures(end),...
-				'XLim', H.XLim,...
-				'YLim', H.YLim);
-			
-			% Copy the data plotted in the montage into the expanded view
-			[idxRow, idxCol] = find(H.ElementAxes == src);
-			A = H.ElementAxes(idxRow, idxCol);
-			copyobj(get(A, 'Children'), AE);
-
-			% Generate a generic title to identify the displayed data
-			if isempty(H.XLabel); xl = 'X';
-			else xl = H.XLabel; end
-			if isempty(H.YLabel); yl = 'Y';
-			else yl = H.YLabel; end
-			if isempty(H.XTickLabel{idxCol}); xt = num2str(idxCol);
-			else xt = H.XTickLabel{idxRow}; end
-			if isempty(H.YTickLabel); yt = num2str(idxRow);
-			else yt = H.YTickLabel{idxRow}; end
-				
-			% Apply the title to the expanded view axes
-			expTitle = sprintf('%s: %s\n%s: %s', xl, xt, yl, yt);
-			title(AE, expTitle);
-		end
-		function OnExpansionClosing(H, src, ~)
-		% ONEXPANSIONCLOSING - Deletes expanded element windows and removes their handles from further tracking.
-		%
-		%	ONEXPANSIONCLOSING is a callback function tied to the CLOSEREQUESTFCN property of MATLAB figures. It is
-		%	called automatically when CLOSE (but not DELETE) is called on any open element expansion figures. This
-		%	method intercepts the native closing routing in order to first remove the figure handle from the list of
-		%	tracked secondary windows that a montage object maintains.
-			idxFE = H.ExpandedFigures == src;
-			delete(H.ExpandedFigures(idxFE));
-			H.ExpandedFigures(idxFE) = [];
-		end
-		
-	end
+	end	
 
 	
 	
