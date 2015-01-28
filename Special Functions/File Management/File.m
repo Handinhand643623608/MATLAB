@@ -81,7 +81,7 @@ classdef File < Path
     
        
     
-    %% General Utilities
+    %% UTILITIES
     methods
         
         function varargout = Load(F, varargin)
@@ -422,14 +422,14 @@ classdef File < Path
     end
     
     methods (Static)
-        function ext = GetExtension(fileName)
+		function e = GetExtension(fileName)
 		% GETEXTENSION - Gets the extension part of an inputted file name string.
 		%
 		%	SYNTAX:
-		%		ext = File.GetExtension(fileName)
+		%		e = File.GetExtension(fileName)
 		%
 		%	OUTPUT:
-		%		ext:		STRING
+		%		e:			STRING
 		%					The string extension part of the FILENAME input argument. This string will always include
 		%					the dot ('.') part of the extension. If no extension is found on the file name, this method
 		%					returns an empty string.
@@ -438,7 +438,7 @@ classdef File < Path
 		%		fileName:	STRING
 		%					The string name of a file.
 			assert(ischar(fileName), 'File names must be specified as string type arguments.');
-			[~, ~, ext] = fileparts(fileName);
+			[~, ~, e] = fileparts(fileName);
 		end
 		function F = Which(fileName)
         % WHICH - Creates a FILE object referencing a file that is on MATLAB's active search path.
@@ -467,29 +467,30 @@ classdef File < Path
 		%
 		%	See also: WHICH
 			f = which(fileName);
-			if isempty(f); F = File;
+			if isempty(f); F = File();
 			else F = File(f); end
 		end
-    end
+	end
     
+	
     
-    %% Overloaded MATLAB Methods
+    %% OVERLOADS
     methods
-        function display(F)
-        % DISPLAY - Displays information about the File object in the console window.
+        function disp(F)
+        % DISP - Displays information about the File object in the console window.
         %
         %   This method organizes and formats File object information before displaying it in the console window. The
-        %   information that is displayed is different depending on the number of objects that are inputted. For
-        %   singleton objects, this function prints a more detailed view of the File instance that includes several 
-        %   properties of the instance. For arrays of File objects, this function prints a list of file names only.
+        %   information that is displayed is different depending on the number of objects that are inputted. For singleton
+        %   objects, this function prints a more detailed view of the File instance that includes several properties of the
+        %   instance. For arrays of File objects, this function prints a list of file names only.
         %
-        %   DISPLAY is called automatically whenever operations returning a File object are invoked without using the
-        %   semicolon output suppressor. This includes the act of invoking an existing object in a function, script, or
-        %   in the console (i.e. by typing F and pressing enter if "F" is the name of a File object).
+        %   DISP is called automatically whenever operations returning a File object are invoked without using the semicolon
+        %   output suppressor. This includes the act of invoking an existing object in a function, script, or in the console
+        %   (i.e. by typing F and pressing enter if "F" is the name of a File object).
         %
         %   SYNTAX:
-        %       display(F)
-        %       F.display()
+        %       disp(F)
+        %       F.disp()
         %
         %   INPUT:
         %       F:      FILE or [ FILES ]

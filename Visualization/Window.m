@@ -27,14 +27,9 @@ classdef Window < hgsetget
 %		20141212:	Changed the name of "close" to "Close" for consistency with all my other class methods and because I 
 %					keep making that typo in code that I write. Fixed a bug that occurred when trying to create a figure
 %					with a specific figure number and with a close function callback assignment.
+%		20150128:	Added a new property "Patch" to hold patch graphics object references.
 
 
-
-%% TODOS
-%   - Change access permissions for the COLORBAR (shouldn't be able to set it publicly)
-
-
-    
 
     %% Window Object Properties
     properties (Dependent)
@@ -49,6 +44,7 @@ classdef Window < hgsetget
         Axes                    % An axes object customized for this window.
         Colorbar                % A color bar object customized for this window.
         Data                    % Any data displayed in the window's axes.
+		Patch					% Handles to variou patch objects that exist in the window.
         Text                    % Handles to various text objects that exist in the window.
     end
 
@@ -72,7 +68,7 @@ classdef Window < hgsetget
 		
 			function Defaults
 				Color = [0.9400 0.9400 0.9400];
-				Colormap = jet(64);
+				Colormap = jet(256);
 				FigureNumber = [];
 				InvertHardcopy = 'off';
 				MenuBar = 'none';

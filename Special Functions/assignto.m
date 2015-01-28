@@ -98,7 +98,7 @@ end
 
 
 
-%% Local Functions
+%% SUBROUTINES
 function vars = getvars(defaults)
 % GETVARS - Gets the variable names that are declared inside of the Defaults function block.    
     
