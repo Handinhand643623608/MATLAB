@@ -182,7 +182,7 @@ classdef Today < hgsetget
 		function CreateSubsection()
 		% CREATESUBSECTION - Creates a new log subsection delineated by a comment line filled with '=' characters.
 			Today.ReplaceTextInOpenDoc([Today.Date '.m'], 'Today.CreateSubsection(\(\))?|ntsss(\(\))?',...
-				['%' repmat('=', 1, 119)]);
+				['%' repmat('=', 1, 124)]);
 		end
 		function LoadGlobals(date)
 		% LOADGLOBALS - Executes global variables and code written in the very first section of a Today Script.
