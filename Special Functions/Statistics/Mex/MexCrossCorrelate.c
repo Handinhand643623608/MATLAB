@@ -1,28 +1,33 @@
 /* MEXCROSSCORRELATE - Cross-correlates two equivalently sized vectors of data.
-*
-*	SYNTAX:
-*		CC = MexCrossCorrelate(X, Y)
-*
-*	OUTPUT:
-*		CC:			[ NCC x 1 DOUBLES ]
-*					A column vector of correlation coefficients that together estimate the cross-correlation function
-*					between X and Y. This vector will always be of length (ncc = 2 * nxy - 1), meaning it will always
-*					contain correlation estimates for every possible sample shift between the data.
-*
-*	INPUT:
-*		X:			[ M x N DOUBLES ]
-*					A column vector of data that will be cross-correlated with the data in Y. This vector may be of any
-*					length (nxy) provided that Y has the same length.
-*
-*		Y:			[ M x N DOUBLES ]
-*					A column vector of data that will be cross-correlated with the data in X. This vector may be of any
-*					length (nxy) provided that X has the same length.
-*/
+ *
+ *	SYNTAX:
+ *		cc = MexCrossCorrelate(x, y)
+ *
+ *	OUTPUT:
+ *		cc:				[ NCC x NX DOUBLES ]
+ *                      The normalized correlation coefficients between the signals in X and Y at every possible sample
+ *                      offset. This output will contain a fixed number of rows NCC determined by the number of samples in
+ *                      the signals in X and Y: NCC = 2 * M - 1. 
+ *
+ *	INPUT:
+ *		x:				[ M x NX DOUBLES ]
+ *                      A column vector or matrix of signals to be cross-correlated with the data in Y. The number of rows in
+ *                      this argument should represent the number of samples in the signal(s) being correlated. The number of
+ *                      columns NX then represents the number of signals that are present in the data set. This argument
+ *                      cannot contain NaNs.
+ *
+ *		y:				[ M x NY DOUBLES ]
+ *                      A column vector or matrix of signals to be cross-correlated with the data in X. Like X, the rows of
+ *                      this argument represent individual signal samples, while columns represent the signals themselves.
+ *                      The number of samples M in this argument must always equal the number of samples in X. This argument
+ *                      also cannot contain NaNs. The number of signals NY must either be 1 or NX.
+ */
 
 /* CHANGELOG
-* Written by Josh Grooms on 20141230
-*/
+ *  Written by Josh Grooms on 20141230
+ */
 
+#include <cilk/cilk.h>
 #include <math.h>
 #include <matrix.h>
 #include <mex.h>
@@ -58,7 +63,6 @@ void mexFunction(int nargout, mxArray* argout[], int nargin, const mxArray* argi
 	ncy = mxGetN(argin[1]);
 	ncc = 2 * nrx - 1;
 
-	if (nrx != nry || ncx != ncy)	{ mexErrMsgTxt("Inputted data arrays X and Y must be of equivalent size."); }
 	if (nrx == 0 || ncx == 0)		{ mexErrMsgTxt("Inputs cannot contain empty arrays."); }
 
 	double* x = mxGetPr(argin[0]);
@@ -69,14 +73,24 @@ void mexFunction(int nargout, mxArray* argout[], int nargin, const mxArray* argi
 	double* cc = mxGetPr(argout[0]);
 
 	if (ncx == 1) { xcorr(cc, x, y, nrx); }
+	else if (ncy == 1)
+	{
+		cilk_for(int a = 0; a < ncx; a++)
+		{
+            // These indexing declarations MUST be inside the loop to prevent a race condition.
+			int idxCC = a * ncc;
+			int idxXY = a * nrx;
+			xcorr(cc + idxCC, x + idxXY, y, nrx);
+		}
+	}
 	else
 	{
-		int idxCC = 0;
-		int numelCC = nrx * ncx;
-		for (int a = 0; a <= numelCC - nrx; a += nrx)
+		cilk_for(int a = 0; a < ncx; a++)
 		{
-			xcorr(cc + idxCC, x + a, y + a, nrx);
-			idxCC += ncc;
+            // These indexing declarations MUST be inside the loop to prevent a race condition.
+			int idxCC = a * ncc;
+			int idxXY = a * nrx;
+			xcorr(cc + idxCC, x + idxXY, y + idxXY, nrx);
 		}
 	}	
 }

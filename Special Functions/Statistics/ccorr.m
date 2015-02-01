@@ -1,116 +1,110 @@
-% CCORR - Estimates the cross-correlation function between data sets.
+% CCORR - Estimates the cross-correlation function between arrays of data.
 %
 %	CCORR computes the Pearson product-moment cross-correlation between data just like the MATLAB-native statistical function
 %	XCORR does, returning identical results when the 'coeff' scaling option is invoked. However, this function offers much
 %	better performance than the native function does by wrapping a compiled C MEX function that was created using the Intel
-%	C++ Optimizing Compiler (from the Composer XE 2015 suite). Consequently, this function is always faster than XCORR,
-%	especially at large sample sizes. Benchmarks on large data (x = y = 218 x 226394) show that CCORR is ~3x faster than
-%	XCORRARR and ~13x faster than using XCORR to accomplish the same task.
-%
-%	EXTREMELY IMPORTANT:
-%		- The path to the Intel MKL libraries (.dll, not .lib) must currently be on the system's PATH environment
-%		  variable. This really sucks, I know, but for reasons that aren't clear to me I couldn't get the MEX function
-%		  to compile any other way, and it's potentially illegal for me to redistribute the MKL DLLs anyway. If you
-%		  don't have the MKL libraries, this function cannot be used at all. 
+%	C++ Optimizing Compiler (from the Composer XE 2015 suite). Consequently, this function is always faster than XCORR, but
+%	the effects are especially noticeable at large sample sizes. Benchmarks on large data ([300 x 250,000] arrays) show that
+%	CCORR is ~15x faster than my old XCORRARR function and ~21x faster than manually iterating through signals using XCORR.
 %
 %	SYNTAX:
+%       cc = ccorr(x)
 %		cc = ccorr(x, y)
-%       cc = ccorr(x, y, dim)
+%       cc = ccorr(x, y, maxlag)
 %		[cc, lags] = ccorr(...)
 %
 %	OUTPUTS:
-%		cc:				[ M x 1 DOUBLES ]
+%		cc:				[ NCC x NS DOUBLES ]
+%                       The normalized correlation coefficients between the signals in X and Y at the sample offsets in LAGS.
+%                       If Y is empty or omitted, then this is the autocorrelation function of the signals in X. This output
+%                       will contain a fixed number of rows NCC dictated by the MAXLAG argument: NCC = 2 * MAXLAG + 1. The
+%                       number of signal correlates NS will always be the greater of NX and NY.
 %
-%		lags:			[ M x 1 INTEGERS ]
+%		lags:			[ NCC x 1 INTEGERS ]
+%                       A vector of sample shifts whose elements correspond with the rows in CC. This output helps identify
+%                       at which lag or offset the values in each column of CC were derived.
 %
 %	INPUTS:
-%		x:				[ DOUBLES ]
+%		x:				[ M x NX DOUBLES ]
+%                       A column vector or matrix of signals to be cross-correlated with the data in Y. The number of rows in
+%                       this argument should represent the number of samples in the signal(s) being correlated. The number of
+%                       columns NX then represents the number of signals that are present in the data set. When X is the sole
+%                       input or Y is an empty array, this function computes the autocorrelation of the signals in X. This
+%                       argument cannot contain NaNs.
 %
-%		y:				[ DOUBLES ]
+%		y:				[ M x NY DOUBLES ]
+%                       DEFAULT: X
+%                       A column vector or matrix of signals to be cross-correlated with the data in X. Like X, the rows of
+%                       this argument represent individual signal samples, while columns represent the signals themselves.
+%                       The number of samples M in this argument must always equal the number of samples in X. This argument
+%                       also cannot contain NaNs.
 %
-%   OPTIONAL INPUT:
-%       dim:            INTEGER
+%                       When the argument X is a single column vector, the number of columns NY here is free to vary. This
+%                       scenario would then represent a single signal X being cross-correlated with all signals in Y.
+%                       However, when X is a matrix with NX > 1, NY must either be 1 or must equal NX. This corresponds with
+%                       a set of signals X being cross-correlated with either a single signal or equivalently sized set of
+%                       signals Y. If empty or omitted, this argument becomes a copy of X to produce the autocorrelation
+%                       estimate of X.
+%
+%       maxlag:         INTEGER
+%                       DEFAULT: M - 1
+%                       The maximum number of sample shifts to use when calculating the cross-correlation. The output lags
+%                       will then be the vector -MAXLAG : MAXLAG. The default value of this argument is the maximum possible
+%                       sample shift, which is derived from the number of samples in X and Y.
 %
 %	See also: CORR2, CORR3, CORRCOEF, XCORR, XCORRARR
 
 %% CHANGELOG
 %	Written by Josh Grooms on 20150106
+%       20150131:   Completely rewrote this function in order to better define the scope in which it should be used. It's now
+%                   somewhat less flexible than it was, but its speed is now significantly improved and its much less prone
+%                   to errors. It also now handles single signals for either X or Y when the other argument is an array.
+%                   Additionally, I completed the documentation for this function.
 
-%% TODOS
-%	- Finish documenting this function
 
 
+%% FUNCTION DEFINITION
+function [cc, lags] = ccorr(x, y, maxlag)
 
-%% Function Definition
-function [cc, lags] = ccorr(x, y, dim)
+    % Check for errors in the X data argumment
+    assert(~isempty(x), 'X cannot be an empty array.');
+    assert(ismatrix(x), 'X must be a vector or two-dimensional array.');
+    
+    % Fill in any missing inputs & error check Y
+    if nargin < 2;	y = x;                      end
+    if nargin < 3;  maxlag = size(x, 1) - 1;    end
+    if isempty(y);	y = x;                      end
+    assert(ismatrix(y), 'Y must be a vector or a two-dimensional array.');
 
-	% Deal with missing inputs
-	if nargin < 2;		y = x;				end
-	if isempty(y);		y = x;				end
-	if nargin < 3;		dim = 1;			end
-	
-	% Check for errors in inputs
-	assert(~isempty(x), 'X cannot be an empty array.');
-	hasNaN = any(isnan(x(:))) || any(isnan(y(:)));
-	assert(~hasNaN, 'NaNs were detected in one or more inputted data sets. These must be removed or replaced.');
-	
-	% Cache some frequently used checks
-	isvx = isvector(x);
-	isvy = isvector(y);
-	
-	if (isvx && isvy)
-		x = x(:);
-		y = y(:);
-		dim = 1;
-	end
-	
-	% Get the original data dimensionalities
-	szx = size(x);
-	szy = size(y);
-	xDimOrder = 1:ndims(x);
-	yDimOrder = 1:ndims(y);
-	
-	% If necessary, permute the data arrays so that correlation occurs along the first dimension
-	if dim ~= 1
-		xDimOrder(1) = xDimOrder(dim);
-		xDimOrder(dim) = 1;
-		yDimOrder(1) = yDimOrder(dim);
-		yDimOrder(dim) = 1;
-		
-		x = permute(x, xDimOrder);
-		y = permute(y, yDimOrder);
-	end
-	
-	% Capture any size changes if permutation took place
-	szpx = size(x);
-	szpy = size(y);
-	assert(szpx(1) == szpy(1), 'Data arrays must be of equivalent size over the correlation dimension.');
-	
-	% Flatten the data arrays to two dimensions
-	x = reshape(x, szpx(1), []);
-	y = reshape(y, szpy(1), []);
-	
-	% If necessary, replicate vectors to create equally sized arrays
-	if isvx; x = repmat(x, 1, size(y, 2)); end
-	if isvy; y = repmat(y, 1, size(x, 2)); end
-	assert(size(x, 2) == size(y, 2),...
-		'Cross-correlation can only be estimated between vectors, an array and a vector, or two equally sized arrays.');
-	
-	% Compute the vector of sample lags
-	maxLag = szpx(1) - 1;
-	lags = -maxLag : maxLag;
-	
-	% Estimate cross-correlation using the MEX function
-	cc = MexCrossCorrelate(x, y);
-    szcc = size(cc);
-	
-	% Reshape the correlation data array to
-	if (szcc(2) == prod(szpx(2:end)))
-		cc = reshape(cc, [szcc(1), szpx(2:end)]);
-		cc = permute(cc, xDimOrder);
-	else
-		cc = reshape(cc, [szcc(1), szpy(2:end)]);
-		cc = permute(cc, yDimOrder);
-	end
+    % X & Y cannot have NaNs
+    hasNaN = any(isnan(x(:))) || any(isnan(y(:)));
+	assert(~hasNaN,...
+        'NaNs were detected in one or more inputted data sets. These must be removed or replaced before invoking this function.');
+    
+    % Flatten vectors
+    if isvector(x); x = x(:); end
+    if isvector(y); y = y(:); end
+    szx = size(x);
+    szy = size(y);
+    
+    % Constrain the size of X & Y
+    assert(szx(1) == szy(1), 'X and Y must always contain the same number of rows.');
+    if (szx(2) ~= 1 && szy(2) ~= 1)
+        assert(szx(2) == szy(2), 'When X and Y are matrices, they must both contain the same number of columns.');
+    end
+    
+    % Cross correlate the data
+    if (szx(2) == 1 && szy(2) ~= 1)
+        cc = flip(MexCrossCorrelate(y, x));
+    else
+        cc = MexCrossCorrelate(x, y);
+    end
+        
+    % Remove unwanted shifts
+    allLags = -(szx(1) - 1) : (szx(1) - 1);
+    lags = -maxlag : maxlag;
+    idsLagsToKeep = ismember(allLags, lags);
+    cc = cc(idsLagsToKeep, :);
+    lags = lags';
 	
 end

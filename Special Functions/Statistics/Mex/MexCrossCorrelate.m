@@ -1,30 +1,28 @@
-% MEXCROSSCORRELATE  - Cross-correlates two equivalently sized vectors of data.
+% MEXCROSSCORRELATE  - Computes the cross-correlations between two sets of signals.
 %
 %	SYNTAX:
-%		CC = MexCrossCorrelate(X, Y, ScaleOpt)
+%		cc = MexCrossCorrelate(x, y)
 %
 %	OUTPUT:
-%		CC:			[ M x 1 DOUBLES ]
-%					A column vector of correlation coefficients that together estimate the cross-correlation function 
-%					between X and Y. This vector will always be of length (M = 2 * L - 1), meaning it will always 
-%					contain correlation estimates for every possible sample shift between the data.
+%		cc:				[ NCC x NX DOUBLES ]
+%                       The normalized correlation coefficients between the signals in X and Y at every possible sample
+%                       offset. This output will contain a fixed number of rows NCC determined by the number of samples in
+%                       the signals in X and Y: NCC = 2 * M - 1. 
 %
 %	INPUT:
-%		X:			[ L x 1 DOUBLES ]
-%					A column vector of data that will be cross-correlated with the data in Y. This vector may be of any 
-%					length (L) provided that Y has the same length.
+%		x:				[ M x NX DOUBLES ]
+%                       A column vector or matrix of signals to be cross-correlated with the data in Y. The number of rows in
+%                       this argument should represent the number of samples in the signal(s) being correlated. The number of
+%                       columns NX then represents the number of signals that are present in the data set. This argument
+%                       cannot contain NaNs.
 %
-%		Y:			[ L x 1 DOUBLES ]
-%					A column vector of data that will be cross-correlated with the data in X. This vector may be of any 
-%					length (L) provided that X has the same length.
+%		y:				[ M x NY DOUBLES ]
+%                       A column vector or matrix of signals to be cross-correlated with the data in X. Like X, the rows of
+%                       this argument represent individual signal samples, while columns represent the signals themselves.
+%                       The number of samples M in this argument must always equal the number of samples in X. This argument
+%                       also cannot contain NaNs. The number of signals NY must either be 1 or NX.
 %
-%		ScaleOpt:	INTEGER
-%					A "magic number" representing the scaling method that will be applied to raw correlation 
-%					coefficients. Scaling is useful for comparing correlation coefficient results between analyses on 
-%					different data sets, a scenario in which raw correlation values are often of little use.
-%					
-%					OPTIONS:
-%						0: Biased Scaling			- Scales CC coefficients by (1 / ncc).
-%						1: Coefficient Scaling		- Scales CC coefficents so that autocorrelations are 1 at 0 lag.
-%						2: No Scaling				- Does not scale CC coefficients.
-%						3: Unbiased	Scaling			- Scales CC coefficents by (1 / (ncc - abs(lags)))
+%   See also: CCORR, XCORR, XCORRARR
+
+%% CHANGELOG
+%   Written by Josh Grooms on 20150131
