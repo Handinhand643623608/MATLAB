@@ -31,7 +31,6 @@
 #include <matrix.h>
 #include <mex.h>
 
-#include "MexEmpiricalCDF.h"
 
 
 /// <summary>
