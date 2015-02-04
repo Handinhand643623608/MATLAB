@@ -26,6 +26,9 @@ classdef Today < hgsetget
 %		20141217:	Implemented methods for finding open MATLAB documents (e.g. scripts and functions) and for replacing
 %					text inside of them. Replaced the relevant section of CreateSection with these new functions. Also
 %					implemented a new method CreateSubsection for creating comment line separators within log scripts.
+%       20150129:   Implemented the automatic searching of data archives in the method FindFiles when data with the inputted
+%                   time stamp can't be found on my work flash drive.
+%       20150202:   Changed the behavior of CreateScript so that it opens a pre-existing log file instead of erroring out.
     
 
 
@@ -71,7 +74,7 @@ classdef Today < hgsetget
     
     
     
-    %% Utility Methods
+    %% UTILITIES
     
     methods (Static)
 
@@ -130,12 +133,12 @@ classdef Today < hgsetget
         %   SYNTAX:
         %       Today.CreateScript()
         %   
-        %   See also:   NTS, NTSS, CREATESECTION
+        %   See also:   NTS, NTSS, NTSSS, TODAY.CREATESECTION
             
             date = Today.Date;
             script = Today.Script;
             
-            assert(~script.Exists, 'A Today Script with today''s date already exists.');
+            if (script.Exists); script.Edit(); return; end
             
             script.Open('w');
 			script.Write('%%%% %s \n\n\n\nntss', date);
@@ -173,7 +176,7 @@ classdef Today < hgsetget
         %   SYNTAX:
         %       Today.CreateSection()
         %
-        %   See also:   NTS, NTSS, CREATESCRIPT
+        %   See also:   NTS, NTSS, TODAY.CREATESCRIPT
             date = Today.Date;
             time = Today.Time;
 			newText = Today.SectionText(date, time);
@@ -415,12 +418,23 @@ classdef Today < hgsetget
         %                       "201410281045" - Finds files containing a time stamp of 10:45 AM on October 28th, 2014.
         %
         %   See also:   DATESTR
+            
             assert(nargin == 1, 'A time stamp must be provided in order to find Today Data files.');
             Today.AssertDateTimeString(timeStamp);
             dateStamp = timeStamp(1:8);
             dateFolder = [Paths.TodayData '/' dateStamp];
-            assert(dateFolder.Exists, 'Cannot find the Today Data folder from %s. No files can be returned.', dateStamp);
+            
+            if (~dateFolder.Exists)
+                dateFolder = [Paths.TodayArchive '/' dateStamp];
+                assert(dateFolder.Exists, 'Cannot find the Today Data folder from %s. No files can be returned.', dateStamp);
+            end
+            
             F = dateFolder.FileSearch(timeStamp);
+            
+            if isempty(F)
+                dateFolder = [Paths.TodayArchive '/' dateStamp];
+                F = dateFolder.FileSearch(timeStamp);
+            end
         end
 
     end
