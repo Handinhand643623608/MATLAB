@@ -11,7 +11,9 @@ classdef Montage < Window
 %					because this is how the montage is created, meant to be read, and because I keep making the mistake
 %					of not flipping the labels myself in code that uses the montage.
 %		20141215:	Fixed some bugs in the titling of expanded element views.
-%		20150128:	Finished implementing a static constructor method for creating EEG channel mapping montages. 
+%		20150128:	Finished implementing a static constructor method for creating EEG channel mapping montages.
+%       20150129:   Updated the PLOT method to be a little more flexible with its inputs. It now optionally accepts a value
+%                   for X or generates one using Y. Drafted some documentation for this method as well.
 	
 	
 
@@ -336,6 +338,9 @@ classdef Montage < Window
 				Colorbar = 'on';
 				Colormap = jet(256);
 				ColorbarLabel = [];
+				MajorFontSize = 20;
+				MinorFontSize = 15;
+				Title = [];
 				XLabel = [];
 				XTickLabel = 1:nx;
 				YLabel = [];
@@ -349,6 +354,9 @@ classdef Montage < Window
 					'Colorbar',			Colorbar,...
 					'Colormap',			Colormap,...
 					'ColorbarLabel',	ColorbarLabel,...
+					'MajorFontSize',	MajorFontSize,...
+					'MinorFontSize',	MinorFontSize,...
+					'Title',			Title,...
 					'XLabel',			XLabel,...
 					'XTickLabel',		XTickLabel,...
 					'YLabel',			YLabel,...
@@ -576,13 +584,56 @@ classdef Montage < Window
 		end
 		function Plot(H, x, y, varargin)
 		% PLOT - Creates a 2D plot in the next available montage element.
+        %
+        %   PLOT operates similarly to the native MATLAB PLOT method in that it generates a two-dimensionsal plot of Y versus
+        %   X as a solid line. However, at present it is somewhat less flexible than its native counterpart and does not
+        %   support the changing of many of its settings. It is intended for use as a quick and easy way to produce several
+        %   grouped function or signal plots in a montage. If more advanced functionality than this is required, the montage
+        %   axes must be plotted to outside of this class using the AXES handle returned by the method NEXTELEMENT.
+        %
+        %   PLOT automatically manages the filling of a montage by advancing the axes counter every time it is called.
+        %   Consequently, this method may be called repeatedly until all montage elements are filled.
+        %
+        %   SYNTAX:
+        %       H.Plot(y)
+        %       H.Plot(x, y)
+        %       H.Plot(..., 'PropertyName', PropertyValue,...)
+        %       Plot(H,...)
+        %
+        %   INPUT:
+        %       H:              MONTAGE
+        %
+        %       x:              [ DOUBLES ]
+        %
+        %       y:              [ DOUBLES ]
+        %
+        %   PROPERTIES:
+        %       LineColor:      [ R, G, B ]
+        %
+        %       LineWidth:      DOUBLE
 		
+            assert(nargin >= 2, 'Data must be provided in order to generate a plot.');
+            assert(isnumeric(x), 'Only numeric data can be plotted in a montage element.');
+            if (nargin == 2) || isempty(y)
+                y = x; 
+                x = [];
+            elseif ischar(y)
+                varargin = [y varargin];
+                y = x;
+                x = [];
+            end
+                
 			function Defaults
 				LineColor = [0, 0.5, 0.75];
 				LineWidth = 1.25;
 			end
 			assignto(@Defaults, varargin);
 		
+            if isempty(x)
+                if isvector(y); x = 1:length(y);
+                else x = 1:size(y, 1); end
+            end
+            
 			% A line is used here because "plot" resets a bunch of axes properties to "auto"
 			A = H.NextElement();
 			cla(A);
