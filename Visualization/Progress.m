@@ -57,6 +57,7 @@ classdef Progress < Window
 %		20141124:	Updated for compatibility with the latest change to the Window class.
 %		20141212:	Changed the name of the "close" method to "Close" for compatibility with that same recent change to
 %					the Window class.
+%       20150128:   Removed the Patch property from this class because I added it to the Window superclass.
 
 
 
@@ -67,7 +68,6 @@ classdef Progress < Window
     
     properties (Access = private, Hidden)
         Clock                   % Parameters relating to the estimation of remaining time.
-        Patch                   % The patch data responsible for drawing the bars in the window.
         UseAnimation = true;    % A Boolean representing whether or not smooth animations are to be used.
     end
     
