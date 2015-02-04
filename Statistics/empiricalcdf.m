@@ -41,9 +41,7 @@ r(idsRemoved) = [];
 n(isnan(n) | n == 0) = [];
 
 % Call the MEX function to do the heavy processing
-fprintf(1, '\n\nStarting MEX Processing...\n\n');
 fp = MexEmpiricalCDF(r, n);
-fprintf(1, '\n\nProcessing Complete!\n\n');
 
 % Reshape the p-values to match the inputted real data
 p = nan(length(idsRemoved), 1);
