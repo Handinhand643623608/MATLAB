@@ -22,6 +22,8 @@ function p = empiricalcdf(r, n)
 %   Written by Josh Grooms on 20141111
 %       20150131:   Removed the option for tail selection. This was never implemented and keeping it as an input argument was
 %                   potentially dangerous. This function now only calculates two-tailed p-value distributions.
+%       20150205:   Added in the sorting of the null distribution, which should make the p-value generation process a bit
+%                   faster.
 
 
 
@@ -39,6 +41,7 @@ n = n(:);
 idsRemoved = isnan(r) | r == 0;
 r(idsRemoved) = [];
 n(isnan(n) | n == 0) = [];
+n = sort(n);
 
 % Call the MEX function to do the heavy processing
 fp = MexEmpiricalCDF(r, n);
