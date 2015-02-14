@@ -21,6 +21,8 @@ classdef File < Path
 %					object arrays.
 %		20141217:	Added some documentation to the WHICH static method. Implemented a new static method GETEXTENSION
 %					for getting the string extension parts of file names.
+%       20150208:   Implemented a method to search for particular files among an array of file objects. Implemented a method
+%					to sort file arrays into a category structure using an arbitrary number of search queries.
     
 
 
@@ -37,7 +39,7 @@ classdef File < Path
     
     
     
-    %% Constructor & Destructor Methods
+    %% CONSTRUCTOR & DESTRUCTOR
     methods
         function F = File(P)
         % FILE - Constructs a new File object or array of objects around path strings.
@@ -217,8 +219,66 @@ classdef File < Path
 		%				A file object or array of objects that are to be copied.
 			C = Clone@Path(F);
 			C = File(C);
+        end
+        function [R, ids] = Search(F, query)
+        % SEARCH - Searches for specific files among an array of file objects using a string query.
+        %
+        %   SYNTAX:
+        %       R = F.Search(query)
+        %       [R, ids] = F.Search(query)
+        %   
+        %   OUTPUTS:
+        %       R:          [ FILES ]
+        %                   An array of results whose names match the inputted query.
+        %
+        %       ids:        [ BOOLEANS ]
+        %                   The indices of the matched files from the original file object array F.
+        %
+        %   INPUT:
+        %       F:          [ FILES ]
+        %                   An array of file objects to be searched.
+        %
+        %       query:      string
+        %                   A query string used to identify and isolate the results in R. Searching is performed using
+        %                   regular expressions, and so this argument may contain metacharacters.
+            c = F.ToCell();
+            ids = regexp(c, query, 'start');
+            ids = ~(cellfun(@isempty, ids));
+            R = F(ids);
 		end
-		
+		function s = Sort(F, varargin)
+		% SORT - Sorts a list of files into specific categories.
+		%
+		%	SYNTAX:
+		%		s = F.Sort(categories)
+		%		s = F.Sort(category1, category2,...)
+		%
+		%	OUTPUT:
+		%		s:				STRUCT
+		%						A structure whose fields are named after the values in the CATEGORIES argument. Each field
+		%						contains a list of files whose names contain the category name.
+		%
+		%	INPUT:
+		%		F:				[ FILES ]
+		%						An array of file objects to be categorized.
+		%
+		%		categories:		STRING or { STRINGS }
+		%						A cell array or comma-separated list of strings containing category names. Each of these will
+		%						become a QUERY argument for the SEARCH method as well as a field name in the outputted
+		%						structure. In other words, the file object array will be searched for each name in this list
+		%						and any matches found will be placed in the correspondingly named field of S.
+		%
+		%	See also: FILE.SEARCH
+	
+			s = emptystruct(varargin{:});
+			cats = fieldnames(s);
+			
+			for a = 1:length(cats)
+				s.(cats{a}) = F.Search(cats{a});
+			end
+		end
+			
+        
         % File Stream Management Methods
         function Close(F)
         % CLOSE - Closes an open file stream.
@@ -508,9 +568,9 @@ classdef File < Path
                     '\t Location:\t\t%s\n\n'],...
                     upper(F.Extension),...
                     F.FullName,...
-                    Path.BooleanString(F.Exists),...
+					String.Boolean(F.Exists),...
                     F.Extension,...
-                    Path.BooleanString(F.IsOpen),...
+					String.Boolean(F.IsOpen),...
                     F.ParentDirectory.ToString());
             else
                 nameCell = cell(numel(F), 1);

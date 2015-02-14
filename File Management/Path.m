@@ -1,4 +1,4 @@
-classdef  Path < hgsetget
+classdef  Path < handle & Object
 % PATH - A class that wraps, manages, and provides convenience utilities for path strings in MATLAB.
 %
 %   SYNTAX:
@@ -305,14 +305,14 @@ classdef  Path < hgsetget
         function NavigateTo(P)
         % NAVIGATETO - Changes MATLAB's current working directory to the folder that the path object points to.
         %
-        %   This method changes the MATLAB working directory to the folder pointed to by P. The working directory is
-        %   whatever folder is listed in the address bar that by default is found immediately above the command window
-        %   in the IDE. It is also the folder whose contents are listed in the Current Folder pane of the IDE. 
+        %   This method changes the MATLAB working directory to the folder pointed to by P. The working directory is whatever
+        %   folder is listed in the address bar that by default is found immediately above the command window in the IDE. It
+        %   is also the folder whose contents are listed in the Current Folder pane of the IDE.
         %
-        %   Essentially, this function works just like the native CD command except that it also allows for navigating
-        %   to the parent directories of any inputted file references. The native CD command throws an error if a
-        %   path-to-file string is inputted. Here, if P points to a file, then this function switches the working
-        %   directory to that file's parent folder. Otherwise, it navigates to whatever directory P references.
+        %   Essentially, this function works just like the native CD command except that it also allows for navigating to the
+        %   parent directories of any inputted file references. The native CD command throws an error if a path-to-file
+        %   string is inputted. Here, if P points to a file, then this function switches the working directory to that file's
+        %   parent folder. Otherwise, it navigates to whatever directory P references.
         %
         %   SYNTAX:
         %       NavigateTo(P)
@@ -443,17 +443,17 @@ classdef  Path < hgsetget
 		%   See also:   CD
             P.NavigateTo()
         end
-        function display(P)
-        % DISPLAY - Displays information about the Path object in the console window.
+        function disp(P)
+        % DISP - Displays information about the Path object in the console window.
         %
         %   This method organizes and formats Path object information before displaying it in the console window. The
-        %   information that is displayed is different depending on the number of objects that are inputted. For
-        %   singleton objects, this function prints a more detailed view of the Path instance. For arrays of Path 
-        %   objects, this function prints a list of full path strings only.
+        %   information that is displayed is different depending on the number of objects that are inputted. For singleton
+        %   objects, this function prints a more detailed view of the Path instance. For arrays of Path objects, this
+        %   function prints a list of full path strings only.
         %
         %   DISPLAY is called automatically whenever operations returning a Path object are invoked without using the
-        %   semicolon output suppressor. This includes the act of invoking an existing object in a function, script, or
-        %   in the console (i.e. by typing P and pressing enter if "P" is the name of a Path object).
+        %   semicolon output suppressor. This includes the act of invoking an existing object in a function, script, or in
+        %   the console (i.e. by typing P and pressing enter if "P" is the name of a Path object).
         %
         %   SYNTAX:
         %       display(P)
@@ -480,8 +480,8 @@ classdef  Path < hgsetget
                      ],...
                      entityStr,...
                      P.FullPath,...
-                     Path.BooleanString(P.Exists),...
-                     Path.BooleanString(P.IsFile),...
+					 String.Boolean(P.Exists),...
+					 String.Boolean(P.IsFile),...
                      P.ParentDirectory.ToString(),...
                      P.FullName);
             else
@@ -598,16 +598,17 @@ classdef  Path < hgsetget
 		end
         function catP       = vertcat(P, varargin)
             
-            if (~all(cellfun(@(x) isa(x, 'Path'), varargin)))
-                error('Vertical concatenation only applies to forming arrays of path objects.');
-            end
-            
-            warning('Object array concatenation is currently not working properly. Cancelling operation.');
-            return;
-            
-            szP = size(P);
-            
-            newP(szP(1) + length(varargin), szP(2)) = Path;
+			P.NotYetImplemented();
+%             if (~all(cellfun(@(x) isa(x, 'Path'), varargin)))
+%                 error('Vertical concatenation only applies to forming arrays of path objects.');
+%             end
+%             
+%             warning('Object array concatenation is currently not working properly. Cancelling operation.');
+%             return;
+%             
+%             szP = size(P);
+%             
+%             newP(szP(1) + length(varargin), szP(2)) = Path;
             
         end
 
@@ -617,12 +618,6 @@ classdef  Path < hgsetget
     
     %% Private Class Methods
     methods (Access = protected)
-        function AssertSingleObject(P)
-            % ASSERTSINGLEOBJECT - Throws an error if more than one Path object is supplied to a function.
-            if (numel(P) > 1)
-                error('Only one Path object may be inputted at a time.');
-            end
-        end
         function ParseFullPath(P, pathStr)
 		% PARSEFULLPATH - Deconstructs a full path string and populates the Path object properties with it.
             
@@ -651,7 +646,7 @@ classdef  Path < hgsetget
             assert(ischar(var) || iscellstr(var), 'Only strings or cell arrays of strings may be used with Path objects.');
         end
         function AssertSingleString(var)
-            % ASSERTSINGLESTRING - Throws an error if a variable is not one single string. 
+		% ASSERTSINGLESTRING - Throws an error if a variable is not one single string. 
             assert(ischar(var), 'Only one string may be inputted to function at a time.');
         end
         

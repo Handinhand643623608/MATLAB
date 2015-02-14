@@ -37,6 +37,7 @@ classdef Paths < hgsetget
 %					error message function for unsupported property access.
 %       20150129:   Bug fix for TodayArchive and Raw static fields being incorrect for my home computer. I recently
 %                   transferred everything that was on E:/ to newly purchased RAID1 archive HDDs (A:/) for fault tolerance.
+%		20150205:	Added a path to the Release folder of my MEX compiler project in Visual Studio.
    
 
     
@@ -109,7 +110,10 @@ classdef Paths < hgsetget
         function P = MATLAB
         % Gets the path to the MATLAB installation folder.
             P = Path(matlabroot);
-        end
+		end
+		function p = MexCompiler
+			p = Path('X:/Code/C/MATLAB/MexCompiler/x64/Release');
+		end
         function P = Raw
         % Gets the path to all raw BOLD and EEG data sets.
             switch (Paths.ComputerName)
