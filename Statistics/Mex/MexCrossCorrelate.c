@@ -1,30 +1,9 @@
-/* MEXCROSSCORRELATE - Cross-correlates two equivalently sized vectors of data.
- *
- *	SYNTAX:
- *		cc = MexCrossCorrelate(x, y)
- *
- *	OUTPUT:
- *		cc:				[ NCC x NX DOUBLES ]
- *                      The normalized correlation coefficients between the signals in X and Y at every possible sample
- *                      offset. This output will contain a fixed number of rows NCC determined by the number of samples in
- *                      the signals in X and Y: NCC = 2 * M - 1. 
- *
- *	INPUT:
- *		x:				[ M x NX DOUBLES ]
- *                      A column vector or matrix of signals to be cross-correlated with the data in Y. The number of rows in
- *                      this argument should represent the number of samples in the signal(s) being correlated. The number of
- *                      columns NX then represents the number of signals that are present in the data set. This argument
- *                      cannot contain NaNs.
- *
- *		y:				[ M x NY DOUBLES ]
- *                      A column vector or matrix of signals to be cross-correlated with the data in X. Like X, the rows of
- *                      this argument represent individual signal samples, while columns represent the signals themselves.
- *                      The number of samples M in this argument must always equal the number of samples in X. This argument
- *                      also cannot contain NaNs. The number of signals NY must either be 1 or NX.
- */
+/* MEXCROSSCORRELATE - Cross-correlates two equivalently sized vectors of data. */
 
 /* CHANGELOG
- *  Written by Josh Grooms on 20141230
+ * Written by Josh Grooms on 20141230
+ *		20150210:	Updated to remove the restrictions on the number of columns in X and Y. These can now freely vary. 
+ *					Updated the documentation of this function to reflect this change and to improve clarity.
  */
 
 #include <cilk/cilk.h>
@@ -56,6 +35,9 @@ void mexFunction(int nargout, mxArray* argout[], int nargin, const mxArray* argi
 	if (nargin != 2)
 		mexErrMsgTxt("Two input arguments must be provided to this function. See documentation for syntax details.");
 
+	double* x = mxGetPr(argin[0]);
+	double* y = mxGetPr(argin[1]);
+
 	int ncc, ncx, nrx, ncy, nry;
 	nrx = mxGetM(argin[0]);
 	ncx = mxGetN(argin[0]);
@@ -63,34 +45,33 @@ void mexFunction(int nargout, mxArray* argout[], int nargin, const mxArray* argi
 	ncy = mxGetN(argin[1]);
 	ncc = 2 * nrx - 1;
 
-	if (nrx == 0 || ncx == 0)		{ mexErrMsgTxt("Inputs cannot contain empty arrays."); }
+	if (nrx == 0 || ncx == 0)		{ mexErrMsgTxt("Inputs cannot be empty arrays."); }
+	if (nrx != nry)					{ mexErrMsgTxt("X and Y must contain equivalent length signals."); }
 
-	double* x = mxGetPr(argin[0]);
-	double* y = mxGetPr(argin[1]);
-
-	nargout = 1;
-	argout[0] = mxCreateDoubleMatrix(ncc, ncx, mxREAL);
+	argout[0] = mxCreateDoubleMatrix(ncc, ncx * ncy, mxREAL);
 	double* cc = mxGetPr(argout[0]);
 
 	if (ncx == 1) { xcorr(cc, x, y, nrx); }
 	else if (ncy == 1)
 	{
-		cilk_for(int a = 0; a < ncx; a++)
+		cilk_for (int a = 0; a < ncx; a++)
 		{
-            // These indexing declarations MUST be inside the loop to prevent a race condition.
 			int idxCC = a * ncc;
-			int idxXY = a * nrx;
-			xcorr(cc + idxCC, x + idxXY, y, nrx);
+			int idxColX = a * nrx;
+			xcorr(cc + idxCC, x + idxColX, y, nrx);
 		}
 	}
 	else
 	{
-		cilk_for(int a = 0; a < ncx; a++)
+		cilk_for (int a = 0; a < ncy; a++)
 		{
-            // These indexing declarations MUST be inside the loop to prevent a race condition.
-			int idxCC = a * ncc;
-			int idxXY = a * nrx;
-			xcorr(cc + idxCC, x + idxXY, y + idxXY, nrx);
+			int idxColY = a * nry;
+			for (int b = 0; b < ncx; b++)
+			{
+				int idxCC = ncc * (a * ncx + b);
+				int idxColX = b * nrx;
+				xcorr(cc + idxCC, x + idxColX, y + idxColY, nrx);
+			}
 		}
 	}	
 }

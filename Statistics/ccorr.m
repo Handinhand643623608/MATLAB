@@ -14,37 +14,32 @@
 %		[cc, lags] = ccorr(...)
 %
 %	OUTPUTS:
-%		cc:				[ NCC x NS DOUBLES ]
-%                       The normalized correlation coefficients between the signals in X and Y at the sample offsets in LAGS.
-%                       If Y is empty or omitted, then this is the autocorrelation function of the signals in X. This output
-%                       will contain a fixed number of rows NCC dictated by the MAXLAG argument: NCC = 2 * MAXLAG + 1. The
-%                       number of signal correlates NS will always be the greater of NX and NY.
+%		cc:				[ MC x NX x NY DOUBLES ]
+%                       An array of correlation values calculated between the data in X and Y. Each row of this array
+%                       contains Pearson correlation coefficients (r values) between X and Y at a specific sample offset. The
+%                       total number of offsets present will always follow MC = 2 * MAXLAG + 1. 
 %
-%		lags:			[ NCC x 1 INTEGERS ]
+%                       The number of columns will always equal the number of signals present in X, while the number of pages
+%                       will always equal the number of signals in Y. Thus, CC(:, A, B) represents the cross-correlation
+%                       function between the two signals X(:, A) and Y(:, B).
+%
+%		lags:			[ MC x 1 INTEGERS ]
 %                       A vector of sample shifts whose elements correspond with the rows in CC. This output helps identify
 %                       at which lag or offset the values in each column of CC were derived.
 %
 %	INPUTS:
 %		x:				[ M x NX DOUBLES ]
-%                       A column vector or matrix of signals to be cross-correlated with the data in Y. The number of rows in
-%                       this argument should represent the number of samples in the signal(s) being correlated. The number of
-%                       columns NX then represents the number of signals that are present in the data set. When X is the sole
-%                       input or Y is an empty array, this function computes the autocorrelation of the signals in X. This
-%                       argument cannot contain NaNs.
+%                       An array of doubles containing the signal(s) to be cross-correlated with each signal in Y. Each
+%                       column of this array represents a single signal with M time points. The number of signals NX is free
+%                       to vary but must be a positive integer. The number of samples M must always equal M from Y. When X is
+%                       the sole input or Y is an empty array, this function computes the autocorrelation of the signals in
+%                       X.
 %
 %		y:				[ M x NY DOUBLES ]
 %                       DEFAULT: X
-%                       A column vector or matrix of signals to be cross-correlated with the data in X. Like X, the rows of
-%                       this argument represent individual signal samples, while columns represent the signals themselves.
-%                       The number of samples M in this argument must always equal the number of samples in X. This argument
-%                       also cannot contain NaNs.
-%
-%                       When the argument X is a single column vector, the number of columns NY here is free to vary. This
-%                       scenario would then represent a single signal X being cross-correlated with all signals in Y.
-%                       However, when X is a matrix with NX > 1, NY must either be 1 or must equal NX. This corresponds with
-%                       a set of signals X being cross-correlated with either a single signal or equivalently sized set of
-%                       signals Y. If empty or omitted, this argument becomes a copy of X to produce the autocorrelation
-%                       estimate of X.
+%                       An array of doubles containing the signal(s) to be cross-correlated with each signal in X. Each
+%                       column of this array represents a single signal with M time points. The number of signals NY is free
+%                       to vary but must be a positive integer. The number of samples M must always equal M from X.
 %
 %       maxlag:         INTEGER
 %                       DEFAULT: M - 1
@@ -60,6 +55,8 @@
 %                   somewhat less flexible than it was, but its speed is now significantly improved and its much less prone
 %                   to errors. It also now handles single signals for either X or Y when the other argument is an array.
 %                   Additionally, I completed the documentation for this function.
+%		20150210:	Updated to remove the restrictions on the number of columns in X and Y. These can now freely vary.
+%					Updated the documentation of this function to reflect this change and to improve clarity.
 
 
 
@@ -75,11 +72,6 @@ function [cc, lags] = ccorr(x, y, maxlag)
     if nargin < 3;  maxlag = size(x, 1) - 1;    end
     if isempty(y);	y = x;                      end
     assert(ismatrix(y), 'Y must be a vector or a two-dimensional array.');
-
-    % X & Y cannot have NaNs
-    hasNaN = any(isnan(x(:))) || any(isnan(y(:)));
-	assert(~hasNaN,...
-        'NaNs were detected in one or more inputted data sets. These must be removed or replaced before invoking this function.');
     
     % Flatten vectors
     if isvector(x); x = x(:); end
@@ -89,9 +81,6 @@ function [cc, lags] = ccorr(x, y, maxlag)
     
     % Constrain the size of X & Y
     assert(szx(1) == szy(1), 'X and Y must always contain the same number of rows.');
-    if (szx(2) ~= 1 && szy(2) ~= 1)
-        assert(szx(2) == szy(2), 'When X and Y are matrices, they must both contain the same number of columns.');
-    end
     
     % Cross correlate the data
     if (szx(2) == 1 && szy(2) ~= 1)
@@ -105,6 +94,9 @@ function [cc, lags] = ccorr(x, y, maxlag)
     lags = -maxlag : maxlag;
     idsLagsToKeep = ismember(allLags, lags);
     cc = cc(idsLagsToKeep, :);
-    lags = lags';
+    
+	% Rearrange the output to a more intuitive format
+	cc = reshape(cc, size(cc, 1), szx(2), szy(2));
+	lags = lags';
 	
 end
