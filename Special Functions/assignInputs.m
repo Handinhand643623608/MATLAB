@@ -113,8 +113,12 @@ function assignInputs(inStruct, callerVarargin, varargin)
 %       20130623:   Improved help & reference section for consistency with other custom functions.
 %                   Added documentation about variable compatibility settings. Small improvements to
 %                   code (replace checks for booleans with function "any")
+%		20150212:	Added a deprecation warning diverting users to the new function ASSIGN.
 
 %   TODO: Add ability for calling function to require certain "mandatory" input variables
+
+DEPRECATED Assign
+
 
 
 %% Initialize

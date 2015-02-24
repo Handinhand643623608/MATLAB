@@ -48,5 +48,5 @@ if (nargin == 1); message = 'Assertion failed.'; end
 
 % If the inputted expression is false, display the warning
 if (~expression)
-	warning(message, varargin{:});
+	warn(1, message, varargin{:});
 end

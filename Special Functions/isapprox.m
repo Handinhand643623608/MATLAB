@@ -27,14 +27,16 @@
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20150131
+%		20150210:	Implemented error checks for the presence of NaNs. These always result in false equality checks, even
+%					when two NaNs are compared with one another.
 
 
 
 %% FUNCTION DEFINITION
 function b = isapprox(x, y, format)
-    if (nargin < 3) || isempty(format)
-        format = '0.00000';
-    end
+    if (nargin < 3) || isempty(format); format = '0.00000'; end
+    assert(~any(isnan(x(:))), 'NaNs detected in X. These break equality comparisons and cannot be present in the inputs.');
+	assert(~any(isnan(y(:))), 'NaNs detected in Y. These break equality comparisons and cannot be present in the inputs.');
     xr = sigfig(x, format, 'round');
     yr = sigfig(y, format, 'round');
     b = isequal(xr, yr);
