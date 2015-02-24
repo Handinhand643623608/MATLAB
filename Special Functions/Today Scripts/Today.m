@@ -1,4 +1,4 @@
-classdef Today < hgsetget
+classdef Today
 % TODAY - A static class containing current date information and Today Script utility functions.    
     
 %% CHANGELOG
@@ -29,10 +29,11 @@ classdef Today < hgsetget
 %       20150129:   Implemented the automatic searching of data archives in the method FindFiles when data with the inputted
 %                   time stamp can't be found on my work flash drive.
 %       20150202:   Changed the behavior of CreateScript so that it opens a pre-existing log file instead of erroring out.
+%		20150224:	Implemented methods to outline and search the section header text of log files.
     
 
 
-    %% Properties (Defined as Static Methods)
+    %% PROPERTIES
     
     methods (Static)
         
@@ -50,7 +51,8 @@ classdef Today < hgsetget
         end
         function F = Script
         % Gets the path to the Today Script log file for the current date.
-            F = File([Paths.TodayScripts '/' Today.Date '.m']);
+			date = Today.Date;
+            F = File([Paths.TodayScripts '/' date(1:4) '/' date(5:6) '/' date '.m']);
         end
         
 	end
@@ -141,7 +143,7 @@ classdef Today < hgsetget
             if (script.Exists); script.Edit(); return; end
             
             script.Open('w');
-			script.Write('%%%% %s \n\n\n\nntss', date);
+			script.Write('%%%% %s\n\n\n\nntss', date);
             script.Close();
             script.Edit();
             
@@ -151,13 +153,13 @@ classdef Today < hgsetget
         end
         function CreateSection()
         % CREATESECTION - Creates a new log section inside of the current Today Script.
-        %   This function creates a new section inside of today's working script that is titled with the time of
-        %   creation. It also automatically initializes some commonly used variables at the top of the section for
-        %   convenience.
         %
-        %   CREATESECTION only works on Today Scripts named with the current date (in YYYYMMDD format). The "current
-        %   date" is whatever day the system time evaluates to when CREATESECTION is run. It will not work on scripts
-        %   with differently formatted file names or scripts from past dates.
+		%   This function creates a new section inside of today's working script that is titled with the time of creation. It
+        %   also automatically initializes some commonly used variables at the top of the section for convenience.
+        %
+        %   CREATESECTION only works on Today Scripts named with the current date (in YYYYMMDD format). The "current date" is
+        %   whatever day the system time evaluates to when CREATESECTION is run. It will not work on scripts with differently
+        %   formatted file names or scripts from past dates.
         %   
         %   This function takes no input arguments, returns nothing, and can only be used from within the Today Script
         %   itself.
@@ -170,8 +172,8 @@ classdef Today < hgsetget
         %           4a. The default shortcut for selection evaluation is the F9 keyboard key.
         %
         %   TIP:
-        %   Use the shortcut function NTSS to avoid having to write out the full class and method name every time a new 
-        %   section is created.
+        %		Use the shortcut function NTSS to avoid having to write out the full class and method name every time a new 
+        %		section is created.
         %
         %   SYNTAX:
         %       Today.CreateSection()
@@ -190,22 +192,25 @@ classdef Today < hgsetget
 		function LoadGlobals(date)
 		% LOADGLOBALS - Executes global variables and code written in the very first section of a Today Script.
 		%
-		%	LOADGLOBALS evaluates the first section of a Today Script (i.e. the very first section that starts with the
-		%	date of the script and ends with the first time-stamped section). This section is intended to hold variables
-		%	that are globally applicable throughout every or at least most sections of the script.
+		%	LOADGLOBALS evaluates the first section of a Today Script (i.e. the very first section that starts with the date
+		%	of the script and ends with the first time-stamped section). This section is intended to hold variables that are
+		%	globally applicable throughout every or at least most sections of the script.
 		%
 		%	SYNTAX:
 		%		Today.LoadGlobals(date)
 		%
 		%	INPUT:
 		%		date:		STRING
-		%					A string containing the date of script from which the call to this method is being made.
-		%					This date string must be in the format 'yyyymmdd'.
+		%					A string containing the date of script from which the call to this method is being made. This
+		%					date string must be in the format 'yyyymmdd'.
+		%
+		%	See also: TODAY.CREATESCRIPT, TODAY.CREATESECTION, TODAY.CREATESUBSECTION
+			
 			Today.AssertDateString(date);
 			
 			tsFile = matlab.desktop.editor.getActive;
 			[~, tsName, ~] = fileparts(tsFile.Filename);
-            if ~strcmpi(tsName, date)
+			if ~strcmpi(tsName, date)
                 tsFile = matlab.desktop.editor.findOpenDocument([date '.m']);	
 			end
 			
@@ -222,6 +227,41 @@ classdef Today < hgsetget
 				gvSection = allText(1:idxGV);
 				evalin('base', gvSection);
 			end
+		end
+		function Outline(timeStamp)
+		% OUTLINE - Displays an outline of the section headers from one or more Today Script log files.
+		%
+		%	This method displays an outline of one or more Today Script log files using the sections headers from within.
+		%	Section headers are characterized by the presence of '%%' at the beginning of a line in a .m file and are
+		%	typically created by the TODAY.CREATESECTION method. 
+		%
+		%	The outline is displayed within the MATLAB console window and is formatted by file and time stamp for each of a
+		%	file's sections. Both the file name and each section time stamp are hyperlinked to the appropriate region of the
+		%	original log file. Thus, clicking a link opens the file and allows for quick access to the code that was used as
+		%	well as any additional comments that were made at that time.
+		%
+		%	SYNTAX:
+		%		Today.Outline()
+		%		Today.Outline(timeStamp)
+		%
+		%	OPTIONAL INPUT:
+		%		timeStamp:		STRING
+		%						A date string that is used to identify the files being outlined. Unlike the time stamp
+		%						arguments used in other Today Script methods, the formatting of this parameter is somewhat
+		%						flexible. Specifically, this time stamp can be a year ('YYYY'), a year and a month
+		%						('YYYYMM'), or a full date string ('YYYYMMDD'). When the first two options are used, all
+		%						files associated with the dates are outlined. Using '2015', for example, would result in an
+		%						outline of every file from that year. By default, every available log file is outlined.
+		%
+		%	See also: TODAY.FINDLOGS, TODAY.SEARCHLOGS
+	
+			if (nargin == 0)
+				F = Paths.TodayScripts.AllFiles();
+			else
+				F = Today.FindLogs(timeStamp);
+			end
+			[s, l] = Today.GetSectionHeaderText(F);
+			Today.DisplayOutline(F, s, l);
 		end
         function SaveData(timeStamp, fileName, varargin)
         % SAVEDATA - Saves a time-stamped .MAT file to the current Today Data archive folder.
@@ -296,32 +336,32 @@ classdef Today < hgsetget
         %
         %   INPUTS:
         %       H:              INTEGER FIGURE HANDLE
-        %                       An integer handle for a valid MATLAB graphics objects whose contents are to be saved as
-        %                       an image. This handle can be attained either using the GCF function or by any other
-        %                       documented means. 
+        %                       An integer handle for a valid MATLAB graphics objects whose contents are to be saved as an
+        %                       image. This handle can be attained either using the GCF function or by any other documented
+        %                       means.
         %
         %       timeStamp:      STRING
-        %                       A string representing the date and time that a particular Today Script section was run.
-        %                       This is the time stamp that is automatically generated at the beginning of each
-        %                       individual section, and it is recommended that this always be used. The time stamp will
-        %                       appear in the saved file at the very beginning of the file name.
+        %                       A string representing the date and time that a particular Today Script section was run. This
+        %                       is the time stamp that is automatically generated at the beginning of each individual
+        %                       section, and it is recommended that this always be used. The time stamp will appear in the
+        %                       saved file at the very beginning of the file name.
         %
-        %                       If manually specified, this string should always be formatted as 'yyyymmddHHMM'. Failure
-        %                       to do so is an error.
+        %                       If manually specified, this string should always be formatted as 'yyyymmddHHMM'. Failure to
+        %                       do so is an error.
         %
         %       fileName:       STRING
         %                       A string representing the name that the resulting image file will have after the save
-        %                       operation. The full file name will consist of the time stamp and this name separated by
-        %                       a dash ('-'), followed lastly by the image extension. This argument must always be a
-        %                       string literal; formatting or escape characters will not be processed.
+        %                       operation. The full file name will consist of the time stamp and this name separated by a
+        %                       dash ('-'), followed lastly by the image extension. This argument must always be a string
+        %                       literal; formatting or escape characters will not be processed.
         %
         %   OPTIONAL INPUT:
         %       extension:      STRING or { STRINGS }
-        %                       A string or cell array of strings specifying the extension(s) that figure image will
-        %                       take once saved. Multiple extensions are supported, including all of those that are
-        %                       supported by the MATLAB-native SAVEAS function. Specifying multiple extensions results
-        %                       in multiple files with identical names but different formats (e.g. BMP, JPEG, PNG,
-        %                       etc.). If omitted, this method saves images as MATLAB .FIG files.
+        %                       A string or cell array of strings specifying the extension(s) that figure image will take
+        %                       once saved. Multiple extensions are supported, including all of those that are supported by
+        %                       the MATLAB-native SAVEAS function. Specifying multiple extensions results in multiple files
+        %                       with identical names but different formats (e.g. BMP, JPEG, PNG, etc.). If omitted, this
+        %                       method saves images as MATLAB .FIG files.
         %                       DEFAULT: 'fig'
             assert(nargin >= 3, 'A graphics handle, time stamp, and file name must be specified for saving images.');
             Today.SaveImageIn(H, [], timeStamp, fileName, extension);
@@ -335,15 +375,14 @@ classdef Today < hgsetget
         %
         %   INPUTS:
         %       H:              INTEGER FIGURE HANDLE
-        %                       An integer handle for a valid MATLAB graphics objects whose contents are to be saved as
-        %                       an image. This handle can be attained either using the GCF function or by any other
-        %                       documented means.
+        %                       An integer handle for a valid MATLAB graphics objects whose contents are to be saved as an
+        %                       image. This handle can be attained either using the GCF function or by any other documented
+        %                       means.
         %
         %       subFolder:      STRING
-        %                       A path string indicating a single subdirectory in which to save the inputted graphics
-        %                       handle as an image. This path will always be relative to a time-stamped folder created
-        %                       in the currently dated Today Data archive. Any number of subdirectory levels may be
-        %                       specified. 
+        %                       A path string indicating a single subdirectory in which to save the inputted graphics handle
+        %                       as an image. This path will always be relative to a time-stamped folder created in the
+        %                       currently dated Today Data archive. Any number of subdirectory levels may be specified.
         %
         %                       EXAMPLE:
         %                           Today.SaveImageIn(H, 'Child/Directory', '201411101620', 'FileToSave', 'png')
@@ -352,28 +391,30 @@ classdef Today < hgsetget
         %                               'X:/Data/Today/20141110/201411101620/Child/Directory/FileToSave.png'
         %
         %       timeStamp:      STRING
-        %                       A string representing the date and time that a particular Today Script section was run.
-        %                       This is the time stamp that is automatically generated at the beginning of each
-        %                       individual section, and it is recommended that this always be used. The time stamp will
-        %                       appear in the saved file at the very beginning of the file name.
+        %                       A string representing the date and time that a particular Today Script section was run. This
+        %                       is the time stamp that is automatically generated at the beginning of each individual
+        %                       section, and it is recommended that this always be used. The time stamp will appear in the
+        %                       saved file at the very beginning of the file name.
         %
-        %                       If manually specified, this string should always be formatted as 'yyyymmddHHMM'. Failure
-        %                       to do so is an error.
+        %                       If manually specified, this string should always be formatted as 'yyyymmddHHMM'. Failure to
+        %                       do so is an error.
         %
         %       fileName:       STRING
         %                       A string representing the name that the resulting image file will have after the save
-        %                       operation. The full file name will consist of the time stamp and this name separated by
-        %                       a dash ('-'), followed lastly by the image extension. This argument must always be a
-        %                       string literal; formatting or escape characters will not be processed.
+        %                       operation. The full file name will consist of the time stamp and this name separated by a
+        %                       dash ('-'), followed lastly by the image extension. This argument must always be a string
+        %                       literal; formatting or escape characters will not be processed.
         %
         %   OPTIONAL INPUT:
         %       extension:      STRING or { STRINGS }
-        %                       A string or cell array of strings specifying the extension(s) that figure image will
-        %                       take once saved. Multiple extensions are supported, including all of those that are
-        %                       supported by the MATLAB-native SAVEAS function. Specifying multiple extensions results
-        %                       in multiple files with identical names but different formats (e.g. BMP, JPEG, PNG,
-        %                       etc.). If omitted, this method saves images as MATLAB .FIG files.
-        %                       DEFAULT: 'fig'
+        %                       A string or cell array of strings specifying the extension(s) that figure image will take
+        %                       once saved. Multiple extensions are supported, including all of those that are supported by
+        %                       the MATLAB-native SAVEAS function. Specifying multiple extensions results in multiple files
+        %                       with identical names but different formats (e.g. BMP, JPEG, PNG, etc.). If omitted, this
+        %                       method saves images as MATLAB .FIG files. 
+		%						DEFAULT: 'fig'
+		%
+		%	See also: TODAY.FINDFILES, TODAY.SAVEDATA, TODAY.SAVEIMAGE
             assert(nargin >= 4, 'A sub-folder, graphics handle, time stamp, and file name must be specified for saving images.');
             Today.AssertGraphicsHandle(H);
             Today.AssertDateTimeString(timeStamp);
@@ -393,8 +434,42 @@ classdef Today < hgsetget
 			for a = 1:length(extension)
 				saveas(H, [saveStr '.' extension{a}], extension{a});
 			end
-        end
-        
+		end
+        function SearchLogs(query)
+		% SEARCHLOGS - Searches the section header text of Today Script log files.
+		%
+		%	This method searches all available Today Script log files and their section headers for text matching the
+		%	inputted query string. Any matches are then displayed in outline form within the MATLAB console window. Section
+		%	headers are characterized by the presence of '%%' at the beginning of a .m file line and are typically created by
+		%	the TODAY.CREATESECTION method. 
+		%	
+		%	SYNTAX:
+		%		Today.SearchLogs(query)
+		%
+		%	INPUT:
+		%		query:		STRING
+		%					A query string that will be searched for within the section header text of all available log
+		%					script files. Searching is performed using regular expressions, and so this argument may contain
+		%					metacharacters. It is also case-insensitive.
+		%
+		%	See also: TODAY.FINDLOGS, TODAY.OUTLINE
+			F = Paths.TodayScripts.AllFiles();
+			[s, l] = Today.GetSectionHeaderText(F);
+			
+			for a = 1:numel(F)
+				ids = cellfun(@isempty, regexpi(s{a}, query));
+				s{a}(ids) = [];
+				l{a}(ids) = [];
+			end			
+			
+			ids = cellfun(@isempty, s);
+			F(ids) = [];
+			s(ids) = [];
+			l(ids) = [];
+			
+			Today.DisplayOutline(F, s, l);
+		end
+		
         function F = FindFiles(timeStamp)
         % FINDFILES - Finds files containing a time stamp that were saved to the Today Data repository.
         %
@@ -404,27 +479,27 @@ classdef Today < hgsetget
         %   OUTPUT:
         %       F:          FILE or [ FILES ]
         %                   A File object or array of objects that reference files found inside of the Today Script data
-        %                   respository for the date indicated by the time stamp argument. These files must have been
-        %                   saved with a time stamp that is identical to the one inputted here in order to be found.
+        %                   respository for the date indicated by the time stamp argument. These files must have been saved
+        %                   with a time stamp that is identical to the one inputted here in order to be found.
         %
         %   INPUT:
         %       timeStamp:  STRING
         %                   A date-time string used to identify a specific set of files located in the Today Script data
-        %                   repository. This string must be formatted as "yyyymmddHHMM". The date part of this string
-        %                   (i.e. the first 8 characters) is used to identify which folder the files are located in,
-        %                   while the whole string is used to find the files themselves.
+        %                   repository. This string must be formatted as "yyyymmddHHMM". The date part of this string (i.e.
+        %                   the first 8 characters) is used to identify which folder the files are located in, while the
+        %                   whole string is used to find the files themselves.
         %                   EXAMPLE:
         %                       
         %                       "201410281045" - Finds files containing a time stamp of 10:45 AM on October 28th, 2014.
         %
-        %   See also:   DATESTR
+        %   See also:   DATESTR, TODAY.FINDLOGS
             
             assert(nargin == 1, 'A time stamp must be provided in order to find Today Data files.');
             Today.AssertDateTimeString(timeStamp);
             dateStamp = timeStamp(1:8);
             dateFolder = [Paths.TodayData '/' dateStamp];
             
-            if (~dateFolder.Exists)
+            if ~(dateFolder.Exists)
                 dateFolder = [Paths.TodayArchive '/' dateStamp];
                 assert(dateFolder.Exists, 'Cannot find the Today Data folder from %s. No files can be returned.', dateStamp);
             end
@@ -435,8 +510,39 @@ classdef Today < hgsetget
                 dateFolder = [Paths.TodayArchive '/' dateStamp];
                 F = dateFolder.FileSearch(timeStamp);
             end
-        end
-
+		end
+		function F = FindLogs(timeStamp)
+		% FINDLOGS - Finds log script files using a time stamp.
+		%
+		%	SYNTAX:
+		%		F = Today.FindLogs(timeStamp)
+		%
+		%	OUTPUT:
+		%		F:				[ FILES ]
+		%						An array of file objects referencing Today Script log files whose names match the time stamp
+		%						query string.
+		%	INPUT:
+		%		timeStamp:		STRING
+		%						A date string that is used to identify the log files. Unlike the time stamp arguments used in
+		%						other Today Script methods, the formatting of this parameter is somewhat flexible.
+		%						Specifically, this time stamp can be a year ('YYYY'), a year and a month ('YYYYMM'), or a
+		%						full date string ('YYYYMMDD').
+		%
+		%	See also: FILE
+			
+			assert(length(timeStamp) >= 4, 'Invalid time stamp.');
+			switch length(timeStamp)
+				case 4
+					F = AllFiles([Paths.TodayScripts '/' timeStamp]);
+				case 6
+					F = AllFiles([Paths.TodayScripts '/' timeStamp(1:4) '/' timeStamp(5:6)]);
+				case 8
+					F = File([Paths.TodayScripts '/' timeStamp(1:4) '/' timeStamp(5:6) '/' timeStamp '.m']);
+				otherwise
+					error('Invalid time stamp detected.');
+			end
+		end
+		
     end
     
     
@@ -466,6 +572,38 @@ classdef Today < hgsetget
             assert(~isempty(f), 'File names must contain a valid name.');
 		end
 		
+		function DisplayOutline(F, s, l)
+		% DISPLAYOUTLINE - Displays a formatted outline of log script section headers with hyperlinked time stamps.
+		%
+		%	INPUTS:
+		%		F:		FILE or [ FILES ]
+		%				The files from which the headers in S were read.
+		%
+		%		s:		{ 1 x N { STRINGS } }
+		%				A cell array of section header text collections. The number of cells in the outer-most layer (N) must
+		%				match the number of files in F.
+		%
+		%		l:		{ 1 x N [ INTEGERS ] }
+		%				The line numbers that correspond with the strings in S.
+			for a = 1:numel(F)
+				fprintf(1, '\n\t<a href="matlab: opentoline(%s,%d)">%s</a>\n',...
+					F(a).ToString(),...
+					1,...
+					F(a).Name);
+				
+				for b = 1:length(s{a})
+					if (~isempty(s{a}{b}) && l{a}(b) ~= 1)
+						fprintf(1, '\t\t<a href="matlab: opentoline(%s,%d)">%s</a>%s\n',...
+							F(a).ToString(),...
+							l{a}(b),...
+							s{a}{b}(1:4),...
+							s{a}{b}(5:end));
+					end
+				end
+			end
+			
+			fprintf(1, '\n');
+		end
 		function ReplaceTextInOpenDoc(fileName, oldText, newText)
 		% REPLACETEXTINOPENDOC - Finds and replaces text in a currently open script or function file.
 			assert(ischar(fileName) && ischar(oldText) && ischar(newText),...
@@ -481,6 +619,35 @@ classdef Today < hgsetget
 			ext = File.GetExtension(fileName);
 			if ~strcmpi(ext, '.m'); fileName = [fileName '.m']; end
 			D = matlab.desktop.editor.findOpenDocument(fileName);	
+		end
+		function [s, l] = GetSectionHeaderText(F)
+		% GETSECTIONHEADERTEXT - Compiles a list of log script section header text from the inputted files.
+		%
+		%	OUTPUTS:
+		%		s:		{ 1 x N { STRINGS } }
+		%				A cell array of cell arrays containing section header text. The number of cells in the outer-most
+		%				layer corresponds with the number of file references that were provided. Each of the outer cells
+		%				contains all section headers from one individual file.
+		%
+		%		l:		{ 1 x N [ INTEGERS ] }
+		%				The line number on which the corresponding strings in S can be found in the original log file. This
+		%				is formatted identically to S.
+		%
+		%	INPUT:
+		%		F:		FILE or [ FILES ]
+		%				A file or array of file references from which section headers will be grabbed. The total number of
+		%				files here dictates the number of cells in the outer-most layer of S and L. 
+			s = cell(size(F));
+			l = cell(size(F));
+			
+			for a = 1:numel(F)
+				txt = strsplit(F(a).ReadAllText(), '\n', 'CollapseDelimiters', false)';
+				txt = regexpi(txt, '%%\s*([^\r\n]*)', 'tokens');
+				ids = find(~cellfun(@isempty, txt));
+				l{a} = cat(1, l{a}, ids);
+				s{a} = cat(1, s{a}, txt{ids});
+				s{a} = [s{a}{:}]';
+			end
 		end
 		function s = SectionText(date, time)
 		% SECTIONTEXT - Gets the standard text to be automatically placed in each script section.
