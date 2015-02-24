@@ -23,6 +23,7 @@ classdef File < Path
 %					for getting the string extension parts of file names.
 %       20150208:   Implemented a method to search for particular files among an array of file objects. Implemented a method
 %					to sort file arrays into a category structure using an arbitrary number of search queries.
+%		20150224:	Implemented a method for reading in all text from a file as a single string.
     
 
 
@@ -277,8 +278,12 @@ classdef File < Path
 				s.(cats{a}) = F.Search(cats{a});
 			end
 		end
-			
-        
+		function s = ReadAllText(F)
+		% READALLTEXT - Reads all text from a file, automatically managing the opening and closing process. 
+			F.AssertSingleObject();
+			s = fileread(F.ToString());
+		end
+		
         % File Stream Management Methods
         function Close(F)
         % CLOSE - Closes an open file stream.
@@ -385,7 +390,8 @@ classdef File < Path
             F.FID = fid;
             F.IsOpen = true;
             F.Permission = opt;
-        end
+		end
+		
         function Write(F, text, varargin)
         % WRITE - Writes inputted text or data to an open file stream.
         %

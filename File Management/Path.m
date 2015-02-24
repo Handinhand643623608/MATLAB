@@ -1,4 +1,4 @@
-classdef  Path < handle & Object
+classdef  Path < handle & Entity
 % PATH - A class that wraps, manages, and provides convenience utilities for path strings in MATLAB.
 %
 %   SYNTAX:
@@ -30,14 +30,17 @@ classdef  Path < handle & Object
 %		20141210:	Implemented new methods for deep cloning path objects and for copying referenced files to a new
 %					location accessible by the computer.
 %		20141215:	Fixed some bugs related to the Clone and CopyTo methods.
+%		20150224:	Implemented some new methods to make dealing with path strings easier. Finally implemented a proper
+%					horizontal concatenation method for path objects. Implemented a new assertion for directory references.
 
     
     
-    %% Properties
+    %% DATA
     properties (Dependent)
         Exists                  % A Boolean indicating whether or not the file or folder exists on the computer.
         FullName                % The full name of the file or folder that the object points to, excluding the parent path.
         FullPath                % The full path string that the object points to.
+		IsEmpty
         IsFile                  % A Boolean that indicates whether or not the full path points to a file.
         IsFolder                % A Boolean that indicates whether or not the full path points to a folder.
 		ParentDirectory         % A path object for the directory immediately above the full path.
@@ -59,11 +62,48 @@ classdef  Path < handle & Object
         % Gets the current working directory as a Path object.
             P = Path(pwd);
         end
-    end
+	end
     
     
     
-    %% Constructor Method
+	%% PROPERTIES
+    methods
+        
+        % Get Methods
+        function e = get.Exists(P)
+            if (P.IsFile); type = 'file';
+            else type = 'dir'; end
+            e = logical(exist(P.FullPath, type));
+        end
+        function n = get.FullName(P)
+            if (P.IsFile); n = [P.Name '.' P.Extension];
+            else n = P.Name; end
+        end
+        function p = get.FullPath(P)
+            if (isempty(P.Name)); p = P.Directory;
+            else p = [P.Directory '/' P.FullName]; end
+		end
+		function b = get.IsEmpty(P)
+			b = isempty(P.Name);
+		end
+        function b = get.IsFile(P)
+            b = ~P.IsFolder;
+        end
+        function b = get.IsFolder(P)
+            b = isempty(P.Extension);
+        end
+        function U = get.ParentDirectory(P)
+            U = Path(P.Directory);
+        end
+        function D = get.ParentDrive(P)
+            D = Path(P.Drive);
+        end
+        
+	end
+	
+	
+	
+    %% CONSTRUCTORS
     methods
         function P = Path(p)
         % PATH - Constructs a new Path object or array of objects around path strings.
@@ -98,7 +138,7 @@ classdef  Path < handle & Object
 					Path.AssertStringContents(p);
 
 					if (~iscell(p)); p = { p }; end
-					P(numel(p)) = Path;
+					P(numel(p)) = Path();
 					for a = 1:numel(p)
 						P(a).ParseFullPath(p{a});
 					end
@@ -106,41 +146,107 @@ classdef  Path < handle & Object
 				end
             end 
         end
+	end
+	
+	methods (Static)
+        function P = Where(fileName)
+        % WHERE - Returns the path to the directory containing a function or file.
+            if (isa(fileName, 'Path') || isa(fileName, 'File'))
+                P = fileName.ParentDirectory;
+                return;
+            end
+            P = Path(where(fileName));
+        end
     end
     
     
         
-    %% General Utilities
-    methods
-        
-        % Get Methods
-        function e = get.Exists(P)
-            if (P.IsFile); type = 'file';
-            else type = 'dir'; end
-            e = logical(exist(P.FullPath, type));
+    %% UTILITIES
+	methods (Access = protected)
+		function AssertDirectory(P)
+		% ASSERTDIRECTORY - Throws an error if the inputted path objects do not reference folders.'
+			for a = 1:numel(P)
+				assert(P(a).IsFolder, 'Path objects must reference directories, not files.');
+			end
+		end
+        function ParseFullPath(P, pathStr)
+		% PARSEFULLPATH - Deconstructs a full path string and populates the Path object properties with it.
+            
+            P.AssertSingleObject();
+            Path.AssertSingleString(pathStr);
+            
+            [p, n, e] = fileparts(pathStr);
+            
+            P.Directory = Path.FormatPathString(p);
+            P.Name = n;
+            P.Extension = Path.FormatExtensionString(e);
+            
+            if (ispc)
+                drivePattern = '^([^\\/]:).*';
+                driveLetter = regexp(P.Directory, drivePattern, 'tokens');
+                P.Drive = driveLetter{1}{1};
+            else
+                P.Drive = '/';
+            end
+		end
+    end
+    
+    methods (Static, Access = protected)
+        function AssertStringContents(var)
+        % ASSERTSTRINGCONTENTS - Throws an error if a variable is not a string or cell array of strings.
+            assert(ischar(var) || iscellstr(var), 'Only strings or cell arrays of strings may be used with Path objects.');
         end
-        function n = get.FullName(P)
-            if (P.IsFile); n = [P.Name '.' P.Extension];
-            else n = P.Name; end
+        function AssertSingleString(var)
+		% ASSERTSINGLESTRING - Throws an error if a variable is not one single string. 
+            assert(ischar(var), 'Only one string may be inputted to function at a time.');
+		end
+		
+        function e = FormatExtensionString(e)
+        % FORMATEXTENSIONSTRING - Removes dots from file extension strings.
+            if (iscell(e)); e = cellfun(@(x) strrep(x, '.', ''), e, 'UniformOutput', false);
+            else e = strrep(e, '.', ''); end
         end
-        function p = get.FullPath(P)
-            if (isempty(P.Name)); p = P.Directory;
-            else p = [P.Directory '/' P.FullName]; end
+        function p = FormatPathString(p)
+        % FORMATPATHSTRING - Forces the use of the universal separator character and removes trailing separators.
+			p = Path.RemoveTrailingSeparator(p);
+			p = Path.FormatSeparators(p);
         end
-        function b = get.IsFile(P)
-            b = ~P.IsFolder;
-        end
-        function b = get.IsFolder(P)
-            b = isempty(P.Extension);
-        end
-        function U = get.ParentDirectory(P)
-            U = Path(P.Directory);
-        end
-        function D = get.ParentDrive(P)
-            D = Path(P.Drive);
-        end
-        
-        % Object Conversion Methods
+	end
+	
+	methods (Static)
+		function s = FormatSeparators(s)
+		% FORMATSEPARATORS - Replaces any alternative path separators in a string with the universal '/' character.
+			s = strrep(s, '\', '/');
+		end
+		function s = RemoveLeadingDot(s)
+		% REMOVELEADINGDOT - Removes the '.' character from the beginning of a string.
+			if (s(1) == '.')
+				s(1) = [];
+			end
+		end
+		function s = RemoveLeadingSeparator(s)
+		% REMOVELEADINGSEPARATOR - Removes any path separators from the beginning of a string.
+			if (s(1) == '/' || s(1) == '\')
+				s(1) = [];
+			end
+		end
+		function s = RemoveTrailingDot(s)
+		% REMOVETRAILINGDOT - Removes the '.' character from the end of a string.
+			if (s(end) == '.')
+				s(end) = [];
+			end
+		end
+		function s = RemoveTrailingSeparator(s)
+		% REMOVETRAILINGSEPARATOR - Removes any path separators from the end of a string.
+			if (s(end) == '/' || s(end) == '\')
+				s(end) = [];
+			end
+		end
+	end
+	
+	methods
+		
+		% Object Conversion Methods
         function c = ToCell(P)
         % TOCELL - Converts a Path object or array of objects into cell array of full path strings.
             c = cell(size(P));
@@ -203,9 +309,23 @@ classdef  Path < handle & Object
         end
 
         % Directory Searching Methods
+		function F = AllFiles(P)
+		% ALLFILES - Gets a list of file objects by recursively getting the contents of a directory and its subdirectories.
+			P.AssertSingleObject();
+			P.AssertDirectory();
+			
+			G = genpath(P);
+			F = [];
+			for a = 1:length(G)
+				F = cat(1, F, G(a).FileContents);
+			end
+			
+			F([F.IsEmpty]) = [];
+		end
         function P = Contents(P)
         % CONTENTS - Gets a list of all file and folder contents in a directory.
-            assert(P.IsFolder, 'Contents can only be retrieved for paths to directories, not files.');
+            P.AssertSingleObject();
+			P.AssertDirectory();
             P = Path(contents(P.FullPath));
 		end
         function F = FileContents(P)
@@ -230,7 +350,7 @@ classdef  Path < handle & Object
         %
         %   See also:   DIR, FILE, FOLDER, LS
             P.AssertSingleObject();
-            assert(P.IsFolder, 'Contents can only be retrieved for paths to directories, not files.');
+            P.AssertDirectory();
             allFiles = dir(P.FullPath);
             allFiles([allFiles.isdir]) = [];
             nameStrs = {allFiles.name}';
@@ -240,21 +360,20 @@ classdef  Path < handle & Object
         function F = FileSearch(P, query)
         % FILESEARCH - Searches for a specific file inside of a folder.
         %
-        %   This method searches for files matching a specified signature inside of a directory, pointed to by the
-        %   inputted Path object. Any folders nested inside of this directory are excluded from the search and cannot be
-        %   returned by this function.
+        %   This method searches for files matching a specified signature inside of a directory, pointed to by the inputted
+        %   Path object. Any folders nested inside of this directory are excluded from the search and cannot be returned by
+        %   this function.
         %
-        %   PERFORMING SEARCHES:        
-        %   In order to find references to specific files, the query parameter of this method must be used. This query
-        %   string is compared against the full file names (including extensions) of each file in the directory that P
-        %   references. Any files whose names match the query signature will be returned as File objects in the ouput
-        %   array. 
+        %   PERFORMING SEARCHES:		
+        %   In order to find references to specific files, the query parameter of this method must be used. This query string
+        %   is compared against the full file names (including extensions) of each file in the directory that P references.
+        %   Any files whose names match the query signature will be returned as File objects in the ouput array.
         %
-        %   The actual searching procedure is accomplished using the MATLAB-native REGEXPI function to compare file
-        %   names with the query string. Specifically, this query string is used as the expression argument for that
-        %   REGEXPI. Thus, any inputs that would be acceptable for that function will also be acceptable here, including
-        %   string that use metacharacters. For more information on string matching through regular expressions and on
-        %   the use of metacharacters, see the MATLAB documentation for REGEXP. 
+        %   The actual searching procedure is accomplished using the MATLAB-native REGEXPI function to compare file names
+        %   with the query string. Specifically, this query string is used as the expression argument for that REGEXPI. Thus,
+        %   any inputs that would be acceptable for that function will also be acceptable here, including string that use
+        %   metacharacters. For more information on string matching through regular expressions and on the use of
+        %   metacharacters, see the MATLAB documentation for REGEXP.
         %
         %   SYNTAX:
         %       F = FileSearch(P, query)
@@ -262,27 +381,27 @@ classdef  Path < handle & Object
         %
         %   OUTPUT:
         %       F:          FILE or [ FILES ]
-        %                   A File object or array of objects listing all of the files contained in the searched
-        %                   directory whose names match the query signature. Multiple matches will always be listed in a
-        %                   one-dimensional array in ascending alphabetical order by file name (i.e. in the same order
-        %                   that they are found). If no files matching the query are found, an empty File object array
-        %                   is returned and a warning is displayed in the MATLAB console window.
+        %                   A File object or array of objects listing all of the files contained in the searched directory
+        %                   whose names match the query signature. Multiple matches will always be listed in a
+        %                   one-dimensional array in ascending alphabetical order by file name (i.e. in the same order that
+        %                   they are found). If no files matching the query are found, an empty File object array is returned
+        %                   and a warning is displayed in the MATLAB console window.
         %
         %   INPUTS:
         %       P:          PATH
-        %                   A single Path object pointing to the directory that is to be searched. This path must always
-        %                   be a singleton and must always point to a folder; inputting arrays of objects or a file
-        %                   reference is an error.
+        %                   A single Path object pointing to the directory that is to be searched. This path must always be a
+        %                   singleton and must always point to a folder; inputting arrays of objects or a file reference is
+        %                   an error.
         %
         %       query:      STRING
-        %                   A string search query used to identify specific files in the directory that P points to.
-        %                   This parameter is compared against each of the file names in that directory using regular
-        %                   expressions. Any file whose name contains this query signature will be included in the
-        %                   returned File array. Letter casing is ignored.
+        %                   A string search query used to identify specific files in the directory that P points to. This
+        %                   parameter is compared against each of the file names in that directory using regular expressions.
+        %                   Any file whose name contains this query signature will be included in the returned File array.
+        %                   Letter casing is ignored.
         %   
         %   See also:   FILECONTENTS, REGEXP, REGEXPI
             P.AssertSingleObject();
-            assert(P.IsFolder, 'Files may only be searched for in folders, not in other files.');
+            P.AssertDirectory();
             assert(~isempty(query) && ischar(query), 'The query parameter must contain a single string.');
             
             F = P.FileContents();
@@ -294,7 +413,7 @@ classdef  Path < handle & Object
                          'Check to ensure that the file exists in this folder'],...
                          query,...
                          P.FullPath);
-                F = File;
+                F = File();
                 return;
             end
             
@@ -411,25 +530,13 @@ classdef  Path < handle & Object
 			end
 			pb.Close();
 		end
-		
-    end
-    
-    methods (Static)
-        function P = Where(fileName)
-        % WHERE - Returns the path to the directory containing a function or file.
-            if (isa(fileName, 'Path') || isa(fileName, 'File'))
-                P = fileName.ParentDirectory;
-                return;
-            end
-            P = Path(where(fileName));
-        end
-    end
+
+	end
     
     
     
-    %% Overloaded MATLAB Methods
+    %% MATLAB OVERLOADS
     methods
-                        
         function addpath(P)
 		% ADDPATH - Adds a path to MATLAB's current working path list.            
             for a = 1:numel(P); addpath(P(a).FullPath); end
@@ -502,93 +609,52 @@ classdef  Path < handle & Object
 			for (a = 1:numel(P)); rmpath(P(a).FullPath); end
 		end
 			
-        function str        = char(P)
-        % CHAR - Converts a Path object into a fully formed path string.
+        function s = char(P)
+        % CHAR - Converts a path object into a fully formed path string.
         %
         %   This method is provided to allow implicit object casting for functions where use of the full Path object is
         %   not supported.
         %
         %   See also: CHAR, TOCELL, TOSTRING
-            str = P.ToString();
+            s = P.ToString();
         end
-        function exists     = exist(P, type)
+		function b = exist(P, type)
             % EXIST - Checks for the existence of a file or folder at the specified path.
             P.AssertSingleObject();
-            exists = exist(P.FullPath, type);
+            b = exist(P.FullPath, type);
         end        
-        function paths      = genpath(P)
+        function G = genpath(P)
 		% GENPATH - Recursively generates directory paths starting at the inputted object's path.
             P.AssertSingleObject();
-            paths = Path(genpath(P.FullPath));
+			g = genpath(P.FullPath);
+			g = strsplit(g, ';')';
+			g(end) = [];
+            G = Path(g);
         end
-        function catP       = horzcat(varargin)
-            
-            strCheck = cellfun(@ischar, varargin(2:end));
-            pathCheck = cellfun(@(x) isa(x, 'Path'), varargin);
-            
-            
-            if (all(strCheck))
-                pathAppend = cellfun(@char, varargin, 'UniformOutput', false);
-                catP = Path([pathAppend{:}]);
-                return
-            end
-            
-            if (all(pathCheck))
-                
-                warning('Object array concatenation is currently not working properly. Cancelling operation.');
-                return;
-                
-                % Check that all inputs have the same number of dimensions
-                dimsInP = cellfun(@ndims, varargin);
-                if (~all(dimsInP == dimsInP(1)))
-                    error('Only arrays with equivalent numbers of dimensions can be concatenated.');
-                end
-                
-                % Get the sizes of all object arrays
-                numDims = dimsInP(1);
-                idsSize = 1:numDims;
-                idsSize(2) = [];
-                szInP = cellfun(@size, varargin, 'UniformOutput', false);
-                
-                % Ensure that sizes are equal over all but the second dimension
-                szCheck = all(cellfun(@(x) (isequal(x(idsSize), szInP{1}(idsSize))), szInP(2:end)));
-                if (~szCheck)
-                    error('Arrays must be equivalently sized over all dimensions except in numbers of columns.');
-                end
-                
-                % Determine the final size of the output Path array
-                numColsInP = cellfun(@(x) size(x, 2), varargin(2:end));
-                szCatP = szInP{1};
-                szCatP(2) = szCatP(2) + sum(numColsInP);
-                
-                % Initialize the outputs
-                catP(prod(szCatP)) = Path;
-                
-                % Fill in the output path array by sequentially indexing each separate inputted array
-                a = 1;
-                c = 1;
-                while (a <= length(varargin))
-                    b = 1;
-                    while (b <= numel(varargin{a}))
-                        catP(c) = varargin{a}(b);
-                        c = c + 1;
-                        b = b + 1;
-                    end
-                    a = a + 1;
-                end
-                
-                % 
-                permOrder = 1:numDims;
-                temp = permOrder(end);
-                permOrder(end) = permOrder(2);
-                permOrder(2) = temp;
-                
-                catP = reshape(catP, szCatP(permOrder));
-                catP = permute(catP, permOrder);
+        function P = horzcat(varargin)
+		% HORZCAT - Performs horizontal concatenation on object arrays or path objects and strings.
+			idsPaths = cellfun(@(x) isa(x, 'Path'), varargin);
+			
+			np = sum(idsPaths);
+			P(np) = Path();
+			
+			if all(idsPaths)
+				for a = 1:np
+					P(a) = varargin{a};
+				end
+				P = reshape(P, size(varargin));
+				return
+			end
+			
+			assert(iscellstr(varargin(~idsPaths)),...
+				'Horizontal concatenation can only be performed on path object arrays and strings.');
 
-            else
-                error('NA');
-            end
+			P = varargin{idsPaths};
+			s = [ varargin{~idsPaths} ];
+
+			c = P.ToCell();
+			c = cellfun(@(x) [x s], c, 'UniformOutput', false);
+			P = Path(c);
         end
         function [s, m, id] = mkdir(P)
         % MKDIR - Creates the directory at the specified path.
@@ -596,76 +662,7 @@ classdef  Path < handle & Object
         %   See also: MKDIR
             [s, m, id] = mkdir(P.FullPath);
 		end
-        function catP       = vertcat(P, varargin)
-            
-			P.NotYetImplemented();
-%             if (~all(cellfun(@(x) isa(x, 'Path'), varargin)))
-%                 error('Vertical concatenation only applies to forming arrays of path objects.');
-%             end
-%             
-%             warning('Object array concatenation is currently not working properly. Cancelling operation.');
-%             return;
-%             
-%             szP = size(P);
-%             
-%             newP(szP(1) + length(varargin), szP(2)) = Path;
-            
-        end
-
-    end
-    
-    
-    
-    %% Private Class Methods
-    methods (Access = protected)
-        function ParseFullPath(P, pathStr)
-		% PARSEFULLPATH - Deconstructs a full path string and populates the Path object properties with it.
-            
-            P.AssertSingleObject();
-            Path.AssertSingleString(pathStr);
-            
-            [p, n, e] = fileparts(pathStr);
-            
-            P.Directory = Path.FormatPathString(p);
-            P.Name = n;
-            P.Extension = Path.FormatExtensionString(e);
-            
-            if (ispc)
-                drivePattern = '^([^\\/]:).*';
-                driveLetter = regexp(P.Directory, drivePattern, 'tokens');
-                P.Drive = driveLetter{1}{1};
-            else
-                P.Drive = '/';
-            end
-        end 
-    end
-    
-    methods (Static, Access = protected)
-        function AssertStringContents(var)
-        % ASSERTSTRINGCONTENTS - Throws an error if a variable is not a string or cell array of strings.
-            assert(ischar(var) || iscellstr(var), 'Only strings or cell arrays of strings may be used with Path objects.');
-        end
-        function AssertSingleString(var)
-		% ASSERTSINGLESTRING - Throws an error if a variable is not one single string. 
-            assert(ischar(var), 'Only one string may be inputted to function at a time.');
-        end
-        
-        function s = BooleanString(bool)
-        % BOOLEANSTRING - Converts Boolean values into equivalent string representations.
-            if (bool); s = 'true'; 
-            else s = 'false'; end
-        end
-        function e = FormatExtensionString(e)
-        % FORMATEXTENSIONSTRING - Removes dots from file extension strings.
-            if (iscell(e)); e = cellfun(@(x) strrep(x, '.', ''), e, 'UniformOutput', false);
-            else e = strrep(e, '.', ''); end
-        end
-        function p = FormatPathString(p)
-        % FORMATPATHSTRING - Forces the use of the universal separator character and removes trailing separators.
-            p = strrep(p, '\', '/');
-            if (p(end) == '/'); p(end) = []; end
-        end
-    end
+	end    
                 
     
     

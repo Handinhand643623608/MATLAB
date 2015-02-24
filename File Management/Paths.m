@@ -1,4 +1,4 @@
-classdef Paths < hgsetget
+classdef Paths < Entity
 % PATHS - A personalized class for storing and managing frequently used computer paths.
 %
 %   SYNTAX:
