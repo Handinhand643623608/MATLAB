@@ -114,6 +114,9 @@ classdef Paths < Entity
 		function p = MexCompiler
 			p = Path('X:/Code/C/MATLAB/MexCompiler/x64/Release');
 		end
+		function p = PWD
+			p = Path.PWD;
+		end
         function P = Raw
         % Gets the path to all raw BOLD and EEG data sets.
             switch (Paths.ComputerName)
