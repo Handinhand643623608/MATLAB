@@ -141,7 +141,8 @@ classdef Today
             script = Today.Script;
             
             if (script.Exists); script.Edit(); return; end
-            
+			if (~script.ParentDirectory.Exists); mkdir(script.ParentDirectory); end
+			
             script.Open('w');
 			script.Write('%%%% %s\n\n\n\nntss', date);
             script.Close();
