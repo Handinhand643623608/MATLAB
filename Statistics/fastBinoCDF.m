@@ -22,7 +22,8 @@ function y = fastBinoCDF(x,n,p,uflag)
 %   Modified by Josh Grooms on 20140127
 %       20140127:   Custom version of this builtin function created. Increased memory limits implemented in this
 %                   function for enormous speed boosts (from 1e5 to 1e7).
-%       20141105:   Further increased the memory limits of this function to 1e10. 
+%       20141105:   Further increased the memory limits of this function to 1e10.
+%		20150205:	Added a message to be printed when the slow path of this function gets used.
 
 
 if nargin < 3, 
@@ -105,6 +106,7 @@ if any(k)
     % for the remaining cases, sum over a narrower range
     if any(~done)
         kt = k(~done);
+		fprintf(1, '\nThe slow binomial CDF path got taken. This could take a while...\n\n');
         y(kt) = sumA2B(xx(kt),n(kt),p(kt));
     end 
 end

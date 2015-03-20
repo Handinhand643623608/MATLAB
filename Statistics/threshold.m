@@ -36,6 +36,7 @@
 %       Alpha:          DOUBLE
 %                       The significance level that dictates the width of the confidence interval used to produce threshold
 %                       values. This is also the Type I error rate for hypothesis testing.
+%						DEFAULT: 0.05
 %
 %       CorrectFWER:    BOOLEAN
 %                       A Boolean controlling whether or not family-wise error rate (FWER) will be controlled during the
@@ -65,6 +66,7 @@ function varargout = threshold(r, n, varargin)
         Alpha = 0.05;
         CorrectFWER = true;
         MethodFWER = 'G';
+		Tails = 'Both';
     end
     assign(@Defaults, varargin);
     
@@ -72,13 +74,30 @@ function varargout = threshold(r, n, varargin)
     n = formatdist(n);
     n = sort(n);
     
-    halpha = Alpha / 2;
     ntrials = length(r);
     nnulls = length(n);
-    
-    idxLC = floor(halpha * nnulls);
-    idxUC = ceil((1 - halpha) * nnulls);
-    cutoffs = [ n(idxLC), n(idxUC) ];
+	
+	switch lower(Tails)
+		case 'both'
+			alpha = Alpha / 2;
+			idxLC = floor(alpha * nnulls);
+			idxUC = ceil((1 - alpha) * nnulls);
+			cutoffs = [ n(idxLC), n(idxUC) ];
+		
+		case 'left'
+			alpha = Alpha;
+			idxLC = floor(alpha * nnulls);
+			cutoffs = [ n(idxLC), NaN ];
+			
+		case 'right'
+			alpha = Alpha;
+			idxUC = ceil((1 - alpha) * nnulls);
+			cutoffs = [ NaN, n(idxUC) ];
+			
+		otherwise
+			error('Unrecognized distribution tail selection %s. See documentation for available options.', Tails);
+	end
+
     p = Alpha;
     
     if CorrectFWER
@@ -93,11 +112,21 @@ function varargout = threshold(r, n, varargin)
         end
         
         if (nsig ~= 0)
-            idxLC = ceil(nsig / 2);
-            idxUC = nnulls - floor(nsig / 2) + 1;
-            
-            cutoffs = [ n(idxLC), n(idxUC) ];
-            p = max(empiricalcdf(cutoffs, n));
+			switch lower(Tails)
+				case 'both'
+					idxLC = ceil(nsig / 2);
+					idxUC = nnulls - floor(nsig / 2) + 1;
+					cutoffs = [ n(idxLC), n(idxUC) ];
+					p = max(empiricalcdf(cutoffs, n));
+					
+				case 'left'
+					cutoffs(1) = n(nsig);
+					p = empiricalcdf(cutoffs(1), n, 'Left');
+					
+				case 'right'
+					cutoffs(2) = n(end - nsig + 1);
+					p = empiricalcdf(cutoffs(2), n, 'Right');
+			end
         end
     end
     
@@ -108,31 +137,69 @@ end
 
 
 %% SUBROUTINES
-function nsig = binotest(ntrials, nsig, alpha)
-% BINOTEST - 
+function n = binotest(ntrials, nsig, alpha)
+% BINOTEST - Calculates the FWER-corrected number of significant tests using a binomial distribution directly.
+%
+%	The binomial distribution is used as an exact test to determine the expected number of significant results given a number
+%	of trials. However, because no closed-form inverse CDF formula exists for it, applying this test is extremely slow when
+%	the number of trials is large. When correcting FWER for more than ~100 trials, the G-test is recommended instead.
+%
+%	OUTPUT:
+%		n:			INTEGER
+%					The estimated number of significant results after FWER correction is applied.
+%
+%	INPUTS:
+%		ntrials:	INTEGER
+%					The number of trials or hypothesis tests that were performed. This is the length of the real data
+%					distribution R from above.
+%
+%		nsig:		INTEGER
+%					The number of significant results (p < alpha) before FWER correction is applied. 
+%
+%		alpha:		DOUBLE
+%					The desired family-wise error rate (FWER).
+
     p = binocdf(1:nsig, ntrials, alpha);
     nremove = find(p > alpha, 1, 'last');
-    nsig = nsig - nremove;
+    n = nsig - nremove;
 end
-
 function x = formatdist(x)
-% FORMATDIST - Standardizes the shape of a distribution vector and eliminates null values from it.
+% FORMATDIST - Standardizes the shape of a data distribution vector and eliminates null values from it.
     x = x(:);
     x(isnan(x)) = [];
     x(x == 0) = [];
 end
+function n = gtest(ntrials, nsig, alpha)
+% GTEST - Calculates the FWER-corrected number of significant tests using a goodness-of-fit test.
+%
+%	The goodness-of-fit test (G-test) is an approximation of the binomial test whose accuracy improves with increasing
+%	numbers of trials. It is also substantially faster than a binomial test. For hypothesis testing involving more than ~100
+%	trials, the use of a G-test is strongly recommended and offers practically identical results.
+%
+%	OUTPUT:
+%		n:			INTEGER
+%					The estimated number of significant results after FWER correction is applied.
+%
+%	INPUTS:
+%		ntrials:	INTEGER
+%					The number of trials or hypothesis tests that were performed. This is the length of the real data
+%					distribution R from above.
+%
+%		nsig:		INTEGER
+%					The number of significant results (p < alpha) before FWER correction is applied. 
+%
+%		alpha:		DOUBLE
+%					The desired family-wise error rate (FWER).
 
-function nsig = gtest(ntrials, nsig, alpha)
-% GTEST - 
-    obsAA = 1:nsig;                     % Observed trials with p-values lower than alpha
-    expAA = ntrials * alpha;            % Expected number of trials with p-value lower than alpha
-    obsBA = ntrials - obsAA;            % Observed trials with p-values greater than alpha
-    expBA = ntrials * (1 - alpha);      % Expected number of trials with p-values greater than alpha
+    obsBA = 1:nsig;                     % Observed trials with p-values lower than alpha
+    expBA = ntrials * alpha;            % Expected number of trials with p-value lower than alpha
+    obsAA = ntrials - obsBA;            % Observed trials with p-values greater than alpha
+    expAA = ntrials * (1 - alpha);      % Expected number of trials with p-values greater than alpha
     q = 1 + (1 / (2 * ntrials));        % Williams correction factor
     
     g = 2 * ( (obsAA .* log(obsAA ./ expAA)) + (obsBA .* log(obsBA ./ expBA)) ) ./ q;
     
     gcutoff = chi2inv(1 - alpha, 1);
     nremove = find(g < gcutoff, 1, 'last');
-    nsig = nsig - nremove;
+    n = nsig - nremove;
 end

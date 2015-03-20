@@ -26,17 +26,35 @@
  *				WARNINGS:
  *					- NaNs or zeros in this vector must be removed prior to invoking this function.
  *					- This vector MUST be sorted into ascending order before calling this function.
+ *
+ *		t:		INTEGER
+ *				A number code corresponding with the tail of the CDF to be calculated.
+ *
+ *				OPTIONS:
+ *					0 - Both tails (i.e. a two-tailed distribution)
+ *					1 - Left tail
+ *					2 - Right tail
  */
 
 /* CHANGELOG
  *	Written by Josh Grooms on 20141121
  *		20150205:	Rewrote the p-value generation to rely on null distributions being sorted, which should be faster. 
  *					Updated the documentation accordingly. Also parallelized this function to improve performance.
+ *		20150225:	Implemented CDF generation for one-tailed hypothesis testing.
  */
 
 #include <cilk\cilk.h>
 #include <matrix.h>
 #include <mex.h>
+
+
+/* DATA */
+typedef enum
+{
+	Both = 0,
+	Left,
+	Right,
+}Tails;
 
 
 
@@ -51,9 +69,12 @@ void mexFunction(int nargout, mxArray* argout[], int nargin, const mxArray* argi
 {
 	double *r, *n, *p;
 	int lr, ln;
+	Tails t;
 
 	r = mxGetPr(argin[0]);
 	n = mxGetPr(argin[1]);
+	
+	t = (int)mxGetScalar(argin[2]);
 
 	lr = mxGetM(argin[0]);
 	ln = mxGetM(argin[1]);
@@ -64,13 +85,42 @@ void mexFunction(int nargout, mxArray* argout[], int nargin, const mxArray* argi
 	double sumNull, pval;
 	double invN = 1.0 / ((double)ln);
 
-	int a = 0;
-	cilk_for (int a = 0; a < lr; a++)
+	switch (t)
 	{
-		int b = 0;
-		while (n[b] < r[a] && b < ln) { b++; }
-		double pval = (double)b * invN;
-		p[a] = 2.0 * min(pval, 1.0 - pval);
+		case Both:
+			cilk_for (int a = 0; a < lr; a++)
+			{
+				int b = 0;
+				while (n[b] < r[a] && b < ln) { b++; }
+				double pval = (double)b * invN;
+				p[a] = 2.0 * min(pval, 1.0 - pval);
+			}
+			break;
+
+		case Left:
+			cilk_for (int a = 0; a < lr; a++)
+			{
+				int b = 0;
+				while (n[b] < r[a] && b < ln) { b++; }
+				p[a] = (double)b * invN;
+			}
+			break;
+
+		case Right:
+			cilk_for(int a = 0; a < lr; a++)
+			{
+				int b = 0;
+				while (n[b] < r[a] && b < ln) { b++; }
+				p[a] = 1.0 - ((double)b * invN);
+			}
+			break;
+
+		default:
+			mexErrMsgTxt("Unrecognized distribution tail selection. See documentation for available options.");
+			break;
 	}
+
+
+	
 }
 	

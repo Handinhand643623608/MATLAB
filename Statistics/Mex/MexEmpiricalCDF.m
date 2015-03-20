@@ -26,7 +26,16 @@
 %				WARNINGS:
 %					- NaNs or zeros in this vector must be removed prior to invoking this function.
 %					- This vector MUST be sorted into ascending order before calling this function.
+%
+%		t:		INTEGER
+%				A number code corresponding with the tail of the CDF to be calculated.
+%
+%				OPTIONS:
+%					0 - Both tails (i.e. a two-tailed distribution)
+%					1 - Left tail
+%					2 - Right tail
 
 %% CHANGELOG
 %	Written by Josh Grooms on 20141121
 %		20150205:	Updated the documentation to reflect changes to the C code made today.
+%		20150225:	Implemented CDF generation for one-tailed hypothesis testing.

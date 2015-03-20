@@ -12,7 +12,7 @@
 %
 %	OUTPUT:
 %		swc:			[ MC x NX x NY DOUBLES ]
-%						A array of sliding window correlation values calculated between the data in X and Y. Each row of this
+%						An array of sliding window correlation values calculated between the data in X and Y. Each row of this
 %						array contains Pearson correlation coefficients (i.e. r values) between specific segments of the
 %						signals in X and Y. The number of correlation time points MC will always follow this formula:
 %
@@ -107,6 +107,5 @@ function swc = swcorr(x, y, window, noverlap, offset)
 	swc = MexWindowCorrelate(x, y, window, noverlap);
 	
 	% Rearrange the output to a more intuitive format
-	szswc = size(swc);
-	swc = reshape(swc, szswc(1), szx(2), szy(2));
+	swc = reshape(swc, size(swc, 1), szx(2), szy(2));
 end
