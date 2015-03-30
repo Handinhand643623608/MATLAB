@@ -82,6 +82,9 @@ function outColors = colorScheme(varargin)
 %       20130226:   Added a help & reference section.
 %       20130603:   Updated help section for consistency with other custom written functions. 
 
+DEPRECATED Colormaps
+
+
 
 %% Initialize
 % Create a defaults & settings structure
