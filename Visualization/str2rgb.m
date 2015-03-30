@@ -1,5 +1,5 @@
 function rgb = str2rgb(str)
-%STR2RGB Translates character strings into 3-element RGB color vectors.
+% STR2RGB - Translates character strings into 3-element RGB color vectors.
 %
 %   SYNTAX:
 %   rgb = str2rgb(str)
@@ -17,6 +17,7 @@ function rgb = str2rgb(str)
 %           OPTIONS:
 %               'b' OR 'blue'
 %               'c' OR 'cyan'
+%               'a' OR 'gray'
 %               'g' OR 'green'
 %               'k' OR 'black'
 %               'm' OR 'magenta'
@@ -26,6 +27,11 @@ function rgb = str2rgb(str)
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130803
+%       20150211:   Added the color gray, coded as the character 'a'. Updated the documentation accordingly. Also added an
+%                   error check for unrecognized character/string inputs. Added a deprecation method diverting users to my
+%                   new COLOR class and its related static method FROMSTRING.
+
+DEPRECATED Color.FromString
 
 
 
@@ -33,23 +39,25 @@ function rgb = str2rgb(str)
 if iscell(str)
     szStr = size(str);
     numDims = length(szStr);
-    rgb = cellfun(@translate, str, 'UniformOutput', false);
+    rgb = cellfun(@Translate, str, 'UniformOutput', false);
     rgb = cellfun(@(x) reshape(x, [ones(1, numDims) 3]), rgb, 'UniformOutput', false);
     rgb = cell2mat(rgb);
 else
-    rgb = translate(str);
+    rgb = Translate(str);
 end
 
 
 
 end %===============================================================================================
 %% Nested Functions
-function rgb = translate(str)
+function rgb = Translate(str)
     switch lower(str)
         case {'b', 'blue'}
             rgb = [0 0 1];
         case {'c', 'cyan'}
             rgb = [0 1 1];
+        case {'a', 'gray'}
+            rgb = [0.5, 0.5, 0.5];
         case {'g', 'green'}
             rgb = [0 1 0];
         case {'k', 'black'}
@@ -62,6 +70,8 @@ function rgb = translate(str)
             rgb = [1 1 1];
         case {'y', 'yellow'}
             rgb = [1 1 0];
+        otherwise
+            error('Unrecognized color string %s found. See documentation for supported color codes.', str);
     end
 end
 

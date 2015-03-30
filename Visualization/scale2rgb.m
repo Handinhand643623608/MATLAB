@@ -56,6 +56,8 @@ function varargout = scale2rgb(inData, varargin)
 %       20140625:   Updated documentation.
 %       20140709:   Updated so that NaN colors can be specified as MATLAB color strings.
 
+DEPRECATED Color.FromData
+
 
 
 %% Initialize
