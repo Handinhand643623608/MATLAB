@@ -117,7 +117,7 @@ function assignInputs(inStruct, callerVarargin, varargin)
 
 %   TODO: Add ability for calling function to require certain "mandatory" input variables
 
-DEPRECATED Assign
+DEPRECATED assign
 
 
 

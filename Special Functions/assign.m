@@ -89,7 +89,7 @@ function assign(defaults, args)
 
     % Get the caller workspace variables before the Defaults variables are initialized
     temp = functions(defaults);
-    preVars = temp.workspace{1};
+    prevars = temp.workspace{1};
     
     % Initialize variables in the Defaults block, then get the post-call workspace variables
     defaults();
@@ -97,7 +97,7 @@ function assign(defaults, args)
     postvars = temp.workspace{1};
     
     % Determine which variables were added after the Defaults block was called
-    prenames = fieldnames(preVars);
+    prenames = fieldnames(prevars);
     postnames = fieldnames(postvars);
     newvars = postnames(~ismember(postnames, prenames));
     
