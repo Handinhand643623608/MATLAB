@@ -32,6 +32,9 @@ classdef  Path < handle & Entity
 %		20141215:	Fixed some bugs related to the Clone and CopyTo methods.
 %		20150224:	Implemented some new methods to make dealing with path strings easier. Finally implemented a proper
 %					horizontal concatenation method for path objects. Implemented a new assertion for directory references.
+%		20150325:	Fixed a bug in "genpath" that prevented it from working in Linux. On those file systems, colons separate
+%					created path lists from the native "genpath" instead of the semicolons that are used in the Windows
+%					environment.
 
     
     
@@ -627,7 +630,8 @@ classdef  Path < handle & Entity
 		% GENPATH - Recursively generates directory paths starting at the inputted object's path.
             P.AssertSingleObject();
 			g = genpath(P.FullPath);
-			g = strsplit(g, ';')';
+			if (ispc); g = strsplit(g, ';')';
+			else g = strsplit(g, ':'); end			
 			g(end) = [];
             G = Path(g);
         end
