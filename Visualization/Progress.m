@@ -17,6 +17,7 @@ classdef Progress < Window
 %   H = Progress(barTitle)
 %   H = Progress(barTitle1, barTitle2,...)
 %   H = Progress('-fast',...)
+%   H = Progress('-persist',...)
 %
 %   OUTPUT:
 %   H:                  PROGRESS
@@ -31,6 +32,12 @@ classdef Progress < Window
 %                       off. This may be helpful in situations where you are unsure of the required time for a process
 %                       or you wish to monitor the progress of a fairly rapid procedure. In such cases, the animation
 %                       can introduce a considerable delay to your program and should be disabled.
+%
+%   '-persist':         VERBATIM
+%                       If any of the input arguments match the string '-persist' (exactly as shown here), then the progress
+%                       bar will not automatically close when the primary (i.e. the first) bar reaches 100%. By default,
+%                       progress bar windows close automatically when the primary task finishes, which prevents having to
+%                       call the CLOSE method manually for every object created.
 %   
 %   barTitle:           STRING or STRINGS
 %                       A string (or multiple strings separated by commas) represeting the label to be applied to
@@ -46,7 +53,7 @@ classdef Progress < Window
 %                   users can change the default color scheme.
 %       20130804:   Implemented estimated time remaining for overall progress.
 %       20140806:   Completed a major overhaul of this program. Completely reorganized the class and removed public
-%                   access several properties and methods. Incorporated compatibility with the upcoming WINDOW class
+%                   access to several properties and methods. Incorporated compatibility with the upcoming WINDOW class
 %                   update. Implemented the ability to dynamically add and remove bars from an existing window. Rewrote
 %                   and cleaned up basically every method and placed them here in the definition file. Removed several
 %                   methods and added several new ones. Removed all use of property change listeners.
@@ -58,53 +65,64 @@ classdef Progress < Window
 %		20141212:	Changed the name of the "close" method to "Close" for compatibility with that same recent change to
 %					the Window class.
 %       20150128:   Removed the Patch property from this class because I added it to the Window superclass.
+%       20150207:   Implemented auto-closing of the progress bar once completion in the first bar reaches 100%. Also
+%                   implemented a new input option '-persist' to turn this feature off, but it is now enabled by default.
+%                   Updated the documentation accordingly.
 
 
 
     %% Progress Bar Properties
     properties (AbortSet)
-        Complete;               % Percentage of task completed.
+        Complete					% Percentage of task completed.
     end
     
     properties (Access = private, Hidden)
-        Clock                   % Parameters relating to the estimation of remaining time.
-        UseAnimation = true;    % A Boolean representing whether or not smooth animations are to be used.
+        AutoClose    @logical		% A Boolean controlling window closing once 100% completion is reached.
+        Clock						% Parameters relating to the estimation of remaining time.
+        UseAnimation @logical		% A Boolean representing whether or not smooth animations are to be used.
     end
     
     
     
     %% Constructor Method
     methods
-        function H = Progress(varargin)            
-            %PROGRESS - Display a fancy progress bar derived from a window object.
+        function H = Progress(varargin)
+        %PROGRESS - Display a fancy progress bar derived from a window object.
             H = H@Window(...
-                'Color', 'k',...
-                'Colormap', cool(64),...
+                'Background',	Colors.Black,...
+                'Colormap',		Colormaps.Cool,...
                 'FigureNumber', 1000,...
-                'MenuBar', 'none',...
-                'NumberTitle', 'off',...
-                'Name', 'Progress',...
-                'Position', WindowPositions.UpperRight,...
-                'Resize', 'on',...
-                'Size', [500, 100]); drawnow
+                'MenuBar',		'none',...
+                'NumberTitle',	'off',...
+                'Name',			'Progress',...
+                'Position',		WindowPositions.UpperRight,...
+                'Resize',		'on',...
+                'Size',			[500, 100]);
             
+			H.AutoClose = true;
+			H.UseAnimation = true;
+			
             currentTime = now;
             H.Clock.Average = currentTime;
             H.Clock.LastTime = currentTime;
             H.Clock.NumIterations = 0;
             H.Text = struct('BarText', [], 'BarTitle', []);
             
-            if nargin == 0; barTitle = {'Progress'};
+			if nargin == 0; AddBar(H, 'Progress');
             else 
-                barTitle = varargin;
-                if strcmpi(barTitle{1}, '-fast')
-                    H.UseAnimation = false;
-                    barTitle(1) = [];
+                for a = 1:length(varargin)
+                    switch lower(varargin{a})
+                        case '-fast'
+                            H.UseAnimation = false;
+                        case '-persist'
+                            H.AutoClose = false;
+                        otherwise
+                            AddBar(H, varargin{a});
+                    end
                 end
-            end
-            
-            for a = 1:length(barTitle); AddBar(H, barTitle{a}); end
-
+			end
+			
+			drawnow;
         end
     end
     
@@ -114,7 +132,7 @@ classdef Progress < Window
     methods
         % Class methods
         function AddBar(H, barTitle)
-            %ADDBAR - Add a new progress bar to the window.
+		% ADDBAR - Add a new progress bar to the window.
             
             if nargin == 1; barTitle = 'Progress'; end
             innerFigPos = get(H.FigureHandle, 'Position');
@@ -135,7 +153,7 @@ classdef Progress < Window
             H.Position = WindowPositions.UpperRight;
         end
         function RemoveBar(H)
-            %REMOVEBAR - Remove the last progress bar from the window.
+		% REMOVEBAR - Remove the last progress bar from the window.
             origNumBars = length(H.Axes);
             delete(H.Patch(end));           H.Patch(end) = [];
             delete(H.Text.BarText(end));    H.Text.BarText(end) = [];
@@ -149,16 +167,16 @@ classdef Progress < Window
             H.Position = WindowPositions.UpperRight;
         end
         function Reset(H, idxBar)
-            %RESET - Reset one or more progress bars.
+		% RESET - Reset one or more progress bars.
             if nargin == 1; idxBar = 1; end
             Update(H, idxBar, 0);
         end
         function Title(H, idxBar, barTitle)
-            %TITLE - Change the title of a progress bar.
+		% TITLE - Change the title of a progress bar.
             set(H.Text.BarTitle(idxBar), 'String', barTitle);
         end
         function Update(H, varargin)
-            %UPDATE - Change the completion percentage of the progress bar.
+        % UPDATE - Change the completion percentage of the progress bar.
             if nargin == 2
                 idxBar = 1;
                 pctComplete = varargin{1};
@@ -172,12 +190,12 @@ classdef Progress < Window
             end
             
             if (H.UseAnimation); UpdateAnimated(H, idxBar, pctComplete);
-            else UpdateInstantly(H, idxBar, pctComplete);
-            end
+            else UpdateInstantly(H, idxBar, pctComplete); end
             
             if (idxBar == 1) && (pctComplete ~= 0); UpdateTimeRemaining(H, pctComplete); end
                 
             H.Complete(idxBar) = pctComplete*100;
+            if (H.AutoClose && H.Complete(1) >= 100); H.Close(); end
         end
         
         % Overloaded MATLAB methods
