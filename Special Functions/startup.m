@@ -37,8 +37,9 @@ end
 % Navigate to the main coding area
 Paths.Main.NavigateTo();
 
-% Remove the code prototyping directory
+% Remove the code prototyping directory & obsolete code
 rmpath(genpath([Paths.Main '/Prototyping']));
+rmpath(genpath([Paths.Main '/Deprecated']));
 
 % Check for the latest Microsoft Visual Studio installation
 wassert(~isempty(getenv('VS120COMNTOOLS')),...
