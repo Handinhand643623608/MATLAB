@@ -1,4 +1,4 @@
-classdef Window < hgsetget
+classdef Window < handle & Entity
 %WINDOW - Creates an easily customizable figure window.
 %   This class automates some of the more tedious work associated with figure building. It allows for easy window
 %   resizing and placement on the screen by providing a number of common presets. It also contains several fields for
@@ -31,11 +31,11 @@ classdef Window < hgsetget
 
 
 
-    %% Window Object Properties
+    %% DATA
     properties (Dependent)
-        Color                   % The background color of the window.
-        Colormap                % The color mapping used to display colorized data.
-        Name                    % The string displayed in the window title bar.
+        Background	@Color		% The background color of the window.
+        Colormap    @Color		% The color mapping used to display colorized data.
+        Name        @char       % The string displayed in the window title bar.
         Position                % The position of the window on-screen in pixels.
         Size                    % The size of the window on-screen in pixels.
     end
@@ -44,116 +44,54 @@ classdef Window < hgsetget
         Axes                    % An axes object customized for this window.
         Colorbar                % A color bar object customized for this window.
         Data                    % Any data displayed in the window's axes.
-		Patch					% Handles to variou patch objects that exist in the window.
+		Patch					% Handles to various patch objects that exist in the window.
         Text                    % Handles to various text objects that exist in the window.
     end
 
-    properties (Access = protected, Hidden)
+    properties (Hidden, Access = protected)
         FigureHandle            % The numerical figure handle this object controls.
         Listeners               % Handles of listeners for events & property changes.
         PositionEnum            % The screen position where the window should be located.
         SizeEnum                % The screen size that the window should be.
     end
     
-    properties (Access = protected, Dependent, Hidden)
+    properties (Hidden, Dependent, Access = protected)
         Rectangle               % The client rectangle specifying the size & position of the window.
-    end
+	end
     
-    
-    
-    %% Constructor Method
-    methods 
-        function H = Window(varargin)
-		% WINDOW - Construct a window object with multiple features.
-		
-			function Defaults
-				Color = [0.9400 0.9400 0.9400];
-				Colormap = jet(256);
-				FigureNumber = [];
-				InvertHardcopy = 'off';
-				MenuBar = 'none';
-				Name = '';
-				NumberTitle = 'off';
-				PaperPositionMode = 'auto';
-				PaperSize = [8.5, 11];
-				Position = WindowPositions.CenterCenter;
-				Resize = 'on';
-				Size = WindowSizes.FullScreen;
-				Tag = 'WindowObject';
-				Units = 'pixels';
-				Visible = 'on';
-			end
-			assignto(@Defaults, varargin);
-			
-			H.CreateFigure(FigureNumber);
-			
-			H.Color = Color;
-			H.Colormap = Colormap;
-			H.Name = Name;
-			H.Position = Position;
-			H.Size = Size;
-			
-			set(H.FigureHandle, 'InvertHardcopy', InvertHardcopy);
-			set(H.FigureHandle, 'MenuBar', MenuBar);
-			set(H.FigureHandle, 'NumberTitle', NumberTitle);
-			set(H.FigureHandle, 'PaperPositionMode', PaperPositionMode);
-			set(H.FigureHandle, 'PaperSize', PaperSize);
-			set(H.FigureHandle, 'Resize', Resize);
-			set(H.FigureHandle, 'Tag', Tag);
-			set(H.FigureHandle, 'Units', Units);
-			set(H.FigureHandle, 'Visible', Visible);
+	
+	
+	%% PROPERTIES
+	methods
+		% Get methods
+        function C = get.Background(H)
+            C = Color(get(H.FigureHandle, 'Color'));
         end
-    end
-
-    
-    
-    %% Overloaded MATLAB Methods
-    methods
-
-		function Close(H, varargin)
-		% CLOSE - Close the window and delete the associated variable in the calling workspace.
-            delete(H.FigureHandle)
-            evalin('caller', ['clear ' inputname(1)]);
+		function C = get.Colormap(H)
+            C = Color(get(H.FigureHandle, 'Colormap'));
         end
-        function Store(H, filename)
-            saveas(H.FigureHandle, filename);
-		end
-		
-		function F = ToFigure(H)
-		% TOFIGURE - Converts a window object into a native MATLAB figure handle.
-			F = H.FigureHandle;
-		end
-        
-        % Get methods
-        function color      = get.Color(H)
-            color = get(H.FigureHandle, 'Color');
+        function s = get.Name(H)
+            s = get(H.FigureHandle, 'Name');
         end
-        function cmap       = get.Colormap(H)
-            cmap = get(H.FigureHandle, 'Colormap');
+        function p = get.Position(H)
+            p = get(H.FigureHandle, 'OuterPosition');
+            p = p(1:2);
         end
-        function name       = get.Name(H)
-            name = get(H.FigureHandle, 'Name');
+		function r = get.Rectangle(H)
+            r = get(H.FigureHandle, 'OuterPosition');
         end
-        function position   = get.Position(H)
-            position = get(H.FigureHandle, 'OuterPosition');
-            position = position(1:2);
-        end
-        function rectangle  = get.Rectangle(H)
-            rectangle = get(H.FigureHandle, 'OuterPosition');
-        end
-        function size       = get.Size(H)
-            size = get(H.FigureHandle, 'OuterPosition');
-            size = size(3:4);
+		function s = get.Size(H)
+            s = get(H.FigureHandle, 'OuterPosition');
+            s = s(3:4);
         end
         
         % Set methods
-        function set.Color(H, color)
-            if isa(color, 'Color')
-                color = color.ToArray;
-            end    
+        function set.Background(H, color)
+            if isa(color, 'Color'); color = color.ToArray(); end   
             set(H.FigureHandle, 'Color', color);
         end
         function set.Colormap(H, cmap)
+			if isa(cmap, 'Color'); cmap = cmap.ToMatrix(); end
             set(H.FigureHandle, 'Colormap', cmap);
         end
         function set.Name(H, name)
@@ -179,23 +117,66 @@ classdef Window < hgsetget
                 H.Rectangle(3:4) = size.ToPixels;
                 H.SizeEnum = size;
             elseif isnumeric(size)
-				assert(isvector(size) && length(size) == 2, 'Window sizes can only be specified using two-element vectors or string shortcuts.');
+				assert(isvector(size) && length(size) == 2,...
+					'Window sizes can only be specified using two-element vectors or string shortcuts.');
                 H.Rectangle(3:4) = size;
             else
                 error('Window size must be specified as either as WindowSize enumerator or a two-element numeric vector');
             end
             if ~isempty(H.PositionEnum); H.Position = H.PositionEnum; end
-        end
-        
-    end
+		end
+	end
     
+	
     
-    
-    %% Class-Specific Methods
-    methods (Access = protected)
-        % Add input property values to the object
-        Initialize(windowHandle, varargin)
+    %% CONSTRUCTORS
+    methods 
+        function H = Window(varargin)
+		% WINDOW - Construct a window object with multiple features.
 		
+			function Defaults
+				Background			= Colors.White;
+				Colormap			= Colormaps.Jet;
+				FigureNumber		= [];
+				InvertHardcopy		= 'off';
+				MenuBar				= 'none';
+				Name				= '';
+				NumberTitle			= 'off';
+				PaperPositionMode	= 'auto';
+				PaperSize			= [8.5, 11];
+				Position			= WindowPositions.CenterCenter;
+				Resize				= 'on';
+				Size				= WindowSizes.FullScreen;
+				Tag					= 'WindowObject';
+				Units				= 'pixels';
+				Visible				= 'on';
+			end
+			assign(@Defaults, varargin);
+			
+			H.CreateFigure(FigureNumber);
+			
+			H.Background = Background;
+			H.Colormap = Colormap;
+			H.Name = Name;
+			H.Position = Position;
+			H.Size = Size;
+			
+			set(H.FigureHandle, 'InvertHardcopy', InvertHardcopy);
+			set(H.FigureHandle, 'MenuBar', MenuBar);
+			set(H.FigureHandle, 'NumberTitle', NumberTitle);
+			set(H.FigureHandle, 'PaperPositionMode', PaperPositionMode);
+			set(H.FigureHandle, 'PaperSize', PaperSize);
+			set(H.FigureHandle, 'Resize', Resize);
+			set(H.FigureHandle, 'Tag', Tag);
+			set(H.FigureHandle, 'Units', Units);
+			set(H.FigureHandle, 'Visible', Visible);
+        end
+    end
+
+    
+    
+    %% UTILITIES
+	methods (Hidden, Access = protected)		
 		function CreateFigure(H, figNum)
 		% CREATEFIGURE - Creates a native MATLAB figure and captures a reference to it.
 			if (isempty(figNum)) 
@@ -208,11 +189,33 @@ classdef Window < hgsetget
 				set(H.FigureHandle, 'CloseRequestFcn', @H.Close);
 			end
 		end
+	end
+	
+    methods
+		function Close(H, varargin)
+		% CLOSE - Close the window and delete the associated variable in the calling workspace.
+            delete(H.FigureHandle)
+            evalin('caller', ['clear ' inputname(1)]);
+        end
+        function Store(H, filename)
+			
+			DEPRECATED Window.Save
+            saveas(H.FigureHandle, filename);
+		end
 		
-    end
-    
+		function B = ToBitmap(H)
+		% TOBITMAP - Captures an image of all current window contents in the form of a bitmap object.
+			f = getframe(H.FigureHandle);
+			B = Bitmap.FromRGB(f.cdata);
+		end
+		function F = ToFigure(H)
+		% TOFIGURE - Converts a window object into a native MATLAB figure handle.
+			F = H.FigureHandle;
+		end
+	end    
     
    
+	
 end
 
 
