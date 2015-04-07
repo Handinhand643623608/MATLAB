@@ -77,6 +77,8 @@ function [ccArr, lags] = xcorrArr(x, y, varargin)
 %       20141007:   Moved an error check for input array sizes to an earlier position in the function. Implemented the
 %                   ability to perform autocorrelations on arrays if an empty second input is provided.
 
+DEPRECATED ccorr
+
 
 
 %% Initialize

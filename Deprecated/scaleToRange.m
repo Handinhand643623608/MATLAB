@@ -37,6 +37,7 @@ function y = scaleToRange(x, newRange, dataRange)
 %   Written by Josh Grooms on 20140428
 %       20140709:   Added documentation for this function.
 
+DEPRECATED
 
 
 %% Scale Data to the New Range

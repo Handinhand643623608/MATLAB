@@ -38,6 +38,8 @@ function [y, idsRemoved] = arrayflatten(x, removeValues)
 %% CHANGELOG
 %	Written by Josh Grooms on 20141124
 
+DEPRECATED Array.Flatten
+
 
 
 %% Flatten the Array & Remove Any Specified Values
