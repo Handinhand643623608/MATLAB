@@ -21,8 +21,8 @@ classdef Montage < Window
 	properties (Dependent)
         AxesColor               % The color of the primary plot axes.
 		Box
-        CLim                    % The [MIN, MAX] data values that are mapped to colormap extremes.
-        ColorbarLabel           % A label string for the plot's colorbar.
+        CLim					% The [MIN, MAX] data values that are mapped to colormap extremes.
+        ColorbarLabel   @char   % A label string for the plot's colorbar.
         Title                   % The title string of the plot.
         XLabel                  % The x-axis label string.
 		XLim					% The [MIN, MAX] values displayed on an element's x-axis.
@@ -37,7 +37,7 @@ classdef Montage < Window
         MinorFontSize           % The font size (in font units) of minor plot text (e.g. axis tick labels).
 	end
 	
-	properties (Access = protected, Hidden)
+	properties %(Access = protected, Hidden)
 		ElementAspect			% The [HEIGHT, WIDTH] aspect ratio of each montage element.
 		ElementAxes				% An array of dimensions MONTAGESIZE containing axes handles for each montage element.
 		ElementIndex			% The linear index of the montage element that will be plotted to next.
@@ -111,12 +111,10 @@ classdef Montage < Window
 					set(H.Axes, 'CLimMode', 'auto');
 					return;
 				else
-					climBound = max(abs(H.Data(:)));
-					clim = [-climBound, climBound];
+					clim = Range.FromData(H.Data);
 				end
-			elseif (length(clim) == 1)
-				clim = [-clim, clim];
 			end
+			if isa(clim, 'Range'); clim = clim.ToArray(); end
             set(H.Axes, 'CLim', clim);
 			H.Refresh();
         end
@@ -186,25 +184,25 @@ classdef Montage < Window
 			
 			% Overridable default settings
 			function Defaults	
-				AxesColor = 'k';
-				Box = 'on';
-				CLim = [];
-				Color = 'w';
-                Colorbar = 'off';
-                ColorbarLabel = [];
-                Colormap = jet(256);
-				ElementAspect = [1, 1];
-				MajorFontSize = 25;
-				MinorFontSize = 20;
-				Title = [];
-				XLabel = [];
-				XLim = [0, 1];
-				XTickLabel = [];
-				YLabel = [];
-				YLim = [0, 1];
-				YTickLabel = [];
+				AxesColor		= 'k';
+				Background		= Colors.White;
+				Box				= 'on';
+				CLim			= [];
+                Colorbar		= 'off';
+                ColorbarLabel	= '';
+                Colormap		= Colormaps.Jet;
+				ElementAspect	= [1, 1];
+				MajorFontSize	= 25;
+				MinorFontSize	= 20;
+				Title			= [];
+				XLabel			= [];
+				XLim			= [0, 1];
+				XTickLabel		= [];
+				YLabel			= [];
+				YLim			= [0, 1];
+				YTickLabel		= [];
 			end
-			assignto(@Defaults, varargin);
+			assign(@Defaults, varargin);
 			
 			H.ElementIndex = 1;
 			H.MontageSize = [m, n];
@@ -219,22 +217,22 @@ classdef Montage < Window
 			H.RetrofitPrimaryAxes();
 			H.InitializeElementAxes();
 			
-			H.AxesColor = AxesColor;
-			H.Box = Box;
-			H.CLim = CLim;
-			H.Color = Color;
-            H.ColorbarLabel = ColorbarLabel;
-            H.Colormap = Colormap;
-			H.ExpandedFigures = gobjects(1);
-			H.MajorFontSize = MajorFontSize;
-			H.MinorFontSize = MinorFontSize;
-			H.Title = Title;
-			H.XLabel = XLabel;
-			H.XLim = XLim;
-			H.XTickLabel = XTickLabel;
-			H.YLabel = YLabel;
-			H.YLim = YLim;
-			H.YTickLabel = YTickLabel;
+			H.AxesColor			= AxesColor;
+			H.Background		= Background;
+			H.Box				= Box;
+			H.CLim				= CLim;
+            H.ColorbarLabel		= ColorbarLabel;
+            H.Colormap			= Colormap;
+			H.ExpandedFigures	= gobjects(1);
+			H.MajorFontSize		= MajorFontSize;
+			H.MinorFontSize		= MinorFontSize;
+			H.Title				= Title;
+			H.XLabel			= XLabel;
+			H.XLim				= XLim;
+			H.XTickLabel		= XTickLabel;
+			H.YLabel			= YLabel;
+			H.YLim				= YLim;
+			H.YTickLabel		= YTickLabel;
 			
 		end
     end
@@ -328,25 +326,24 @@ classdef Montage < Window
 			
 			assert(isnumeric(x), 'EEG data must be provided as a numeric array with %d rows.', nchans);
 			assert(size(x, 1) == nchans, 'EEG data must be correctly ordered and provided for all %d channels.', nchans);
-			
-			climBound = max(abs(x(:)));
+
 			nx = size(x, 2);
 			ny = size(x, 3);
 			
 			function Defaults
-				CLim = [-climBound, climBound];
-				Colorbar = 'on';
-				Colormap = jet(256);
-				ColorbarLabel = [];
-				MajorFontSize = 20;
-				MinorFontSize = 15;
-				Title = [];
-				XLabel = [];
-				XTickLabel = 1:nx;
-				YLabel = [];
-				YTickLabel = 1:ny;
+				CLim			= Range.FromData(x);
+				Colorbar		= 'on';
+				Colormap		= Colormaps.Jet;
+				ColorbarLabel	= '';
+				MajorFontSize	= 20;
+				MinorFontSize	= 15;
+				Title			= [];
+				XLabel			= [];
+				XTickLabel		= 1:nx;
+				YLabel			= [];
+				YTickLabel		= 1:ny;
 			end
-			assignto(@Defaults, varargin);
+			assign(@Defaults, varargin);
 			
 			if isempty(H)
 				H = Montage(ny, nx,...
@@ -364,15 +361,14 @@ classdef Montage < Window
 			end
 			
 			H.Data = x;
-			x = scale2rgb(x, 'Colormap', H.Colormap, 'CLim', H.CLim);
-			x = permute(x, [1 3 2 4]);
-            x = reshape(x, [], 3);
+			x = Color.FromData(x, H.Colormap, H.CLim, Colors.Black);
+			x = permute(x, [1 3 2]);
 			
 			if isempty(H.Template)
 				set(H.ElementAxes, 'Color', 'k');
 				templateFile = File.Which('EEG Channel Map Template.fig');
 				H.Template = hgload(templateFile.ToString(), struct('Parent', H.ElementAxes(1)));
-				H.Patch = gobjects(size(x, 1), 1);
+				H.Patch = gobjects(numel(x), 1);
 				
 				for a = 1:numel(H.ElementAxes)
 					idx = (a - 1) * nchans + 1;
@@ -380,6 +376,7 @@ classdef Montage < Window
 				end
 			end
             
+			x = x.ToMatrix();
 			for a = 1:size(x, 1)
 				set(H.Patch(a),...
 					'FaceColor',    x(a, :),...
@@ -387,7 +384,68 @@ classdef Montage < Window
 			end
 			
 			drawnow;
-        end
+		end
+		function M = MRI(x, varargin)
+			
+			M = [];
+			assert(nargin >= 1, 'MRI data must be supplied to create a montage of channel mappings.');
+			
+			if isa(x, 'Montage')
+				M = x;
+				x = varargin{1};
+				varargin(1) = [];
+			end
+			
+			assert(isnumeric(x), 'MRI data must be provided as a numeric array.');
+			
+			nx = size(x, 4);
+			ny = size(x, 3);
+			
+			function Defaults
+				CLim			= Range.FromData(x);
+				Colorbar		= 'on';
+				Colormap		= Colormaps.Jet;
+				ColorbarLabel	= '';
+				MajorFontSize	= 20;
+				MinorFontSize	= 15;
+				Title			= [];
+				XLabel			= [];
+				XTickLabel		= 1:nx;
+				YLabel			= [];
+				YTickLabel		= 1:ny;
+			end
+			assign(@Defaults, varargin)
+			
+			if isempty(M)
+				M = Montage(ny, nx,...
+					'CLim',				CLim,...
+					'Colorbar',			Colorbar,...
+					'Colormap',			Colormap,...
+					'ColorbarLabel',	ColorbarLabel,...
+					'MajorFontSize',	MajorFontSize,...
+					'MinorFontSize',	MinorFontSize,...
+					'Title',			Title,...
+					'XLabel',			XLabel,...
+					'XTickLabel',		XTickLabel,...
+					'YLabel',			YLabel,...
+					'YTickLabel',		YTickLabel);
+			end
+			
+			M.Data = x;
+			x = Color.FromData(x, M.Colormap, M.CLim, Colors.Black);
+			x = permute(x, [2 1 3 4]);
+			x = flip(x, 3);
+			
+			szx = size(x);
+			for a = 1:szx(4)
+				for b = 1:szx(3)
+					ct = x(:, :, b, a);
+					M.Image(ct.ToArray())
+				end
+			end
+			
+			drawnow;
+		end
     end
     
     
@@ -546,20 +604,19 @@ classdef Montage < Window
 		function A = NextElement(H)
 		% NEXTELEMENT - Returns a handle to the next montage element axes to be plotted to.
 		%
-		%	NEXTELEMENT provides an easy means of serially filling in a montage using custom-written plotting commands.
-		%	When this method is called, it returns a handle to the next empty axes object in the montage and advances an
-		%	internal counter that tracks which montage elements have been used. This returned axes handle can then be
-		%	used with other graphics functions to generate complicated plots that the methods of the MONTAGE class are
-		%	incapable of producing.
+		%	NEXTELEMENT provides an easy means of serially filling in a montage using custom-written plotting commands. When
+		%	this method is called, it returns a handle to the next empty axes object in the montage and advances an internal
+		%	counter that tracks which montage elements have been used. This returned axes handle can then be used with other
+		%	graphics functions to generate complicated plots that the methods of the MONTAGE class are incapable of
+		%	producing.
 		%
 		%	The ordering of handles that NEXTELEMENT returns follows the same column-major ordering that MATLAB uses for
-		%	linear array indexing. In other words, the first invocation of this method returns a handle corresponding
-		%	with the upper-left-most axes while a subsequent invocation returns a handle to the axes immediately below
-		%	it. This will continue until all handles in the montage have been used, at which point any further calls to
-		%	NEXTELEMENT will generate errors.
+		%	linear array indexing. In other words, the first invocation of this method returns a handle corresponding with
+		%	the upper-left-most axes while a subsequent invocation returns a handle to the axes immediately below it. This
+		%	will continue until all handles in the montage have been used, at which point any further calls to NEXTELEMENT
+		%	will generate errors.
 		%
-		%	For convenience, this method is called automatically by the plotting methods that the MONTAGE class
-		%	provides.
+		%	For convenience, this method is called automatically by the plotting methods that the MONTAGE class provides.
 		%
 		%	SYNTAX:
 		%		A = H.NextElement()
@@ -581,6 +638,17 @@ classdef Montage < Window
 		% CLOSE - Closes the montage window and any expanded element windows that remain open.
 			if (H.ExpandedFigures ~= 0); delete(H.ExpandedFigures); end
 			Close@Window(H);
+		end
+		function Image(H, x)
+			
+			A = H.NextElement();
+			cla(A);
+			image(...
+				'ButtonDownFcn',	@H.ExpandElement,...
+				'CData',			x,...
+				'Parent',			A,...
+				'XData',			[0, 1],...
+				'YData',			[0, 1]);
 		end
 		function Plot(H, x, y, varargin)
 		% PLOT - Creates a 2D plot in the next available montage element.
@@ -627,7 +695,7 @@ classdef Montage < Window
 				LineColor = [0, 0.5, 0.75];
 				LineWidth = 1.25;
 			end
-			assignto(@Defaults, varargin);
+			assign(@Defaults, varargin);
 		
             if isempty(x)
                 if isvector(y); x = 1:length(y);
@@ -638,9 +706,9 @@ classdef Montage < Window
 			A = H.NextElement();
 			cla(A);
 			line(x, y,...
-				'Color', LineColor,...
-				'LineWidth', LineWidth,...
-				'Parent', A);
+				'Color',		LineColor,...
+				'LineWidth',	LineWidth,...
+				'Parent',		A);
 		end
 		function Recycle(H, title)
 		% RECYCLE - Recycles an existing montage object by replacing the plotted data with a new data set.
