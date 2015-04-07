@@ -81,33 +81,30 @@ function varargout = eegmap(x, varargin)
 
 	% Initialize default values & settings
 	function Defaults
-		FillColor = [0, 0.25, 1];
-		Parent = [];
-		ShowLabels = true;
-		Size = WindowSizes.FullScreen;
+		FillColor	= Colors.VibrantBlue;
+		Parent		= [];
+		ShowLabels	= true;
+		Size		= WindowSizes.FullScreen;
 	end
-	assignto(@Defaults, varargin);
+	assign(@Defaults, varargin);
 	
 	% Load data stored elsewhere
 	infoFile = File.Which('eegInfo.mat');
 	template = File.Which('eegPlot.fig');
 	[channels, coordinates] = infoFile.Load();
+	nchans = length(channels);
 
 	% Do some input argument formatting & error checking
 	if (nargin == 0);		x = channels;
-	elseif (ischar(x));		x = { x };
-	else
-		assert(ismatrix(x) && length(x) == length(channels),...
+	elseif ischar(x);		x = { x };
+	elseif ~iscellstr(x)
+		assert(ismatrix(x) && length(x) == nchans,...
 			'Unrecognized value found for the input argument x. See documentation for correct function usage and syntax.');
-		if size(x, 2) == length(channels); x = x'; end
-		if size(x, 2) ~= 3; x = scale2rgb(x); end
+		if size(x, 2) == nchans;	x = x';				end
+		if size(x, 2) ~= 3;			x = scale2rgb(x);	end
 	end
 	
-	if ischar(FillColor);	FillColor = str2rgb(FillColor);
-	else
-		assert(isvector(FillColor) && length(FillColor) == 3,...
-			'The FillColor parameter must be a valid 3-element RGB vector or color string.');
-	end
+	if ~isa(FillColor, 'Color'); FillColor = Color(FillColor); end
 	
 	if isempty(Parent)
 		H = GenerateFigure(Size);
@@ -118,9 +115,9 @@ function varargout = eegmap(x, varargin)
 		
 	% If running in demo mode (just seleting channels to be labeled), color the input channels
 	if iscellstr(x)
-		coloredChannels = zeros(length(channels), 3);
+		coloredChannels = Color.Black(nchans, 1);
         idsToColor = ismember(lower(channels), lower(x));
-		coloredChannels(idsToColor, :) = repmat(FillColor, sum(idsToColor), 1);
+		coloredChannels(idsToColor) = FillColor;
 		x = coloredChannels;
 	end
 	
@@ -131,11 +128,11 @@ function varargout = eegmap(x, varargin)
 	
 	% Fill in output object data
 	if isa(H, 'Window')
-		windowHandle.Text = circles(:, 1);
-		windowHandle.Data.Patch = circles(:, 2);
-		windowHandle.Data.Color = x;
+		H.Text = circles(:, 1);
+		H.Data.Patch = circles(:, 2);
+		H.Data.Color = x;
 	end
-	assignOutputs(nargout, windowHandle);
+	assignOutputs(nargout, H);
 	
 end
 
@@ -149,7 +146,7 @@ function Fill(C, x, showLabels)
 %       C:              [ 68 x 2 HANDLES ]
 %                       The first column is circle patch handles while the second column is text object handles.
 %
-%       x:              [ 68 x 3 RGB ]
+%       x:              [ 68 x 1 COLORS ]
 %                       One row of RGB data per electrode.
 %
 %       showLabels:     BOOLEAN
@@ -159,14 +156,14 @@ function Fill(C, x, showLabels)
 	
 	for a = 1:size(x, 1)
 		set(C(a, 2),...
-			'FaceColor', x(a, :),...
-			'EdgeColor', 'w');
+			'FaceColor',	x(a).ToArray(),...
+			'EdgeColor',	'w');
 		set(C(a, 1),...
-			'Color', 'w',...
-			'FontUnits', 'points',...
-			'FontSize', 12,...
-			'FontWeight', 'normal',...
-			'Visible', showLabels);
+			'Color',		'k',...
+			'FontUnits',	'points',...
+			'FontSize',		12,...
+			'FontWeight',	'normal',...
+			'Visible',		showLabels);
 	end
 end
 function H = GenerateFigure(size)
@@ -179,7 +176,7 @@ function H = GenerateFigure(size)
 %   INPUT:
 %       size:   WINDOWSIZES
 %               One of the window size enumerators.
-	H = Window('Size', size, 'Color', 'w');
+	H = Window('Size', size, 'Background', Colors.White);
 	A = axes(...
 		'Box', 'off',...
 		'Color', 'none',...
@@ -274,5 +271,5 @@ function C = LoadMapping(A, template)
 %                       A FILE object pointing to a saved handle graphics hierarchy (i.e. using HGSAVE). This is a saved
 %                       electrode mapping that will be recolored.
 	[C, ~] = hgload(template.ToString(), struct('Parent', A));
-	C = reshape(C, [0.5*size(C, 1), 2]);
+	C = reshape(C', [0.5*size(C, 2), 2]);
 end
