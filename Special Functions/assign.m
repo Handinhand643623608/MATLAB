@@ -15,7 +15,7 @@
 %   should be a part of the function logic if desired).
 %
 %   DEFAULTS BLOCKS:
-%       ASSIGNTO works by determining the names of the variables that are contained within a special default variable blocks,
+%       ASSIGN works by determining the names of the variables that are contained within a special default variable blocks,
 %       henceforth referred to as Defaults blocks. These blocks are simple nested functions that should be located at or near
 %       the beginning of the caller function's logic. Defaults blocks should only contain variable declarations and
 %       initializations; there should not be any logic or computation performed inside. Additionally, this function should

@@ -39,7 +39,7 @@
 %
 %	OPTIONAL INPUTS:
 %		noverlap:		INTEGER
-%						The number of samples to be reused in successivev correlation estimates. This is how many sample
+%						The number of samples to be reused in successive correlation estimates. This is how many sample
 %						points are "overlapped" from the previous estimate as the window slides along a signal. This argument
 %						must be an integer in the range [0, WINDOW - 1]. 
 %						DEFAULT: WINDOW - 1

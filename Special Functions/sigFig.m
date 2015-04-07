@@ -8,25 +8,25 @@ function xr = sigfig(x, format, opt)
 %
 %   OUTPUT:
 %       xr:             DOUBLE or [ DOUBLES ]
-%                       A number or array of numbers that have been rounded to the specified number of significant
-%                       digits. This argument will always be of the same size and dimensionality as the input x.
+%                       A number or array of numbers that have been rounded to the specified number of significant digits.
+%                       This argument will always be of the same size and dimensionality as the input x.
 %
 %   INPUT:
 %       x:              DOUBLE or [ DOUBLES ]
-%                       A number or array of numbers to be rounded to some specified significant figure. This argument
-%                       may be an array of any size and dimensionality.
+%                       A number or array of numbers to be rounded to some specified significant figure. This argument may be
+%                       an array of any size and dimensionality.
 %
 %   OPTIONAL INPUTS:
 %       format:         STRING
-%                       The desired format of the output that specifies the number of significant digits the output
-%                       should have. This argument must be provided as a string in which the number of characters
-%                       controls the number of significant (i.e. non-zero) digits each number in the output array will
-%                       have. A single decimal point (the period or '.' character) may optionally be used to control
-%                       significance of fractional number parts.
+%                       The desired format of the output that specifies the number of significant digits the output should
+%                       have. This argument must be provided as a string in which the number of characters controls the
+%                       number of significant (i.e. non-zero) digits each number in the output array will have. A single
+%                       decimal point (the period or '.' character) may optionally be used to control significance of
+%                       fractional number parts.
 %
-%                       The choice of character(s) used in this string is irrelevant; only the number of characters
-%                       present and their placement relative to a decimal point is used. However, for clarity I
-%                       recommend using zeros ('0').
+%                       The choice of character(s) used in this string is irrelevant; only the number of characters present
+%                       and their placement relative to a decimal point is used. However, for clarity I recommend using zeros
+%                       ('0').
 %                       
 %                       DEFAULT: '0.0'
 % 
@@ -40,10 +40,10 @@ function xr = sigfig(x, format, opt)
 %                           'abcd'  - Round to the "thousands" integer place (character choice doesn't matter)
 %
 %       opt:            STRING
-%                       An option string dictating what method to use when rounding the input x to a significant figure.
-%                       For the most part, acceptable options correspond with native MATLAB rounding functions. This
-%                       argument is used in conjunction with the format argument above such that digits outside of the
-%                       significant figure range influence rounding.
+%                       An option string dictating what method to use when rounding the input x to a significant figure. For
+%                       the most part, acceptable options correspond with native MATLAB rounding functions. This argument is
+%                       used in conjunction with the format argument above such that digits outside of the significant figure
+%                       range influence rounding.
 %
 %                       DEFAULT: 'round'
 %                       OPTIONS:
