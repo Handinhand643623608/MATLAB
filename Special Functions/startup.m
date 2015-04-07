@@ -21,18 +21,27 @@
 %       20150114:   Implemented checks for the latest versions of Microsoft Visual Studio and Intel Parallel Studio.
 %                   This is meant to warn users against running MEX functions I've developed if those programs are not
 %                   installed.
+%		20150330:	Updated to fix a new bug that was introduced after copying my deprecated function folder into my main
+%					MATLAB code folder. The current version of the Paths class was being shadowed by an old version that
+%					behaved very differently.
 
 
 %% Setup MATLAB Environment
 % Add the path to the main code storage area
 switch (lower(getenv('COMPUTERNAME')))
     case 'desktop'
-        addpath(genpath('C:/Users/Josh/Dropbox/MATLAB Code/'));
+		main = 'C:/Users/Josh/Dropbox/MATLAB Code/';
     case 'shella-bigboy1'
-        addpath(genpath('C:/Users/jgrooms/Dropbox/MATLAB Code/'));
-    otherwise
-        addpath(genpath('/home/jgrooms/Dropbox/MATLAB Code'));
+		main = 'C:/Users/jgrooms/Dropbox/MATLAB Code/';
+	otherwise
+		main = '/home/jgrooms/Dropbox/MATLAB Code';
 end
+addpath(genpath(main));
+
+% Remove the code prototyping directory & obsolete code
+rmpath(genpath([main '/Prototyping']));
+rmpath(genpath([main '/Deprecated']));
+
 
 % Navigate to the main coding area
 Paths.Main.NavigateTo();
