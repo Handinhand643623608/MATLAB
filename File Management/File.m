@@ -1,19 +1,37 @@
-classdef File < Path
 % FILE - A class that manages and provides utilities for Path objects that point to files instead of directories.
 %
-%   SYNTAX:
-%       F = File(P)
+%	File Properties:
+%		Exists			- Gets a Boolean indicating whether or not the file or folder exists on the computer.
+%		Extension		- Gets the extension string of the file, without the '.' character.
+%		FullName		- Gets a string containing the full name of a file, including its extension.
+%		FullPath		- Gets the full path string referencing the file.
+%		IsOpen			- Gets a Boolean indicating whether or not a data stream has been opened for the file.
+%		Name			- Gets a string containing the name of the file or folder that the Path object points to.
+%		ParentDirectory - Gets a Folder object for the directory immediately above the currently stored reference.
+%		ParentDrive		- Gets a Folder object for the drive letter of the stored reference (for Windows PCs only).
 %
-%   OUTPUT:
-%       F:      FILE
-%               A File object or array of objects that is equivalent in size to the inputted path(s). This output may
-%               then use all of the utility functions associated with this class.
+%	File Constructors:
+%		File			- Constructs a new File object from a path string.
+%		Which			- Creates a File object referencing a file that is on MATLAB's active search path.
 %
-%   INPUT:
-%       P:      PATH or [ PATHS ] or STRING or { STRING }
-%               A Path object, array of objects, path string, or cell array of path strings pointing to one or more
-%               files. This argument must always refer to a file, defined here as anything with a visible extension.
-%               Folders and files without extensions are not supported and will trigger errors.
+%	File Methods:
+%		Clone			- Creates a deep copy of a File object.
+%		Close			- Closes an open file stream.
+%		CopyTo			- Copies one or more files to a new location on the computer.
+%		Edit			- Opens a .m script or function in the MATLAB editor.
+%		Load			- Loads the content of a .MAT file to which the File object points.
+%		Open			- Opens a new file stream with read or write access.
+%		NavigateTo		- Changes the MATLAB working directory to the parent directory of the file.
+%		Sort			- Sorts a list of files into specific categories.
+%		ToCell			- Converts a File object array into a cell array of full path strings.
+%		ToString
+%		View			- Opens the parent directory of a file in Windows Explorer.
+%		Write			- Writes inputted text or data to an open file stream.
+%		WriteLine		- Writes inputted text or data to an open file stream then advances the cursor to the next line.
+%
+%	File Overloads:
+%		cd				- Changes the MATLAB working directory to the parent folder of the file.
+%		exist			- Determines whether or not the file exists on the computer at the specified location.
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20141010
@@ -24,112 +42,201 @@ classdef File < Path
 %       20150208:   Implemented a method to search for particular files among an array of file objects. Implemented a method
 %					to sort file arrays into a category structure using an arbitrary number of search queries.
 %		20150224:	Implemented a method for reading in all text from a file as a single string.
+%		20150511:	Overhauled the class documentation to summarize all of the properties and methods that are available.
+%					Updated this class for compatibility with changes to other file management objects.
+
+
+
+%% CLASS DEFINITION
+classdef File < Path
+
     
 
 
-    %% Properties
-    
-    properties
-        IsOpen = false;         % A Boolean indicating whether or not a data stream has been opened for the file.
-    end
+    %% DATA
+	properties (Dependent)
+		FullName		% Gets a string containing the full name of a file, including its extension.
+		FullPath		% Gets the full path string referencing the file.
+	end
+	
+	properties (SetAccess = protected)
+		Extension		% Gets the extension string of the file, without the '.' character.
+		IsOpen			% Gets a Boolean indicating whether or not a data stream has been opened for the file.
+	end
     
     properties (Access = private)
-        FID = NaN;              % The numeric handle to an open data stream for the file this object contains.
-        Permission = '';        % The string read/write permission that was used to open the file's data stream.
-    end
+        FID				% The numeric handle to an open data stream for the file this object contains.
+        Permission      % The string read/write permission that was used to open the file's data stream.
+	end
     
     
     
+	%% PROPERTIES
+	methods
+		function n = get.FullName(F)
+			n = [F.Name '.' F.Extension];
+		end
+		function p = get.FullPath(F)
+			p = [F.Directory '/' F.Name '.' F.Extension];
+		end
+	end
+	
+	
+	
     %% CONSTRUCTOR & DESTRUCTOR
     methods
-        function F = File(P)
-        % FILE - Constructs a new File object or array of objects around path strings.
+        function F = File(p)
+        % FILE - Constructs a new File object from a path string.
         %
         %   SYNTAX:
         %       F = File(P)
         %
         %   OUTPUT:
         %       F:      FILE
-        %               A File object or array of objects that is equivalent in size to the inputted path(s). This
-        %               output may then use all of the utility functions associated with this class.
+        %               A File object referencing the file stored at the location in P. 
         %
         %   INPUT:
-        %       P:      PATH or [ PATHS ] or STRING or { STRINGS }
-        %               A Path object, array of objects, path string, or cell array of path strings pointing to one or
-        %               more files. This argument must always refer to a file, defined here as anything with a visible
-        %               extension. Folders and files without extensions are not supported and will trigger errors.
-            
-            if (nargin ~= 0 && ~isempty(P))
-                if (isa(P, 'Path'))
-                    assert(P(1).IsFile, 'Only paths to files may be converted into a file object.');
-                    P = P.ToCell();
-                end
-                
-                Path.AssertStringContents(P);
-                
-                if (~iscell(P)); P = { P }; end
-                F(numel(P)) = File;
-                for a = 1:numel(P)
-                    F(a).ParseFullPath(P{a});
-                    assert(F(a).IsFile, 'The path provided must be a reference to a file.');
-                end
-                F = reshape(F, size(P));
-            end
+        %       P:      STRING
+		%				A path string pointing to a file located on the computer.
+        %
+		%	See also: FILE.WHICH, PATH.RESOLVE, WHICH, WHERE
+            if (nargin == 0); p = ''; end
+			F = F@Path(p);
+		
+			F.IsOpen = false;
+			F.FID = NaN;
+			F.Permission = '';
         end
         function delete(F)
             % DELETE - Closes any open file references before a File object is destroyed.
             if (F.IsOpen); F.Close(); end    
         end
-    end
+	end
     
+	methods (Static)
+		function F = Which(fileName)
+        % WHICH - Creates a File object referencing a file that is on MATLAB's active search path.
+		%
+		%	WHICH searches the MATLAB active directories for a file whose name matches the input argument FILENAME. If a
+		%	match is found, this method automatically constructs and returns a fully resolved FILE object referencing it. If
+		%	multiple identically named files are on the MATLAB working path, this function returns a FILE object referencing
+		%	only the first match found.
+		%
+		%	WHICH is useful for resolving MATLAB functions or files whose exact locations on the computer are unknown. Other
+		%	than returning a FILE object instead of a path string, this method performs exactly the same function as the
+		%	MATLAB-native WHICH
+		%
+		%	SYNTAX:
+		%		F = File.Which(fileName)
+		%
+		%	OUTPUT:
+		%		F:				FILE
+		%						A fully resolved FILE object that references a file whose name is identical to the inputted
+		%						FILENAME string. If no files matching that string are found, then an empty FILE object is
+		%						returned.
+		%
+		%	INPUT:
+		%		fileName:		STRING
+		%						A string containing the name of the function or file being searched for.
+		%
+		%	See also: FILE.FILE, PATH.RESOLVE, WHICH, WHERE
+			f = which(fileName);
+			if isempty(f); F = File();
+			else F = File(f); end
+		end
+	end
        
     
+	
     %% UTILITIES
+	methods (Access = protected)
+		function ParseFullPath(F, s)
+		% PARSEFULLPATH - Deconstructs a full path string and populates the Path object properties with it.
+            
+            F.AssertSingleObject();
+            Path.AssertSingleString(s);
+            
+            [p, n, e] = fileparts(s);
+            F.Directory = Path.FormatPathString(p);
+            F.Name = n;
+            F.Extension = Path.FormatExtensionString(e);
+            
+            if (ispc)
+                drivePattern = '^([^\\/]:).*';
+                driveLetter = regexp(F.Directory, drivePattern, 'tokens');
+                F.Drive = driveLetter{1}{1};
+            else
+                F.Drive = '/';
+            end
+		end
+	end
+	
+	methods (Static)
+		function e = GetExtension(fileName)
+		% GETEXTENSION - Gets the extension part of an inputted file name string.
+		%
+		%	SYNTAX:
+		%		e = File.GetExtension(fileName)
+		%
+		%	OUTPUT:
+		%		e:			STRING
+		%					The string extension part of the FILENAME input argument. This string will always include
+		%					the dot ('.') part of the extension. If no extension is found on the file name, this method
+		%					returns an empty string.
+		%
+		%	INPUT:
+		%		fileName:	STRING
+		%					The string name of a file.
+			assert(ischar(fileName), 'File names must be specified as string type arguments.');
+			[~, ~, e] = fileparts(fileName);
+		end
+	end
+	
     methods
         
         function varargout = Load(F, varargin)
-        % LOAD - Loads the content of the .MAT file that the File object is pointing to.
+        % LOAD - Loads the content of a .MAT file that the File object is pointing to.
         %   
         %   This method imports stored MAT-file variables into the calling function's workspace, very similarly to the
         %   MATLAB-native LOAD function. In fact, LOAD is invoked on every call to this method, and thus much of the
-        %   syntax/behavior is carried over and should be familiar. However, there are some subtle differences between
-        %   this and the native function.
+        %   syntax/behavior is carried over and should be familiar. However, there are some subtle differences between this
+        %   and the native function.
         %
         %   LOADING SPECIFIC VARIABLES:
-        %   Just like the native LOAD function, this method accommodates the loading of a subset of variables stored
-        %   inside of the .MAT file. The syntax for invoking this behavior here is identical to that for LOAD; simply
-        %   list the name strings of which variables should be imported to the calling workspace. The use of regular
-        %   expressions is also supported to achieve this.
+        %		Just like the native LOAD function, this method accommodates the loading of a subset of variables stored
+        %		inside of the .MAT file. The syntax for invoking this behavior here is identical to that for LOAD; simply
+        %		list the name strings of which variables should be imported to the calling workspace. The use of regular
+        %		expressions is also supported to achieve this.
         %
-        %   However, the order of variable names listed as input arguments here could be important. When multiple
-        %   outputs are requested, loaded variables are assigned to output arguments in exactly the same order as they
-        %   appear in either the .MAT file (if loading all variables) or in the input argument list (if specifying which
-        %   variables to load).
+        %		However, the order of variable names listed as input arguments here could be important. When multiple outputs
+        %		are requested, loaded variables are assigned to output arguments in exactly the same order as they appear in
+        %		either the .MAT file (if loading all variables) or in the input argument list (if specifying which variables
+        %		to load).
         %
         %   ASSIGNING LOADED VARIABLES DIRECTLY TO THE WORKSPACE:       
-        %   If no outputs are requested from this method, then any loaded variables are created and assigned directly in
-        %   the calling workspace. This behavior is again identical to that of the native LOAD function when no output
-        %   arguments are specified.
+        %		If no outputs are requested from this method, then any loaded variables are created and assigned directly in
+        %		the calling workspace. This behavior is again identical to that of the native LOAD function when no output
+        %		arguments are specified.
         %
         %   OUTPUTTING A SINGLE VARIABLE:
-        %   If a single output is requested (e.g. var = F.Load(...)), then the type of the output depends on the number
-        %   of variables being loaded from the .MAT file. Specifically, if only one variable is loaded from the .MAT
-        %   file, then that loaded value is assigned directly to the output argument. This behavior differs from that of
-        %   the native LOAD function, through which loaded variables are always assigned as fields of a structure that
-        %   is assigned to the output. 
+        %		If a single output is requested (e.g. var = F.Load(...)), then the type of the output depends on the number
+        %		of variables being loaded from the .MAT file. Specifically, if only one variable is loaded from the .MAT
+        %		file, then that loaded value is assigned directly to the output argument. This behavior differs from that of
+        %		the native LOAD function, through which loaded variables are always assigned as fields of a structure that is
+        %		assigned to the output.
         %   
-        %   When multiple variables are being loaded from a .MAT file, this method resumes behaving like LOAD. In this
-        %   case, the single output is a structure and each loaded variable is assigned to it as a field.
+        %		When multiple variables are being loaded from a .MAT file, this method resumes behaving like LOAD. In this
+        %		case, the single output is a structure and each loaded variable is assigned to it as a field.
         %
         %   OUTPUTTING MULTIPLE VARIABLES:
-        %   When multiple outputs are requested, each loaded variable is assigned directly to each listed output
-        %   argument; nothing is made into a structure field. Variables are assigned to output arguments in exactly the
-        %   same order that they are loaded. When loading entire .MAT files, loading occurs alphabetically by variable
-        %   name. However, when the NAME parameter is used, loading occurs in the same order that the names are listed.
+        %		When multiple outputs are requested, each loaded variable is assigned directly to each listed output
+        %		argument; nothing is made into a structure field. Variables are assigned to output arguments in exactly the
+        %		same order that they are loaded. When loading entire .MAT files, loading occurs alphabetically by variable
+        %		name. However, when the NAME parameter is used, loading occurs in the same order that the names are listed.
         %
-        %   If multiple output arguments are used, the number of arguments must correspond exactly with the number of
-        %   variables being loaded from the .MAT file. Mismatching numbers of loaded and output variables will result in
-        %   an error.
+        %		If multiple output arguments are used, the number of arguments must correspond exactly with the number of
+        %		variables being loaded from the .MAT file. Mismatching numbers of loaded and output variables will result in
+        %		an error.
         %
         %   SYNTAX:
         %       F.Load()
@@ -147,10 +254,12 @@ classdef File < Path
         %
         %   OPTIONAL INPUT:
         %       name:   STRING
-        %               The string variable name(s) that are to be loaded from the .MAT data file. Any number of
-        %               variable name strings can be used as separate input arguments to this method so long as they
-        %               exactly match the names of variables that exist inside of the .MAT storage file. If no input
-        %               arguments are supplied for this method, then all variables in the .MAT file are loaded.
+        %               The string variable name(s) that are to be loaded from the .MAT data file. Any number of variable
+        %               name strings can be used as separate input arguments to this method so long as they exactly match the
+        %               names of variables that exist inside of the .MAT storage file. If no input arguments are supplied for
+        %               this method, then all variables in the .MAT file are loaded.
+		%
+		%	See also: LOAD
             
             % Fill in or distribute inputs
             if (nargin == 1); vars = {'*'};
@@ -198,29 +307,6 @@ classdef File < Path
             end
             
 		end        
-        
-		function C = Clone(F)
-		% CLONE - Creates deep copies of inputted file objects.
-		%
-		%	CLONE performs a deep copy process on FILE objects, meaning that although the output is identical to the
-		%	input, the two do not contain any common object references. This is important when programming by reference
-		%	in order to avoid unintentionally changing properties across class instances.
-		%
-		%	SYNTAX:
-		%		C = F.Clone()
-		%		C = Clone(F)
-		%
-		%	OUTPUT:
-		%		F:		FILE or [ FILES ]
-		%				An identical clone of the file(s) in F. Properties of this output that contain objects do not
-		%				reference the same objects as the corresponding properties in F.
-		%
-		%	INPUT:
-		%		F:		FILE or [ FILES ]
-		%				A file object or array of objects that are to be copied.
-			C = Clone@Path(F);
-			C = File(C);
-        end
         function [R, ids] = Search(F, query)
         % SEARCH - Searches for specific files among an array of file objects using a string query.
         %
@@ -247,6 +333,29 @@ classdef File < Path
             ids = ~(cellfun(@isempty, ids));
             R = F(ids);
 		end
+		
+		function C = Clone(F)
+		% CLONE - Creates deep copies of inputted file objects.
+		%
+		%	CLONE performs a deep copy process on FILE objects, meaning that although the output is identical to the
+		%	input, the two do not contain any common object references. This is important when programming by reference
+		%	in order to avoid unintentionally changing properties across class instances.
+		%
+		%	SYNTAX:
+		%		C = F.Clone()
+		%		C = Clone(F)
+		%
+		%	OUTPUT:
+		%		F:		FILE or [ FILES ]
+		%				An identical clone of the file(s) in F. Properties of this output that contain objects do not
+		%				reference the same objects as the corresponding properties in F.
+		%
+		%	INPUT:
+		%		F:		FILE or [ FILES ]
+		%				A file object or array of objects that are to be copied.
+			C = Clone@Path(F);
+			C = File(C);
+		end        
 		function s = Sort(F, varargin)
 		% SORT - Sorts a list of files into specific categories.
 		%
@@ -284,7 +393,6 @@ classdef File < Path
 			s = fileread(F.ToString());
 		end
 		
-        % File Stream Management Methods
         function Close(F)
         % CLOSE - Closes an open file stream.
         %
@@ -391,7 +499,6 @@ classdef File < Path
             F.IsOpen = true;
             F.Permission = opt;
 		end
-		
         function Write(F, text, varargin)
         % WRITE - Writes inputted text or data to an open file stream.
         %
@@ -485,112 +592,6 @@ classdef File < Path
             F.Write([text '\n'], varargin{:});
         end
         
-    end
-    
-    methods (Static)
-		function e = GetExtension(fileName)
-		% GETEXTENSION - Gets the extension part of an inputted file name string.
-		%
-		%	SYNTAX:
-		%		e = File.GetExtension(fileName)
-		%
-		%	OUTPUT:
-		%		e:			STRING
-		%					The string extension part of the FILENAME input argument. This string will always include
-		%					the dot ('.') part of the extension. If no extension is found on the file name, this method
-		%					returns an empty string.
-		%
-		%	INPUT:
-		%		fileName:	STRING
-		%					The string name of a file.
-			assert(ischar(fileName), 'File names must be specified as string type arguments.');
-			[~, ~, e] = fileparts(fileName);
-		end
-		function F = Which(fileName)
-        % WHICH - Creates a FILE object referencing a file that is on MATLAB's active search path.
-		%
-		%	WHICH searches the MATLAB active directories for a file whose name matches the input argument FILENAME. If a
-		%	match is found, this method automatically constructs and returns a fully resolved FILE object referencing
-		%	it. If multiple identically named files are on the MATLAB working path, this function returns a FILE object
-		%	referencing only the first match found.
-		%
-		%	WHICH is useful for resolving MATLAB functions or files whose exact locations on the computer are unknown.
-		%	Other than returning a FILE object instead of a path string, this method performs exactly the same function
-		%	as the MATLAB-native WHICH
-		%
-		%	SYNTAX:
-		%		F = File.Which(fileName)
-		%
-		%	OUTPUT:
-		%		F:				FILE
-		%						A fully resolved FILE object that references a file whose name is identical to the
-		%						inputted FILENAME string. If no files matching that string are found, then an empty FILE
-		%						object is returned.
-		%
-		%	INPUT:
-		%		fileName:		STRING
-		%						A string containing the name of the function or file being searched for.
-		%
-		%	See also: WHICH
-			f = which(fileName);
-			if isempty(f); F = File();
-			else F = File(f); end
-		end
-	end
-    
-	
-    
-    %% OVERLOADS
-    methods
-        function disp(F)
-        % DISP - Displays information about the File object in the console window.
-        %
-        %   This method organizes and formats File object information before displaying it in the console window. The
-        %   information that is displayed is different depending on the number of objects that are inputted. For singleton
-        %   objects, this function prints a more detailed view of the File instance that includes several properties of the
-        %   instance. For arrays of File objects, this function prints a list of file names only.
-        %
-        %   DISP is called automatically whenever operations returning a File object are invoked without using the semicolon
-        %   output suppressor. This includes the act of invoking an existing object in a function, script, or in the console
-        %   (i.e. by typing F and pressing enter if "F" is the name of a File object).
-        %
-        %   SYNTAX:
-        %       disp(F)
-        %       F.disp()
-        %
-        %   INPUT:
-        %       F:      FILE or [ FILES ]
-        %               A File object or array of objects for which information will be displayed in the MATLAB console.
-        %
-        %   See also:   DISP, DISPLAY, FPRINTF
-            if (numel(F) == 1)
-                fprintf(1,...
-                   ['\n',...
-                    '%s File Reference:\n\n',...
-                    '\tFile Name:\t\t%s\n\n',...
-                    '\t   Exists:\t\t%s\n',...
-                    '\tExtension:\t\t%s\n',...
-                    '\t   IsOpen:\t\t%s\n',...
-                    '\t Location:\t\t%s\n\n'],...
-                    upper(F.Extension),...
-                    F.FullName,...
-					String.Boolean(F.Exists),...
-                    F.Extension,...
-					String.Boolean(F.IsOpen),...
-                    F.ParentDirectory.ToString());
-            else
-                nameCell = cell(numel(F), 1);
-                for a = 1:numel(F); nameCell{a} = F(a).FullName; end
-                formatStr = [repmat('\t%s\n', 1, numel(F)) '\n'];
-                fprintf(1,...
-                    ['\n',...
-                     '(%d x %d) Array of File References:\n\n',...
-                     formatStr],...
-                     size(F, 1),...
-                     size(F, 2),...
-                     nameCell{:});
-            end
-        end
     end
     
     
