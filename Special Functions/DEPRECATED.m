@@ -26,6 +26,6 @@ function DEPRECATED(alt)
 		warn(1, 'The function ''%s'' has been deprecated and will be removed in the future.', fstack(1).name);
 	else
 		warn(1, ['The function ''%s'' has been deprecated and will be removed in the future. ' ...
-			'Use the function ''%s'' instead.'], fstack.name, alt);
+			'Use the function ''%s'' instead.'], fstack(1).name, alt);
 	end
 end
