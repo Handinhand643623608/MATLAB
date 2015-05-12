@@ -11,27 +11,27 @@
 %		swc = swcorr(x, y, window, noverlap, offset)
 %
 %	OUTPUT:
-%		swc:			[ MC x NX x NY DOUBLES ]
-%						An array of sliding window correlation values calculated between the data in X and Y. Each row of this
-%						array contains Pearson correlation coefficients (i.e. r values) between specific segments of the
-%						signals in X and Y. The number of correlation time points MC will always follow this formula:
+%		swc:			[ NC x NX x NY DOUBLES ]
+%						An array of sliding window correlation values calculated between the data in X and Y. Each row of
+%						this array contains Pearson correlation coefficients (i.e. r values) between specific segments of the
+%						signals in X and Y. The number of correlation time points NC will always follow this formula:
 %
-%							MC = floor( (M - WINDOW) / (WINDOW - NOVERLAP) )
+%							NC = floor( (N - WINDOW) / (WINDOW - NOVERLAP) )
 %						
 %						The number of columns in this array will always equal the number of signals present in X, while the
 %						number of pages NY will always equal the number of signals in Y. Thus, SWC(:, A, B) represents the
 %						sliding window correlation between the two signals X(:, A) and Y(:, B). 
 %
 %	INPUTS:
-%		x:				[ M x NX DOUBLES ]
+%		x:				[ N x NX DOUBLES ]
 %						An array of doubles containing the signal(s) to be correlated with each signal in Y. Each column of 
-%						this array represents a single signal with M time points. The number of signals NX is free to vary 
-%						but must be a positive integer. The number of time points M must always equal M from Y.
+%						this array represents a single signal with N time points. The number of signals NX is free to vary 
+%						but must be a positive integer. The number of time points N must always equal N from Y.
 %	
-%		y:				[ M x NY DOUBLES ]
+%		y:				[ N x NY DOUBLES ]
 %						An array of doubles containing the signal(s) to be correlated with each signal in X. Each column of 
-%						this array represents a single signal with M time points. The number of signals NY is free to vary 
-%						but must be a positive integer. The number of time points M must always equal M from X.
+%						this array represents a single signal with N time points. The number of signals NY is free to vary 
+%						but must be a positive integer. The number of time points N must always equal N from X.
 %
 %		window:			INTEGER
 %						The number of samples that constitute a single window. More specifically, this argument is the length
@@ -61,6 +61,8 @@
 
 %% CHANGELOG
 %	Written by Josh Grooms on 20150204
+%		20150511:	Re-implemented the C subroutine behind the actual SWC calculations in native MATLAB code so that this
+%					function can still be used even when the MEX files I've written cannot.
 
 
 
@@ -103,9 +105,61 @@ function swc = swcorr(x, y, window, noverlap, offset)
 		end
 	end
 	
-	% Let the MEX function do the heavy lifting
-	swc = MexWindowCorrelate(x, y, window, noverlap);
+	if (exist('MexWindowCorrelate', 'file') == 3)
+		
+		% Let the MEX function do the heavy lifting & then rearrange the output to the final format
+		swc = MexWindowCorrelate(x, y, window, noverlap);
+		swc = reshape(swc, size(swc, 1), szx(2), szy(2));
+		
+	else
+		
+		% Use native MATLAB code if the MEX function can't be used.
+		swc = WindowCorrelate(x, y, window, noverlap);
+		
+	end
+end
+
+
+
+%% SUBROUTINES
+function swc = WindowCorrelate(x, y, window, noverlap)
+% WINDOWCORR - Calculate sliding window correlations using MATLAB language functions.
+%
+%	This function is used whenever the compiled MEX routine is unavailable. Unfortunately in those cases, this will require
+%	significantly more time to complete.
+%
+%	OUTPUT:
+%		swc:		[ NC x NX x NY DOUBLES ]
+%					The correlation coefficient time series between all signals in X and Y.
+%
+%	INPUTS:
+%		x:			[ N x NX DOUBLES ]
+%					A matrix of signals whose samples span the rows of the array.
+%
+%		y:			[ N x NY DOUBLES ]
+%					A matrix of signals whose samples span the rows of the array.
+%
+%		window:		INTEGER
+%					The number of samples used per window segment.
+%
+%		noverlap:	INTEGER
+%					The number of overlapping samples between successive window segments.
 	
-	% Rearrange the output to a more intuitive format
-	swc = reshape(swc, size(swc, 1), szx(2), szy(2));
+	szx = size(x);
+	szy = size(y);
+	increment = window - noverlap;
+	nswc = floor((szx(1) - window) / increment);
+	nsToUse = nswc * increment;	
+	
+	swc = zeros(nswc, szx(2), szy(2));	
+	for a = 1:szy(2)		
+		for b = 1:szx(2)
+			idxSWC = 1;			
+			for c = 1:increment:nsToUse
+				tempcorr = corrcoef(x(c:c + window - 1, b), y(c:c + window - 1, a));
+				swc(idxSWC, b, a) = tempcorr(2, 1);
+				idxSWC = idxSWC + 1;
+			end
+		end
+	end
 end
