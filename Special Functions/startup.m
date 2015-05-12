@@ -24,31 +24,32 @@
 %		20150330:	Updated to fix a new bug that was introduced after copying my deprecated function folder into my main
 %					MATLAB code folder. The current version of the Paths class was being shadowed by an old version that
 %					behaved very differently.
+%		20150507:	Updated to prevent Deprecated and Prototyping folders from ever being added to MATLAB's search path. Even
+%					adding all of the code folders and then removing those two was causing some problems.
+
 
 
 %% Setup MATLAB Environment
-% Add the path to the main code storage area
+% Determine the main code path based on the computer being used
 switch (lower(getenv('COMPUTERNAME')))
     case 'desktop'
-		main = 'C:/Users/Josh/Dropbox/MATLAB Code/';
+		main = 'C:/Users/Josh/Dropbox/MATLAB Code';
     case 'shella-bigboy1'
-		main = 'C:/Users/jgrooms/Dropbox/MATLAB Code/';
+		main = 'C:/Users/jgrooms/Dropbox/MATLAB Code';
 	otherwise
 		main = '/home/jgrooms/Dropbox/MATLAB Code';
 end
-addpath(genpath(main));
 
-% Remove the code prototyping directory & obsolete code
-rmpath(genpath([main '/Prototyping']));
-rmpath(genpath([main '/Deprecated']));
-
+% Add all code directories to MATLAB's search path except for the prototyping & obsolete code folders
+allpaths = genpath(main);
+deprecated = genpath(fullfile(main, 'Deprecated'));
+prototypes = genpath(fullfile(main, 'Prototyping'));
+allpaths = strrep(allpaths, deprecated, '');
+allpaths = strrep(allpaths, prototypes, '');
+addpath(allpaths);
 
 % Navigate to the main coding area
 Paths.Main.NavigateTo();
-
-% Remove the code prototyping directory & obsolete code
-rmpath(genpath([Paths.Main '/Prototyping']));
-rmpath(genpath([Paths.Main '/Deprecated']));
 
 % Check for the latest Microsoft Visual Studio installation
 wassert(~isempty(getenv('VS120COMNTOOLS')),...
