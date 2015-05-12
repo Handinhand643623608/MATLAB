@@ -1,28 +1,46 @@
-classdef Today
-% TODAY - A static class containing current date information and Today Script utility functions.    
+% TODAY - A static class containing current date information and Today Script utility functions.
+%
+%	Today Properties:
+%		Data				- Gets the Path to the data folder for the current date.
+%		Date				- Gets the current date as a string.
+%		Time				- Gets the current time in 24-hour format as a string.
+%		Script				- Gets a File object referencing the log script for the current date.
+%		
+%	Today Methods:
+%		Archive				- Copies research data from its original storage location to a local archive folder.
+%		CreateScript		- Creates and opens a new script to serve as a record of daily research activities.
+%		CreateSection		- Creates a new time-stamped log section inside of the current Today Script.
+%		CreateSubsection	- Creates a subsection inside of a Today Script delineated by a commented line of '=' characters.
+%		FindFiles			- Finds files containing a specified time stamp that were saved to the Today Data repository.
+%		FindLogs			- Finds log script files using a specified time stamp.
+%		LoadGlobals			- Executes any code written in the very first section of the script in which it is called.
+%		Outline				- Displays an outline of Today Script section headers in the console window.
+%		SaveData			- Saves a time-stamped .MAT file to the current Today Data repository.
+%		SaveImage			- Saves a time-stamped image to the current Today Data repository.
+%		SaveImageIn			- Saves a time-stamped image to a subdirectory within the current Today Data repository.
+%		SearchLogs			- Searches through the section header text of all Today Scripts for a specified string.
     
 %% CHANGELOG
 %   Written by Josh Grooms on 20141015
-%       20141022:   Implemented functions for saving Today Script data and images automatically to the appropriate
-%                   folder. Implemented current Today Data folder generation inside of the CreateScript method.
+%       20141022:   Implemented functions for saving Today Script data and images automatically to the appropriate folder. 
+%					Implemented current Today Data folder generation inside of the CreateScript method.
 %       20141106:   Moved the section creation logic to this class under the new method CreateSection. Filled in
 %                   documentation for that method and for CreateScript. Set storage of BrainPlot images to overwrite any
-%                   existing files since this can only occur here when Today Script sections are run multiple times,
-%                   usually to correct an error or augment a prototype process.
-%       20141110:   Implemented some standard assertions to use as this class grows in function. Implemented the ability
-%                   to save images to subdirectories of the currently dated Today Data folder.
+%                   existing files since this can only occur here when Today Script sections are run multiple times, usually
+%                   to correct an error or augment a prototype process.
+%       20141110:   Implemented some standard assertions to use as this class grows in function. Implemented the ability to 
+%					save images to subdirectories of the currently dated Today Data folder.
 %		20141118:	Made a new private method SectionText for creating script section text so that it's easier to modify
-%					in the future if needed. Updated CreateScript and CreateSection methods to utilize it. Also removed
-%					the dataSaveName variable from this text since it's not really used anymore.
+%					in the future if needed. Updated CreateScript and CreateSection methods to utilize it. Also removed the
+%					dataSaveName variable from this text since it's not really used anymore.
 %		20141120:	Bug fix for first section creation not being done properly when new Today Scripts are created.
 %		20141210:	Implemented a method for archiving Today Data.
-%		20141212:	Implemented a method for automatically loading global variables stored at the very beginning of a
-%					Today Script research log. Implemented static fields containing the desired formatting of date,
-%					time, and date-time strings in case these need to be changed in the future. Added some standard
-%					assertions for date- and time-related strings. Added in an automatic placement of the global
-%					variable loading method at the beginning of the text for each section. Removed the automatic
-%					placement of infraslow data set references from each section. These aren't used nearly as often as I
-%					initially thought they would be.
+%		20141212:	Implemented a method for automatically loading global variables stored at the very beginning of a Today 
+%					Script research log. Implemented static fields containing the desired formatting of date, time, and 
+%					date-time strings in case these need to be changed in the future. Added some standard assertions for 
+%					date- and time-related strings. Added in an automatic placement of the global variable loading method at 
+%					the beginning of the text for each section. Removed the automatic placement of infraslow data set 
+%					references from each section. These aren't used nearly as often as I initially thought they would be.
 %		20141217:	Implemented methods for finding open MATLAB documents (e.g. scripts and functions) and for replacing
 %					text inside of them. Replaced the relevant section of CreateSection with these new functions. Also
 %					implemented a new method CreateSubsection for creating comment line separators within log scripts.
@@ -30,13 +48,20 @@ classdef Today
 %                   time stamp can't be found on my work flash drive.
 %       20150202:   Changed the behavior of CreateScript so that it opens a pre-existing log file instead of erroring out.
 %		20150224:	Implemented methods to outline and search the section header text of log files.
+%		20150507:	Overhauled the class documentation to summarize all of the properties and methods that are available.
+%		20150511:	Updated for compatibility with changes to file management objects.
+
+
+
+%% CLASS DEFINITION
+classdef Today
+
     
 
 
     %% PROPERTIES
     
     methods (Static)
-        
         function P = Data
         % Gets the path to the data folder for the current date.
             P = [Paths.TodayData '/' Today.Date];
@@ -52,9 +77,8 @@ classdef Today
         function F = Script
         % Gets the path to the Today Script log file for the current date.
 			date = Today.Date;
-            F = File([Paths.TodayScripts '/' date(1:4) '/' date(5:6) '/' date '.m']);
-        end
-        
+            F = [Paths.TodayScripts '/' date(1:4) '/' date(5:6) '/' date '.m'];
+		end
 	end
 	
 	methods (Static, Access = private)
@@ -83,8 +107,8 @@ classdef Today
 		function Archive()
 		% ARCHIVE - Performs a simple copy of new Today Data to the locally stored archive.
 		%
-		%	ARCHIVE copies data stored in the portable Today Data repository (i.e. my flash drive) to a local archive
-		%	whose location depends on the computer being worked on.
+		%	ARCHIVE copies data stored in the portable Today Data repository (i.e. my flash drive) to a local archive whose
+		%	location depends on the computer being worked on.
 		%
 		%	SYNTAX:
 		%		Today.Archive()
@@ -113,24 +137,23 @@ classdef Today
 		end
         function CreateScript()
         % CREATESCRIPT - Creates and opens a new script to serve as a record of daily activities.
+		%	
         %   This function creates a new today script, which is a script intended to serve as a log of daily research
-        %   activities that take place in MATLAB. To this end, it automatically creates a new MATLAB .m script file
-        %   inside of the designated log script repository, which is defined by the personalized PATHS dictionary.
+        %   activities that take place in MATLAB. To this end, it automatically creates a new MATLAB .m script file inside of
+        %   the designated log script repository, which is defined by the personalized PATHS dictionary.
         %
-        %   Newly created scripts are always named after the date that NTS is invoked on (in YYYYMMDD format) and are
-        %   always initialized to contain the very first time-stamped log section. Afterward, if a new section is
-        %   desired, the related class method CREATESECTION should be invoked within the script.
+        %   Newly created scripts are always named after the date that NTS is invoked on (in YYYYMMDD format) and are always
+        %   initialized to contain the very first time-stamped log section. Afterward, if a new section is desired, the
+        %   related class method CREATESECTION should be invoked within the script.
         %
         %   INSTRUCTIONS:
-        %       1. Once per day (and only once), type "Today.CreateScript()" without quotes into the MATLAB console
-        %          window and press the Enter keyboard key. A log file will be created with the current date as its file 
-        %          name.
-        %           1a. Invoking this method when a file named with the current date already exists is an error.
+        %       1.	Once per day (and only once), type "Today.CreateScript()" without quotes into the MATLAB console window 
+		%			and press the Enter keyboard key. A log file will be created with the current date as its file name.
         %       2. Use "Today.CreateSection()" to create any subsequent time-stamped log sections as desired.
         %
         %   TIP:
-        %   Use the shortcut function NTS to avoid having to write out the full class and method name every time a new
-        %   daily log script is created.
+        %		Use the shortcut function NTS to avoid having to write out the full class and method name every time a new
+        %		daily log script is created.
         %
         %   SYNTAX:
         %       Today.CreateScript()
@@ -454,7 +477,7 @@ classdef Today
 		%					metacharacters. It is also case-insensitive.
 		%
 		%	See also: TODAY.FINDLOGS, TODAY.OUTLINE
-			F = Paths.TodayScripts.AllFiles();
+			F = Paths.TodayScripts.FileContents(true);
 			[s, l] = Today.GetSectionHeaderText(F);
 			
 			for a = 1:numel(F)
@@ -534,11 +557,11 @@ classdef Today
 			assert(length(timeStamp) >= 4, 'Invalid time stamp.');
 			switch length(timeStamp)
 				case 4
-					F = AllFiles([Paths.TodayScripts '/' timeStamp]);
+					F = FileContents([Paths.TodayScripts '/' timeStamp], true);
 				case 6
-					F = AllFiles([Paths.TodayScripts '/' timeStamp(1:4) '/' timeStamp(5:6)]);
+					F = FileContents([Paths.TodayScripts '/' timeStamp(1:4) '/' timeStamp(5:6)]);
 				case 8
-					F = File([Paths.TodayScripts '/' timeStamp(1:4) '/' timeStamp(5:6) '/' timeStamp '.m']);
+					F = [Paths.TodayScripts '/' timeStamp(1:4) '/' timeStamp(5:6) '/' timeStamp '.m'];
 				otherwise
 					error('Invalid time stamp detected.');
 			end
@@ -588,14 +611,14 @@ classdef Today
 		%				The line numbers that correspond with the strings in S.
 			for a = 1:numel(F)
 				fprintf(1, '\n\t<a href="matlab: opentoline(%s,%d)">%s</a>\n',...
-					F(a).ToString(),...
+					F(a).FullPath,...
 					1,...
 					F(a).Name);
 				
 				for b = 1:length(s{a})
 					if (~isempty(s{a}{b}) && l{a}(b) ~= 1)
 						fprintf(1, '\t\t<a href="matlab: opentoline(%s,%d)">%s</a>%s\n',...
-							F(a).ToString(),...
+							F(a).FullPath,...
 							l{a}(b),...
 							s{a}{b}(1:4),...
 							s{a}{b}(5:end));
@@ -619,7 +642,7 @@ classdef Today
 			assert(ischar(fileName), 'File names must be specified as string type arguments.');
 			ext = File.GetExtension(fileName);
 			if ~strcmpi(ext, '.m'); fileName = [fileName '.m']; end
-			D = matlab.desktop.editor.findOpenDocument(fileName);	
+			D = matlab.desktop.editor.findOpenDocument(fileName);
 		end
 		function [s, l] = GetSectionHeaderText(F)
 		% GETSECTIONHEADERTEXT - Compiles a list of log script section header text from the inputted files.
