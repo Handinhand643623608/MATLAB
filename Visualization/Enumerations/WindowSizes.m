@@ -1,27 +1,40 @@
-classdef WindowSizes
-%WINDOWSIZES - An enumeration of common window sizes.
-
+%WINDOWSIZES - An enumeration of common window sizes on a computer monitor.
+%
+%	WindowSizes Enumerators:
+%		Default			- The default figure size used by MATLAB (Width = 576, Height = 513).
+%		FullScreen		- A window that fills the entire screen, excluding the Windows taskbar.
+%		HalfScreen		- A window that fills half of the screen.
+%		QuarterScreen	- A window that fills one quarter of the screen.
+%
+%	WindowSizes Methods:
+%		ToPixels		- Converts a WindowSizes enumerator into width and height pixel values.
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20140716
+%		20150509:	Overhauled the class documentation to summarize all of the properties and methods that are available.
 
 
 
-    %% Window Size Enumerations
+%% CLASS DEFINITION
+classdef WindowSizes
+
+
+
+
+    %% ENUMERATORS
     enumeration
-        Default         
-        FullScreen      
-        HalfScreen
-        QuarterScreen
+        Default         % The default figure size used by MATLAB (Width = 576, Height = 513).
+        FullScreen      % A window that fills the entire screen, excluding the Windows taskbar.
+        HalfScreen		% A window that fills half of the screen.
+        QuarterScreen	% A window that fills one quarter of the screen.
     end
     
     
     
     %% Enumerator Conversion Methods
     methods
-        % Convert screen size enumerations into vectors of pixel values
-        function size = ToPixels(enum)
-            %TOPIXELS - Convert a window size enumerator into height and width pixel values.
+        function sz = ToPixels(S)
+		% TOPIXELS - Convert a WindowSizes enumerator into width and height pixel values.
             
             % Account for the Windows task bar size
             taskbarSize = 40;
@@ -30,21 +43,22 @@ classdef WindowSizes
             screenSize(2) = screenSize(2) - taskbarSize;
             
             % Create & return a size vector
-            switch enum
+            switch S
                 case WindowSizes.Default
-                    size = [576, 512];
+                    sz = [576, 512];
                 case WindowSizes.FullScreen
-                    size = screenSize;
+                    sz = screenSize;
                 case WindowSizes.HalfScreen
-                    size = screenSize;
+                    sz = screenSize;
                     maxSize = max(screenSize);
-                    size(size == maxSize) = round(0.5*maxSize);
+                    sz(sz == maxSize) = round(0.5*maxSize);
                 case WindowSizes.QuarterScreen
-                    size = round(0.5.*screenSize);
+                    sz = round(0.5.*screenSize);
             end
         end
-    end
+	end
 
+	
 
 end
 

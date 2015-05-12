@@ -1,33 +1,61 @@
-classdef Window < handle & Entity
-%WINDOW - Creates an easily customizable figure window.
-%   This class automates some of the more tedious work associated with figure building. It allows for easy window
-%   resizing and placement on the screen by providing a number of common presets. It also contains several fields for
-%   storing object handles and data that are frequently used in conjunction with figures. 
+% WINDOW - Creates an easily customizable figure window.
+%	
+%   This class automates some of the more tedious work associated with figure building. It allows for easy window resizing
+%   and placement on the screen by providing a number of common presets. It also contains several fields for storing object
+%   handles and data that are frequently used in conjunction with figures.
+%
+%	Window Properties:
+%		Axes		- A reference to the Axes object used for plotting in the window.
+%		Background	- The background color of the window.
+%		Colorbar	- A reference to the Colorbar object displayed within the window.
+%		Colormap	- The color mapping used to display colorized data.
+%		Data		- A general-purpose field used for storing data related to window contents.
+%		Name		- The string displayed in the window title bar.
+%		Patch		- Handles to various Patch objects that exist within the window.
+%		Position	- The position of the lower left window corner, [X, Y] in pixels, on the computer screen.
+%		Size		- The size of the window, [Width, Height] in pixels, on the computer screen.
+%		Text		- Handles to various Text objects that exist within the window.
+%
+%	Window Constructor:
+%		Window		- Constructs a new Window object.
+%
+%	Window Methods:
+%		Close		- Closes a window and deletes the associated handle variable in the calling workspace.
+%		ToBitmap	- Captures an image of all current window contents in the form of a Bitmap object.
+%		ToFigure	- Converts a Window object reference into a native MATLAB figure handle.
+%
+%	See also: AXES, FIGURE, MONTAGE, PROGRESS
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130205
-%       20130801:   Removed a number of redundant properties in order to make this object more lightweight. Major 
-%                   overhaul of object functionality. Now windowObj is more of a wrapper for the native FIGURE objects.
-%                   Removed old changelog entries (see SVN for the complete list)
-%       20130803:   Moved GET to a separate function & improved its functionality. Renamed the initialization function 
-%                   to DRAWWINDOW to prevent conflict with subclasses.
-%       20140716:   Major reorganization of this class. Removed the ability to set window sizes and positions using
-%                   strings and replaced them with enumerations for better control. Removed the general GET and SET
-%                   overloads as well as the ability to interface directly with the wrapped figure handle through this
-%                   class. 
+%       20130801:   Removed a number of redundant properties in order to make this object more lightweight. Major  overhaul 
+%					of object functionality. Now windowObj is more of a wrapper for the native FIGURE objects. Removed old 
+%					changelog entries (see SVN for the complete list)
+%       20130803:   Moved GET to a separate function & improved its functionality. Renamed the initialization function  to 
+%					DRAWWINDOW to prevent conflict with subclasses.
+%       20140716:   Major reorganization of this class. Removed the ability to set window sizes and positions using strings
+%					and replaced them with enumerations for better control. Removed the general GET and SET overloads as well 
+%					as the ability to interface directly with the wrapped figure handle through this class.
 %       20140805:   Implemented a wrapping property and get/set methods for window background color. Removed the DISP
 %                   function now that native figure properties are no longer accessible through this class.
 %       20140807:   Implemented a wrapping property and get/set methods for the window title bar name string.
 %       20140828:   Implemented a property controlling the figure color mapping.
-%       20141110:   Changed the Window class to open a full screen window by default, since this is almost universally
-%                   how it's used.
-%		20141121:	Rewrote the constructor method to use the new input assignment system and to get rid of the
-%					externally defined Initialize function.
+%       20141110:   Changed the Window class to open a full screen window by default, since this is almost universally how 
+%					it's used.
+%		20141121:	Rewrote the constructor method to use the new input assignment system and to get rid of the externally 
+%					defined Initialize function.
 %		20141210:	Implemented a method that converts a window object into a native MATLAB figure handle.
-%		20141212:	Changed the name of "close" to "Close" for consistency with all my other class methods and because I 
-%					keep making that typo in code that I write. Fixed a bug that occurred when trying to create a figure
-%					with a specific figure number and with a close function callback assignment.
+%		20141212:	Changed the name of "close" to "Close" for consistency with all my other class methods and because I keep 
+%					making that typo in code that I write. Fixed a bug that occurred when trying to create a figure with a 
+%					specific figure number and with a close function callback assignment.
 %		20150128:	Added a new property "Patch" to hold patch graphics object references.
+%		20150507:	Overhauled the class documentation to summarize all of the properties and methods that are available.
+
+
+
+%% CLASS DEFINITION
+classdef Window < handle & Entity
+
 
 
 
@@ -131,7 +159,7 @@ classdef Window < handle & Entity
     
     %% CONSTRUCTORS
     methods 
-        function H = Window(varargin)
+		function W = Window(varargin)
 		% WINDOW - Construct a window object with multiple features.
 		
 			function Defaults
@@ -153,23 +181,23 @@ classdef Window < handle & Entity
 			end
 			assign(@Defaults, varargin);
 			
-			H.CreateFigure(FigureNumber);
+			W.CreateFigure(FigureNumber);
 			
-			H.Background = Background;
-			H.Colormap = Colormap;
-			H.Name = Name;
-			H.Position = Position;
-			H.Size = Size;
+			W.Background	= Background;
+			W.Colormap		= Colormap;
+			W.Name			= Name;
+			W.Position		= Position;
+			W.Size			= Size;
 			
-			set(H.FigureHandle, 'InvertHardcopy', InvertHardcopy);
-			set(H.FigureHandle, 'MenuBar', MenuBar);
-			set(H.FigureHandle, 'NumberTitle', NumberTitle);
-			set(H.FigureHandle, 'PaperPositionMode', PaperPositionMode);
-			set(H.FigureHandle, 'PaperSize', PaperSize);
-			set(H.FigureHandle, 'Resize', Resize);
-			set(H.FigureHandle, 'Tag', Tag);
-			set(H.FigureHandle, 'Units', Units);
-			set(H.FigureHandle, 'Visible', Visible);
+			set(W.FigureHandle, 'InvertHardcopy', InvertHardcopy);
+			set(W.FigureHandle, 'MenuBar', MenuBar);
+			set(W.FigureHandle, 'NumberTitle', NumberTitle);
+			set(W.FigureHandle, 'PaperPositionMode', PaperPositionMode);
+			set(W.FigureHandle, 'PaperSize', PaperSize);
+			set(W.FigureHandle, 'Resize', Resize);
+			set(W.FigureHandle, 'Tag', Tag);
+			set(W.FigureHandle, 'Units', Units);
+			set(W.FigureHandle, 'Visible', Visible);
         end
     end
 
@@ -192,20 +220,20 @@ classdef Window < handle & Entity
 	end
 	
     methods
-		function Close(H, varargin)
-		% CLOSE - Close the window and delete the associated variable in the calling workspace.
-            delete(H.FigureHandle)
+		function Close(W, varargin)
+		% CLOSE - Closes a window and delete the associated handle variable in the calling workspace.
+            delete(W.FigureHandle)
             evalin('caller', ['clear ' inputname(1)]);
         end
-        function Store(H, filename)
+        function Store(W, filename)
 			
 			DEPRECATED Window.Save
-            saveas(H.FigureHandle, filename);
+            saveas(W.FigureHandle, filename);
 		end
 		
-		function B = ToBitmap(H)
+		function B = ToBitmap(W)
 		% TOBITMAP - Captures an image of all current window contents in the form of a bitmap object.
-			f = getframe(H.FigureHandle);
+			f = getframe(W.FigureHandle);
 			B = Bitmap.FromRGB(f.cdata);
 		end
 		function F = ToFigure(H)
