@@ -1,19 +1,54 @@
-classdef Color < Entity
-% COLOR - A primitive class that stores manages color data.
+% COLOR - A value-type primitive class that stores and manages color data.
+%
+%	Color Properties:
+%		R			- The red channel value.
+%		G			- The green channel value.
+%		B			- The blue channel value.
+%
+%	Color Constructor:
+%		Color		- Constructs a standardized color primitive type.
+%
+%	Color Static Constructors:
+%		Black		- Creates a Color object array of arbitrary size containing only the color black.
+%		FromData	- Creates a Color object array that represents a scaled numeric data array.
+%		FromInt		- Creates a Color object array from an array of packed color integers.
+%		FromRGB		- Creates a Color object array from a numeric RGB array.
+%		FromString	- Creates a Color object array from common color codes and name strings.
+%		Interpolate - Creates a Color object vector that interpolates between two or more colors.
+%		White		- Creates a Color object array of arbitrary size containing only the color white.
+%
+%	Color Methods:
+%		ToArray		- Converts a Color object array into a numeric RGB array whose channel values span the final dimension.
+%		ToHex
+%		ToInt		- Converts a Color object array into an array of packed 32-bit integers containing the RGB values.
+%		ToHSV
+%		ToMatrix	- Converts a Color object array into a numeric RGB matrix whose channel values span the columns.
+%		ToRGB		- 
+%
+%	Color Overloads:
+%		disp		- Displays information about one or more Color objects in the console window.
+%		double
+%		image
 %
 %	See also: BITMAP, COLOR.COLOR, COLOR.FROMDATA, COLOR.FROMRGB, COLORS
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20150211
-    
+%		20150508:	Overhauled the class documentation to summarize all of the properties and methods that are available.
+%					Implemented methods to convert colors to and from packed 32-bit integer values.
+
+
+
+%% CLASS DEFINITION
+classdef Color < Entity
     
     
 
     %% DATA
     properties
-        R           % The red channel value.
-        G           % The green channel value.
-        B           % The blue channel value.
+        R           % The red channel value between [0, 1].
+        G           % The green channel value between [0, 1].
+        B           % The blue channel value between [0, 1].
     end
     
     properties
@@ -136,6 +171,8 @@ classdef Color < Entity
 			if ~isa(nancolor, 'Color'); nancolor = Color(nancolor); end
 			idsNaN = isnan(x);
 			
+			% FIXME: This method is unbelievably slow given what it's doing. Need to figure out why and fix it.
+			
 			ncolors = length(cmap);
 			x = ( x - clim.Min ) ./ ( clim.Difference );
 			x = round(x .* (ncolors - 1)) + 1;
@@ -144,9 +181,45 @@ classdef Color < Entity
 			idsc(idsc < 1) = 1;
 			idsc(idsc > ncolors) = ncolors;
 			
-			C = cmap(idsc);
+			nx = numel(x);
+			
+			C(nx) = Color();
+			
+			for a = 1:nx
+				C(a) = cmap(idsc(a));
+			end
+			
+% 			C = cmap(idsc);
 			C = reshape(C, size(x));
 			C(idsNaN) = nancolor;
+		end
+		function C = FromInt(i)
+		% FROMINT - Creates a Color object array from an array of packed color integers.
+		%
+		%	SYNTAX:
+		%		C = Color.FromInt(i)
+		%
+		%	OUTPUT:
+		%		C:		[ COLORS ]
+		%				An array of Color objects representing the colors in the inputted integer array. This method unpacks
+		%				the channel values in each integer and restores them to the double-precision fields of Color objects.
+		%
+		%	INPUT:
+		%		i:		[ UINT32 ]
+		%				An array of 32-bit unsigned integers whose bit fields contain 8-bit RGBA channel values.
+		%
+		%	See also: COLOR.TOINT
+		
+			r = bitand(i, 255);
+			g = bitand(bitshift(i, -8), 255);
+			b = bitand(bitshift(i, -16), 255);
+			
+			r = double(r) ./ 255;
+			g = double(g) ./ 255;
+			b = double(b) ./ 255;
+			
+			C = Color(r(:), g(:), b(:));
+			C = reshape(C, size(i));
 		end
         function C = FromRGB(rgb)
 		% FROMRGB - Creates an array of color values from a numeric RGB array.
@@ -211,12 +284,54 @@ classdef Color < Entity
 			C = reshape(C, size(s));
 		end
 		function C = Interpolate(n, varargin)
-			
+		% INTERPOLATE - Creates a Color object vector that interpolates between two or more colors.
+		%
+		%	SYNTAX:
+		%		C = Color.Interpolate(n, color1, color2)
+		%		C = Color.Interpolate(n, method, color1, color2,...)
+		%		C = Color.Interpolate(n, method,...)
+		%
+		%	OUTPUT:
+		%		C:			[ N x 1 COLORS ]
+		%					A column vector containing the interpolated values between the inputted colors. The number of
+		%					colors ultimately present is controlled by the first input argument, N.
+		%
+		%	INPUTS:
+		%		n:			INTEGER
+		%					The number of color interpolations to be made. This controls how many colors are present in the
+		%					outputted Color object vector.
+		%	
+		%		color:		[ R, G, B ] or COLOR
+		%					Two or more colors between which interpolation will occur. Any number of colors may be inputted
+		%					(so long as a minimum of two are provided), but each color must be a separate argument. These may
+		%					be specified as numeric RGB vectors, Color objects, or a mixture of the two.
+		%
+		%	OPTIONAL INPUTS:
+		%		method:		STRING
+		%					A single string specifying the method by which color interpolation will occur. This parameter is
+		%					used directly with the MATLAB-native function INTERP1. See the documentation of that function for
+		%					more details.
+		%					DEFAULT: 'linear'
+		%
+		%					OPTIONS:
+		%						'cubic'		- Shape-preserving piecewise cubic interpolation.
+		%						'linear'	- Linear interpolation between color channel values.
+		%						'nearest'	- Nearest neighbor interpolation.
+		%						'next'		- Next neighbor interpolation.
+		%						'pchip'		- Same as 'cubic'.
+		%						'previous'	- Previous neighbor intterpolation.
+		%						'spline'	- Piecewise cubic spline interpolation.
+		%						'v5cubic'	- The cubic interpolation method from MATLAB 5.
+		%
+		%	See also: INTERP1
+		
 			method = 'linear';
 			if (nargin > 1 && ischar(varargin{1}))
 				method = varargin{1};
 				varargin(1) = [];
 			end
+			
+			assert(length(varargin) >= 2, 'Interpolation can only occur between two or more inputted colors.');
 			
 			for a = 1:length(varargin)
 				if isa(varargin{a}, 'Color')
@@ -306,7 +421,7 @@ classdef Color < Entity
                 
     methods
         function a = ToArray(C)
-        % TOARRAY - Converts an array of color objects into an RGB array.
+        % TOARRAY - Converts a Color object array into a numeric RGB array whose channel values span the final dimension.
 		%
 		%	SYNTAX:
 		%		a = C.ToArray()
@@ -320,6 +435,8 @@ classdef Color < Entity
 		%	INPUT:
 		%		C:		[ COLORS ]
 		%				A color object array of any size and dimensionality.
+		%
+		%	See also: COLOR.TOMATRIX
             szc = size(C);
 			if (numel(C) == 1)
 				a = double(C);
@@ -350,7 +467,57 @@ classdef Color < Entity
 				H(a).Space = Colorspace.HSV;
 			end
 		end
+		function i = ToInt(C)
+		% TOINT - Converts a Color object array into an array of packed 32-bit integers containing the RGB values.
+		%
+		%	SYNTAX:
+		%		i = C.ToInt()
+		%
+		%	OUTPUT:
+		%		i:		[ UINT32 ]
+		%				An array of 32-bit unsigned integers representing the colors inputted in C. This array will always be
+		%				of exactly the same size and dimensionality as C. Each integer contains in its bit fields the ordered
+		%				8-bit red, green, blue, and alpha color channel values from the corresponding Color object in C.
+		%				Alpha, which is typically used to represent transparency, is included here to fill out the remaining
+		%				8 bits of the 32 bit integer, despite not being a member of these Color objects. It always takes a
+		%				value of 1.0 (i.e. 255 in 8-bit color).
+		%
+		%	INPUT:
+		%		C:		[ COLORS ]
+		%				An array of Color objects to be converted to unsigned 32-bit integers. This argument can be an array
+		%				of any size and dimensionality.
+		%
+		%	See also: COLOR.FROMINT
+		
+			r = uint32([C.R]' .* 255);
+			g = uint32([C.G]' .* 255);
+			b = uint32([C.B]' .* 255);
+			a = uint32(255);
+			
+			i = r;
+			i = bitor(i, bitshift(g, 8));
+			i = bitor(i, bitshift(b, 16));
+			i = bitor(i, bitshift(a, 24));
+			
+			i = reshape(i, size(C));
+		end
 		function m = ToMatrix(C)
+		% TOMATRIX - Converts a Color object array into a numeric RGB matrix whose channel values span the columns.
+		%
+		%	SYNTAX:
+		%		m = C.ToMatrix()
+		%
+		%	OUTPUT:
+		%		m:		[ N x 3 DOUBLES ]
+		%				A numeric RGB color matrix whose red, green, and blue channel values span the second dimension (i.e.
+		%				columns). The number of rows present is dictated by the total number of elements in the inputted
+		%				object array C.
+		%
+		%	INPUT:
+		%		C:		COLOR or [ COLORS ]
+		%				A Color object array of any size and dimensionality to be converted into a numeric RGB matrix. 
+		%
+		%	See also: COLOR.TOARRAY
 			m = ToArray(C(:));
 		end
 		function R = ToRGB(C)
@@ -375,7 +542,7 @@ classdef Color < Entity
 	%% MATLAB OVERLOADS
 	methods
 		function disp(C)
-			
+		% DISP - Displays information about one or more Color objects in the console window.
 			if (numel(C) > 1)
 				fprintf(1, [String.ArraySize(size(C)) ' Array of Color Objects:\n\n']);
 			end
