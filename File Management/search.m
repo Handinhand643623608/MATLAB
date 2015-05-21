@@ -27,6 +27,8 @@
 %		20150510:	Completely rewrote and streamlined this function to get rid of a bunch of extraneous functionality. Also
 %					changed its behavior so that it never throws errors but instead generates warnings when searches come up
 %					empty.
+%		20150518:	Replaced an inconvenient call to a static Path class method. Using that method introduced an unnecessary
+%					dependency in an otherwise standalone function.
 
 
 
@@ -50,6 +52,6 @@ function plist = search(p, query)
 	end
 	
 	plist = fullfile(p, allcontents(idsMatch));
-	plist = Path.FormatSeparators(plist);
+	plist = cellfun(@(x) strrep(x, '\', '/'), plist, 'UniformOutput', false);	
 	
 end

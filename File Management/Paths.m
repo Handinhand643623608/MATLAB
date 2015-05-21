@@ -42,6 +42,7 @@ classdef Paths < Entity
 %                   properties that explicitly used that path to depend instead on the static property.
 %		20150510:	Changed hard-coded path construction to use FOLDER object constructors for compatibility with changes
 %					just made to my file management code.
+%		20150513:	Added in directory references for my home Ubuntu Linux installation.
    
 
     
@@ -65,6 +66,8 @@ classdef Paths < Entity
             switch (Paths.ComputerName)
                 case 'desktop'
                     P = Folder('C:/Users/Josh/Desktop');
+				case 'linuxpc'
+					p = Folder('/home/josh/Desktop');
                 case 'shella-bigboy1'
                     P = Folder('C:/Users/jgrooms/Desktop');
                 otherwise
@@ -95,6 +98,8 @@ classdef Paths < Entity
             switch (Paths.ComputerName)
                 case 'desktop'
                     P = Folder('C:/Users/Josh/Dropbox/MATLAB Code');
+				case 'linuxpc'
+					P = Folder('/home/josh/Dropbox/MATLAB Code');
                 case 'shella-bigboy1'
                     P = Folder('C:/Users/jgrooms/Dropbox/MATLAB Code');
                 otherwise
@@ -103,10 +108,10 @@ classdef Paths < Entity
         end
         function P = MATLAB
         % Gets the path to the MATLAB installation folder.
-            P = Path(matlabroot);
+            P = Folder(matlabroot);
 		end
 		function p = MexCompiler
-			p = Folder('X:/Code/C/MATLAB/MexCompiler/x64/Release');
+			p = Folder([Paths.FlashDrive '/Code/MATLAB/MexCompiler/x64/Release']);
 		end
 		function p = PWD
 			p = Folder.PWD;
