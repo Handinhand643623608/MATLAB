@@ -1,4 +1,3 @@
-function cutoff = fdr(p, alpha)
 % FDR - Calculates a FWER-corrected p-value cutoff using Benjamini-Hochberg control of false discovery rate.
 %
 %   SYNTAX:
@@ -11,7 +10,7 @@ function cutoff = fdr(p, alpha)
 %
 %   INPUTS:
 %       p:			[ DOUBLES ]
-%                   A vector of p-values for which the significance cutoff is needed.
+%                   An array of p-values for which the significance cutoff is needed.
 %   
 %       alpha:      DOUBLE
 %                   The desired significance cutoff after correcting for multiple comparisons. This is the same alpha
@@ -23,17 +22,21 @@ function cutoff = fdr(p, alpha)
 
 
 
-%% Calculate a P-Value Threshold using False Discovery Rate
-% Sort the p-values into ascending order
-p = sort(p(:));
+%% FUNCTION DEFINITION
+function cutoff = fdr(p, alpha)
+	
+	% Sort the p-values into ascending order
+	p = sort(p(:));
 
-% Create a weighting vector for each of the p-values
-weights = alpha * ( 1:length(p) / length(p) );
+	% Create a weighting vector for each of the p-values
+	weights = alpha * ( (1:length(p)) / length(p) );
 
-% Find where p-values are less than their corresponding weighting elements (these are significant)
-idsSig = p <= weights;
+	% Find where p-values are less than their corresponding weighting elements (these are significant)
+	idsSig = p <= weights;
 
-% The maximum significant p-value is then the cutoff
-if (~any(idsSig)); cutoff = NaN; return; end
-cutoff = p(idsSig);
-cutoff = cutoff(end);
+	% The maximum significant p-value is then the cutoff
+	if (~any(idsSig)); cutoff = NaN; return; end
+	cutoff = p(idsSig);
+	cutoff = cutoff(end);
+	
+end

@@ -119,8 +119,5 @@ void mexFunction(int nargout, mxArray* argout[], int nargin, const mxArray* argi
 			mexErrMsgTxt("Unrecognized distribution tail selection. See documentation for available options.");
 			break;
 	}
-
-
-	
 }
 	

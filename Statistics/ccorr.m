@@ -36,16 +36,16 @@
 %                       X.
 %
 %		y:				[ M x NY DOUBLES ]
-%                       DEFAULT: X
 %                       An array of doubles containing the signal(s) to be cross-correlated with each signal in X. Each
 %                       column of this array represents a single signal with M time points. The number of signals NY is free
 %                       to vary but must be a positive integer. The number of samples M must always equal M from X.
+%                       DEFAULT: X
 %
 %       maxlag:         INTEGER
-%                       DEFAULT: M - 1
 %                       The maximum number of sample shifts to use when calculating the cross-correlation. The output lags
 %                       will then be the vector -MAXLAG : MAXLAG. The default value of this argument is the maximum possible
 %                       sample shift, which is derived from the number of samples in X and Y.
+%                       DEFAULT: M - 1
 %
 %	See also: CORR2, CORR3, CORRCOEF, XCORR, XCORRARR
 
@@ -57,6 +57,8 @@
 %                   Additionally, I completed the documentation for this function.
 %		20150210:	Updated to remove the restrictions on the number of columns in X and Y. These can now freely vary.
 %					Updated the documentation of this function to reflect this change and to improve clarity.
+%		20150527:	Re-implemented the C subroutine behind the cross-correlation calculations in native MATLAB code so that
+%					this function can still be used even when the MEX files I've written cannot.
 
 
 
@@ -80,15 +82,20 @@ function [cc, lags] = ccorr(x, y, maxlag)
     szy = size(y);
     
     % Constrain the size of X & Y
-    assert(szx(1) == szy(1), 'X and Y must always contain the same number of rows.');
+    assert(szx(1) == szy(1), 'X and Y must always contain the same number of samples.');
     
-    % Cross correlate the data
-    if (szx(2) == 1 && szy(2) ~= 1)
-        cc = flip(MexCrossCorrelate(y, x));
-    else
-        cc = MexCrossCorrelate(x, y);
-    end
-        
+	if (exist('MexCrossCorrelate', 'file') == 3)	
+		% Let the MEX function do the heavy lifting to calculate cross-correlation
+		if (szx(2) == 1 && szy(2) ~= 1)
+			cc = flip(MexCrossCorrelate(y, x));
+		else
+			cc = MexCrossCorrelate(x, y);
+		end
+	else
+		% Use native MATLAB code if the MEX function can't be used
+		cc = CrossCorrelate(x, y);
+	end
+	
     % Remove unwanted shifts
     allLags = -(szx(1) - 1) : (szx(1) - 1);
     lags = -maxlag : maxlag;
@@ -98,5 +105,68 @@ function [cc, lags] = ccorr(x, y, maxlag)
 	% Rearrange the output to a more intuitive format
 	cc = reshape(cc, size(cc, 1), szx(2), szy(2));
 	lags = lags';
+	
+end
+
+
+
+%% SUBROUTINES
+function cc = CrossCorrelate(x, y)
+% CROSSCORRELATE - Calculate cross-correlation between arrays of signals using MATLAB language functions.
+%
+%	This function is used whenever the compiled MEX routine is unavailable. Unfortunately in those cases, this will require
+%	significantly more time to complete.
+%
+%	OUTPUT:
+%		cc		[ MC x NC DOUBLES ]
+%				The Pearson correlation coefficients at all possible time lags between the signals in x and y. The number of
+%				columns (NC) of this array is the product of NX and NY. This output is a flattened version of the ultimate
+%				output of CCORR.
+%
+%	INPUTS:
+%		x:		[ M x NX DOUBLES ]
+%				A matrix of signals whose samples span the rows of the array.
+%
+%		y:		[ M x NY DOUBLES ]
+%				A matrix of signals whose samples span the rows of the array.
+
+	% Acquire some data characteristics
+	szx = size(x);
+	szy = size(y);
+	ncc = 2 * szx(1) - 1;
+	nfft = 2^nextpow2(ncc);
+	
+	% Cross-correlation of large signals is efficiently performed in the frequency domain
+	X = fft(x, nfft, 1);
+	Y = fft(y, nfft, 1);
+	
+	% Initialize storage arrays for the cross-spectral density data & Pearson r scaling coefficients
+	CC = zeros(nfft, szx(2) * szy(2));
+	scale = zeros(1, szx(2) * szy(2));
+	
+	% Calculate cross-spectral densities between individual signals in x and y
+	idxColCC = 1;
+	for a = 1:szy(2)
+		for b = 1:szx(2)
+			
+			% CC is the cross-spectral density of X and Y and is the Fourier transform of the cross-covariance function.
+			% Scaling coefficients are also derived from the original signals that will later be used to convert
+			% cross-covariance estimates into Pearson correlation coefficients. The counter here (index of the CC column
+			% being computed) isn't necessary but is more transparent and more efficient than calculating it on-the-fly.
+
+			CC(:, idxColCC) = X(:, b) .* conj(Y(:, a));
+			scale(idxColCC) = sum(abs(x(:, b)).^2) * sum(abs(y(:, a)).^2);
+			idxColCC = idxColCC + 1;
+			
+		end
+	end
+	
+	% Convert the cross-spectral densities to cross-covariance functions & unshift the data
+	cc = real(ifft(CC, [], 1));
+	cc = [ cc(end-szx(1)+2:end, :); cc(1:szx(1), :) ];
+	
+	% Scale cross-covariance estimates to Pearson product-moment correlation coefficients
+	scale = repmat(sqrt(scale), ncc, 1);
+	cc = cc ./ scale;
 	
 end

@@ -1,7 +1,7 @@
 % SWCORR - Calculates the sliding window correlations between two data sets.
 %
 %	SWCORR computes the sliding window correlation between two sets of signals over time. This creates a set of time series
-%	showing how correlation between two data sets changes as a function of time. It is particularly useful in analysing
+%	showing how correlation between two data sets changes as a function of time. It is particularly useful in analyzing
 %	relationships between data that have non-stationary or time-varying statistical properties (such as my fMRI and EEG
 %	data).
 %
@@ -106,16 +106,12 @@ function swc = swcorr(x, y, window, noverlap, offset)
 	end
 	
 	if (exist('MexWindowCorrelate', 'file') == 3)
-		
 		% Let the MEX function do the heavy lifting & then rearrange the output to the final format
 		swc = MexWindowCorrelate(x, y, window, noverlap);
 		swc = reshape(swc, size(swc, 1), szx(2), szy(2));
-		
 	else
-		
 		% Use native MATLAB code if the MEX function can't be used.
 		swc = WindowCorrelate(x, y, window, noverlap);
-		
 	end
 end
 

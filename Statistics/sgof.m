@@ -1,26 +1,27 @@
 function cutoff = sgof(p, alpha)
 % SGOF - Runs Sequential Goodness of Fit for FWER correction.
+%
 %   This function executes the algorithm developed by Carvajal-Rodriguez et al to correct for multiple comparisons
 %   during statistical hypothesis testing. It works by comparing the uncorrected number of significant values found in
 %   data against a binomial distribution, which predicts how many should be significant given the number of comparisons.
 %
 %   SYNTAX:
-%   cutoff = sgof(p)
-%   cutoff = sgof(p, alpha)
+%		cutoff = sgof(p)
+%		cutoff = sgof(p, alpha)
 %
 %   OUTPUT:
-%   cutoff:         DOUBLE
-%                   The scalar cutoff below which p-values are considered statistically significant. If no significance
-%                   is found, this function returns "NaN" as the cutoff value.
+%		cutoff:         DOUBLE
+%						The scalar cutoff below which p-values are considered statistically significant. If no significance
+%						is found, this function returns "NaN" as the cutoff value.
 %
 %   INPUTS:
-%   p:				[ DOUBLES ]
-%                   A vector of p-values for which the significance cutoff is needed. 
+%		p:				[ DOUBLES ]
+%						A vector of p-values for which the significance cutoff is needed. 
 %
 %   OPTIONAL INPUTS:
-%   alpha:			DOUBLE
-%                   The significance threshold, or Type I error rate for hypothesis testing.
-%                   DEFAULT: 0.05
+%		alpha:			DOUBLE
+%						The significance threshold, or Type I error rate for hypothesis testing.
+%						DEFAULT: 0.05
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130627
