@@ -108,7 +108,7 @@ classdef File < Path
 			F.Permission = '';
         end
         function delete(F)
-            % DELETE - Closes any open file references before a File object is destroyed.
+		% DELETE - Closes any open file streams before a File object is destroyed.
             if (F.IsOpen); F.Close(); end    
         end
 	end

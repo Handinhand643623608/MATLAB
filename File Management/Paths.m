@@ -67,7 +67,7 @@ classdef Paths < Entity
                 case 'desktop'
                     P = Folder('C:/Users/Josh/Desktop');
 				case 'linuxpc'
-					p = Folder('/home/josh/Desktop');
+					P = Folder('/home/josh/Desktop');
                 case 'shella-bigboy1'
                     P = Folder('C:/Users/jgrooms/Desktop');
                 otherwise

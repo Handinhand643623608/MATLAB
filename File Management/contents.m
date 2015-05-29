@@ -18,6 +18,8 @@
 %   Written by Josh Grooms on 20140702
 %		20150510:	Improved the documentation for this function. Also implemented automatic formatting of path string
 %					separator characters so that they're always uniform between Linux and Windows systems.
+%		20150528:	Replaced an inconvenient call to a static String class method. Using that method introduced an
+%					unnecessary dependency in an otherwise standalone function.
 
 
 
@@ -32,6 +34,7 @@ function plist = contents(p)
 	fileList(1:2) = [];
 
 	% Create full paths for all files
-	plist = String.FormatSeparators(fullfile(p, fileList));
+	plist = fullfile(p, fileList);
+	plist = cellfun(@(x) strrep(x, '\', '/'), plist, 'UniformOutput', false);s
 	
 end

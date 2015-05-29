@@ -1,4 +1,4 @@
-% SEARCH - Searches the contents of a directory specific files or folders.
+% SEARCH - Searches the contents of a directory for specific files or folders.
 %
 %   SYNTAX:
 %		plist = search(p, query)
