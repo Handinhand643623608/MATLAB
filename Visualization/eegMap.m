@@ -1,74 +1,74 @@
 % EEGMAP - Plots a spatial mapping of EEG electrodes and fills electrodes with color.
 %
 %   SYNTAX:
-%   eegmap()
-%   eegmap(X)
-%   eegmap(X, 'PropertyName', PropertyValue,...)
-%   H = eegmap(...)
+%		eegmap()
+%		eegmap(X)
+%		eegmap(X, 'PropertyName', PropertyValue,...)
+%		H = eegmap(...)
 %   
 %   OPTIONAL OUTPUT:
-%   H:              WINDOW or HANDLE
-%                   A handle to the window or figure object containing the plotted EEG map. If the PARENT argument is not
-%                   used, then this will point to an object of the WINDOW class, which also contains handles to the various
-%                   elements seen on the map. Otherwise, this will point to whichever object contains the inputted axes
-%                   handle.
+%		H:              WINDOW or HANDLE
+%						A handle to the window or figure object containing the plotted EEG map. If the PARENT argument is not
+%						used, then this will point to an object of the WINDOW class, which also contains handles to the
+%						various elements seen on the map. Otherwise, this will point to whichever object contains the
+%						inputted axes handle.
 %   
 %   OPTIONAL INPUTS:
-%   X:              [ 68 x 1 DOUBLES ] or [ 68 x 3 DOUBLES ] or STRING or { STRINGS }
-%                   This input argument is used to control the coloring of electrodes. As such, a diverse range of formats
-%                   are supported for it. If no inputs are provided for this function, all channels are drawn and filled in
-%                   uniformly.
+%		X:				[ 68 x 1 DOUBLES ] or [ 68 x 3 DOUBLES ] or STRING or { STRINGS }
+%						This input argument is used to control the coloring of electrodes. As such, a diverse range of
+%						formats are supported for it. If no inputs are provided for this function, all channels are drawn and
+%						filled in uniformly.
 %
-%                   If numeric data are provided for X, they must be formatted as an array with 68 rows, where each row
-%                   corresponds with a particular EEG channel. The channels must also be ordered correctly (using the typical
-%                   ordering scheme found throughout my data - see 'eegInfo.mat' for a list). If a vector is inputted for X,
-%                   the numeric data will be automatically scaled to span the entire figure color mapping. This is useful for
-%                   displaying an EEG data vector containing correlation coefficients or some other metric. Alternatively,
-%                   colors can be controlled directly by providing RGB values for each electrode (i.e. a 68 x 3 array).
+%						If numeric data are provided for X, they must be formatted as an array with 68 rows, where each row
+%						corresponds with a particular EEG channel. The channels must also be ordered correctly (using the
+%						typical ordering scheme found throughout my data - see 'eegInfo.mat' for a list). If a vector is
+%						inputted for X, the numeric data will be automatically scaled to span the entire figure color
+%						mapping. This is useful for displaying an EEG data vector containing correlation coefficients or some
+%						other metric. Alternatively, colors can be controlled directly by providing RGB values for each
+%						electrode (i.e. a 68 x 3 array).
 %
-%                   This function also supports a 'demonstration' mode that highlights any electrodes specified in X. To use
-%                   this mode, input a string or cell array of strings containing the name(s) of the electrode(s) that should
-%                   be highlighted. Electrode name strings are not case sensitive here. All electrodes will still be drawn,
-%                   but only those corresponding to the input X will be highlighted a different color (controlled by the
-%                   FILLCOLOR argument).
+%						This function also supports a 'demonstration' mode that highlights any electrodes specified in X. To
+%						use this mode, input a string or cell array of strings containing the name(s) of the electrode(s)
+%						that should be highlighted. Electrode name strings are not case sensitive here. All electrodes will
+%						still be drawn, but only those corresponding to the input X will be highlighted a different color
+%						(controlled by the FILLCOLOR argument).
 %
-%   'FillColor':    [ 1 x 3 RGB ] OR STRING
-%                   An RGB color vector or a MATLAB predefined color name string that specifies the color of filled
-%                   electrodes on the map. This is only used when specific electrodes are inputted to be highlighted. If
-%                   numeric data are inputted to determine color values, this property has no effect.
-%                   DEFAULT: [0 0.25 1] (a lighter blue)
+%		'FillColor':	[ 1 x 3 RGB ] OR STRING
+%						An RGB color vector or a MATLAB predefined color name string that specifies the color of filled
+%						electrodes on the map. This is only used when specific electrodes are inputted to be highlighted. If
+%						numeric data are inputted to determine color values, this property has no effect.
+%						DEFAULT: [0 0.25 1] (a lighter blue)
 %
-%   'Parent':       HANDLE
-%                   A MATLAB graphics handle pointing to an axes object. This argument is used to control where the EEG
-%                   electrode mapping is displayed and is helpful when making montages or GUIs that require EEG data
-%                   visualization. By default, this function creates its own window and axes objects to display mappings.
-%                   DEFAULT: []
+%		'Parent':       HANDLE
+%						A MATLAB graphics handle pointing to an axes object. This argument is used to control where the EEG
+%						electrode mapping is displayed and is helpful when making montages or GUIs that require EEG data
+%						visualization. By default, this function creates its own window and axes objects to display mappings.
+%						DEFAULT: []
 %
-%   'ShowLabels':   BOOLEAN
-%                   A Boolean true/false that specifies whether or not electrode text labels are displayed on the map. If
-%                   enabled, labels are centered on top of the colored electrode circle. Otherwise, only a colored circle is
-%                   displayed.
-%                   DEFAULT: true
+%   'ShowLabels':		BOOLEAN
+%						A Boolean true/false that specifies whether or not electrode text labels are displayed on the map. If
+%						enabled, labels are centered on top of the colored electrode circle. Otherwise, only a colored circle
+%						is displayed.
+%						DEFAULT: true
 %
 %   'Size':         WINDOWSIZES
-%                   One of the window size enumerators specifying how large the plot window should be. This is a setting
-%                   carried directly over from the WINDOW class, and all options supported there are available. This setting
-%                   is only used when a window is created from within this function to display the plot. If the PARENT
-%                   argument above is used, this parameter has no effect.
-%                   DEFAULT: WindowSizes.FullScreen
+%						One of the window size enumerators specifying how large the plot window should be. This is a setting
+%						carried directly over from the WINDOW class, and all options supported there are available. This
+%						setting is only used when a window is created from within this function to display the plot. If the
+%						PARENT argument above is used, this parameter has no effect.
+%						DEFAULT: WindowSizes.FullScreen
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20130902
-%       20140109:   Major overhaul of function initialization to support a kind of "demo" mode where the user can
-%                   manually select electrodes to be highlighted on the plot. Implemented custom color selection of
-%                   highlighted electrodes (not available for data input). Hard coded some default color options that
-%                   were infrequently changed before (edge, text, background colors). Implemented plotting to window
-%                   objects instead of figures. Implemented the optional output of the window object handle. Completely
-%                   re-wrote function documentation.
+%       20140109:   Major overhaul of function initialization to support a kind of "demo" mode where the user can manually
+%					select electrodes to be highlighted on the plot. Implemented custom color selection of highlighted
+%					electrodes (not available for data input). Hard coded some default color options that were infrequently 
+%					changed before (edge, text, background colors). Implemented plotting to window objects instead of 
+%					figures. Implemented the optional output of the window object handle. Completely re-wrote function 
+%					documentation.
 %       20140829:   Updated for compatibility with the WINDOW class updates (formerly WINDOWOBJ).
-%       20140904:   Bug fixes for compatibility with new COLOR class (required renaming a variable) and for deleting the
-%                   list of EEG channels that this function used to reference (these data are now a part of the
-%                   BRAINPLOT class).
+%       20140904:   Bug fixes for compatibility with new COLOR class (required renaming a variable) and for deleting the list 
+%					of EEG channels that this function used to reference (these data are now a part of the BRAINPLOT class).
 %       20140923:   Bug fix for deleting the structure of EEG electrode scalp coordinates that this function used to
 %                   reference (these data are now a part of the BRAINPLOT class).
 %       20150127:   Completed a major overhaul of this function after it stopped working (version R2014b breaks it). Also

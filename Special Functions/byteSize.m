@@ -1,6 +1,6 @@
 % BYTESIZE - Determines the size of an input in terms of data storage units.
 %
-%   BYTESIZE calculates the amount of memory or hard disk space that is required to represent the raw input input (without
+%   BYTESIZE calculates the amount of memory or hard disk space that is required to represent the raw input (without 
 %   factoring in compression). It can output this information in multiple scales ranging from bits to terabytes.
 %
 %   SYNTAX:

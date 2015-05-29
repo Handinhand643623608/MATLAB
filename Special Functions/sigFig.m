@@ -1,4 +1,3 @@
-function xr = sigfig(x, format, opt)
 % SIGFIG - Rounds input numerical data to a specified number of significant figures with various rounding options.
 % 
 %   SYNTAX:
@@ -65,33 +64,38 @@ function xr = sigfig(x, format, opt)
 %                   documentation and logic to conform with updated standards.
 
 
-%% Round the Data
-% Fill in optional inputs & check for errors
-if nargin < 3; opt = 'round'; end
-if nargin < 2; format = '0.0'; end
-assert(ischar(opt) && ischar(format), 'Optional arguments must be inputted as strings.');
 
-% Identify any decimal points present in the format string
-idxDecPt = strfind(format, '.');
-nformat = length(format);
+%% FUNCTION DEFINITION
+function xr = sigfig(x, format, opt)
+	
+	% Fill in optional inputs & check for errors
+	if nargin < 3; opt = 'round'; end
+	if nargin < 2; format = '0.0'; end
+	assert(ischar(opt) && ischar(format), 'Optional arguments must be inputted as strings.');
 
-% Calculate a scaling factor using the format string
-if isempty(idxDecPt) 
-    roundFactor = 10 ^ (1 - nformat);
-elseif idxDecPt == length(format)
-    roundFactor = 10 ^ (2 - nformat);
-else
-    roundFactor = 10 ^ (nformat - idxDecPt);
+	% Identify any decimal points present in the format string
+	idxDecPt = strfind(format, '.');
+	nformat = length(format);
+
+	% Calculate a scaling factor using the format string
+	if isempty(idxDecPt) 
+		roundFactor = 10 ^ (1 - nformat);
+	elseif idxDecPt == length(format)
+		roundFactor = 10 ^ (2 - nformat);
+	else
+		roundFactor = 10 ^ (nformat - idxDecPt);
+	end
+
+	% Scale the input data to the appropriate magnitude & perform the rounding
+	xr = x .* roundFactor;
+	if strcmpi(opt, 'unfix'); 
+		xr(xr < 0) = floor(xr(xr < 0)); 
+		xr(xr > 0) = ceil(xr(xr > 0));
+	else
+		xr = feval(opt, x .* roundFactor);
+	end
+
+	% Unscale the output
+	xr = xr ./ roundFactor;
+	
 end
-    
-% Scale the input data to the appropriate magnitude & perform the rounding
-xr = x .* roundFactor;
-if strcmpi(opt, 'unfix'); 
-    xr(xr < 0) = floor(xr(xr < 0)); 
-    xr(xr > 0) = ceil(xr(xr > 0));
-else
-    xr = feval(opt, x .* roundFactor);
-end
-
-% Unscale the output
-xr = xr ./ roundFactor;
