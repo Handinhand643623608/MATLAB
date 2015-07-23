@@ -27,6 +27,7 @@ classdef Colors
         Yellow      = Color(1, 1, 0);			% The color yellow	(RGB = [1, 1, 0]).
     
         % Others
+		Orchid		= Color(150/255, 50/255, 255/255);
         VibrantBlue = Color(0, 0.75, 1);		% A vibrant blue color used extensively in my personalized color schemes.
         
 	end
