@@ -166,8 +166,8 @@ classdef Color < Entity
 			if nargin < 3;	clim = Range.FromData(x);		end
 			if nargin < 4;  nancolor = Colors.Black;		end
 			
-			if ~isa(cmap, 'Color'); cmap = Color(cmap); end
-			if ~isa(clim, 'Range'); clim = Range(clim); end
+			if ~isa(cmap, 'Color');		cmap = Color(cmap);			end
+			if ~isa(clim, 'Range');		clim = Range(clim);			end
 			if ~isa(nancolor, 'Color'); nancolor = Color(nancolor); end
 			idsNaN = isnan(x);
 			
@@ -182,14 +182,17 @@ classdef Color < Entity
 			idsc(idsc > ncolors) = ncolors;
 			
 			nx = numel(x);
+			c = zeros(nx, 3);
 			
-			C(nx) = Color();
-			
+% 			C(nx) = Color();
+			cmap = cmap.ToArray();
+
 			for a = 1:nx
-				C(a) = cmap(idsc(a));
+				c(a, :) = cmap(idsc(a), :);
 			end
 			
 % 			C = cmap(idsc);
+			C = Color(c);
 			C = reshape(C, size(x));
 			C(idsNaN) = nancolor;
 		end
@@ -388,7 +391,7 @@ classdef Color < Entity
                 otherwise
                     error('Colors must be specified as either string codes, grayscale intensities, or RGB values.');
             end
-		end
+		end		
 		function c			= TranslateColorStrings(s)
 		% TRANSLATECOLORSTRINGS - Translates common color codes and names into RGB values.
 			c = zeros(numel(s), 3);
@@ -449,8 +452,11 @@ classdef Color < Entity
 		end
 		function h = ToHex(C)
 			
-			h = [];
-			C.NotYetImplemented();
+			h = cell(size(C));
+			for a = 1:numel(C)
+				cbits = round(C(a).ToArray() .* 255);
+				h{a} = ['#' rgb2hex(cbits(1), cbits(2), cbits(3))];
+			end
 		end
 		function H = ToHSV(C)
 		% TOHSV - Converts color values to HSV color space.
@@ -537,7 +543,28 @@ classdef Color < Entity
 		end
 	end         
                 
-    
+    methods
+		
+		function C = Saturate(C)
+			
+			for a = 1:numel(C)
+				C(a).R = min(C(a).R, 1);
+				C(a).G = min(C(a).G, 1);
+				C(a).B = min(C(a).B, 1);
+			end
+		end
+		
+		function C = Shade(C, n)
+			
+			for a = 1:numel(C)
+				C(a).R = min(C(a).R * n, 1);
+				C(a).G = min(C(a).G * n, 1);
+				C(a).B = min(C(a).B * n, 1);
+			end
+		end
+	end
+	
+	
 	
 	%% MATLAB OVERLOADS
 	methods
