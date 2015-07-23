@@ -43,6 +43,7 @@ classdef Paths < Entity
 %		20150510:	Changed hard-coded path construction to use FOLDER object constructors for compatibility with changes
 %					just made to my file management code.
 %		20150513:	Added in directory references for my home Ubuntu Linux installation.
+%		20150612:	Added in support for MATLAB running on my Surface tablet.
    
 
     
@@ -64,7 +65,7 @@ classdef Paths < Entity
         function P = Desktop
         % Gets the path to the computer's desktop.
             switch (Paths.ComputerName)
-                case 'desktop'
+                case { 'desktop', 'surface' }
                     P = Folder('C:/Users/Josh/Desktop');
 				case 'linuxpc'
 					P = Folder('/home/josh/Desktop');
@@ -81,8 +82,10 @@ classdef Paths < Entity
         function P = FlashDrive
         % Gets the path to my high-density USB flash drive.
             switch (Paths.ComputerName)
-                case 'desktop'
+                case { 'desktop', 'surface' }
                     P = Folder('X:');
+				case 'linuxpc'
+					P = Folder('/media/josh/CEF83516F834FDF1');
                 case 'shella-bigboy1'
                     P = Folder('X:');
                 otherwise
@@ -96,7 +99,7 @@ classdef Paths < Entity
         function P = Main
         % Gets the path to the main coding workspace.
             switch (Paths.ComputerName)
-                case 'desktop'
+                case { 'desktop', 'surface' }
                     P = Folder('C:/Users/Josh/Dropbox/MATLAB Code');
 				case 'linuxpc'
 					P = Folder('/home/josh/Dropbox/MATLAB Code');
@@ -119,7 +122,7 @@ classdef Paths < Entity
         function P = Raw
         % Gets the path to all raw BOLD and EEG data sets.
             switch (Paths.ComputerName)
-                case 'desktop'
+                case { 'desktop', 'surface' }
                     P = Folder('A:/Graduate Studies/Lab Work/Data/Raw Data');
                 case 'shella-bigboy1'
                     P = Folder('S:/Josh/Data/Raw');
