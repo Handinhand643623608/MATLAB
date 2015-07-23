@@ -139,7 +139,7 @@ assert(numel(s) == 1 || isvector(s), 'Inputted structures must have a clear orde
 function Defaults
 	OmitFields = [];
 end
-assignto(@Defaults, varargin);
+assign(@Defaults, varargin);
 
 % Get the field names of the structures being concatenated
 cs = s(1);

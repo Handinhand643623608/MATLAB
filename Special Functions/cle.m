@@ -20,6 +20,8 @@
 
 %% FUNCTION DEFINITION
 function cle
+	
 	evalStr = 'close all; clear all; clear classes; clc';
 	evalin('base', evalStr);
+	
 end

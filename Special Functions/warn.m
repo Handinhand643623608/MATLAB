@@ -42,6 +42,7 @@
 
 %% FUNCTION DEFINITION
 function warn(n, msg, varargin)
+	
 	% Fill in missing inputs
 	if ischar(n)
 		if (nargin > 1); varargin = { msg, varargin }; end
@@ -64,4 +65,5 @@ function warn(n, msg, varargin)
 	
 	% Print the warning (uses the undocumented [\b]\b hack to display in orange)
 	warnstr = fprintf(1, '\n[\bWarning: %s\n%s]\b\n', msg, linkstr);
+	
 end

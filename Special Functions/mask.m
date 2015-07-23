@@ -1,4 +1,3 @@
-function mx = mask(x, m, r)
 % MASK - Nullifies values in a data array using a logical masking array.
 %
 %	SYNTAX:
@@ -44,30 +43,34 @@ function mx = mask(x, m, r)
 
 
 
-%% Perform the Masking
-% Deal with missing inputs
-if nargin == 2; r = 0; end
+%% FUNCTION DEFINITION
+function mx = mask(x, m, r)
+	
+	% Deal with missing inputs
+	if nargin == 2; r = 0; end
 
-% Ensure that the mask is logical in type
-assert(islogical(m), 'The array being used as a mask must be a logical array.');
+	% Ensure that the mask is logical in type
+	assert(islogical(m), 'The array being used as a mask must be a logical array.');
 
-% Get the inputted array & mask dimensionalities
-szArray = size(x);
-szMask = size(m);
+	% Get the inputted array & mask dimensionalities
+	szArray = size(x);
+	szMask = size(m);
 
-% If the array & mask are equivalent in size, do a simple mask
-if (isequal(szArray, szMask))
-    mx = x .* m;
-    return;
+	% If the array & mask are equivalent in size, do a simple mask
+	if (isequal(szArray, szMask))
+		mx = x .* m;
+		return;
+	end
+
+	% If the inputted data don't match along all but the last dimension, error out
+	dimArray = ndims(x);
+	szCheck = isequal(szMask(1:dimArray - 1), szArray(1:end - 1));
+	assert(szCheck, 'The mask must be the same size as the inputted data array over all but the last dimension.');
+
+	% Mask the time series
+	mx = reshape(x, [], szArray(end));
+	m = m(:);
+	mx(~m, :) = r;
+	mx = reshape(mx, szArray);
+
 end
-
-% If the inputted data don't match along all but the last dimension, error out
-dimArray = ndims(x);
-szCheck = isequal(szMask(1:dimArray - 1), szArray(1:end - 1));
-assert(szCheck, 'The mask must be the same size as the inputted data array over all but the last dimension.');
-
-% Mask the time series
-mx = reshape(x, [], szArray(end));
-m = m(:);
-mx(~m, :) = r;
-mx = reshape(mx, szArray);

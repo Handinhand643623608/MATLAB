@@ -1,4 +1,3 @@
-function wassert(expression, message, varargin)
 % WASSERT - Generates a warning when a condition is violated.
 %
 %	WASSERT displays a warning message to the user when a certain condition fails. It functions exactly like the
@@ -42,11 +41,15 @@ function wassert(expression, message, varargin)
 
 
 
-%% Display a Warning in the Console
-% Set a generic warning message if one isn't provided
-if (nargin == 1); message = 'Assertion failed.'; end
+%% FUNCTION DEFINITION
+function wassert(expression, message, varargin)
+	
+	% Set a generic warning message if one isn't provided
+	if (nargin == 1); message = 'Assertion failed.'; end
 
-% If the inputted expression is false, display the warning
-if (~expression)
-	warn(1, message, varargin{:});
+	% If the inputted expression is false, display the warning
+	if (~expression)
+		warn(1, message, varargin{:});
+	end
+	
 end
