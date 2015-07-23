@@ -21,12 +21,16 @@
 
 %% CHANGELOG
 %	Written by Josh Grooms on 20150225
+%		20150529:	Implemented a new check for the length of a cell array being a multiple of two.
 
 
 
 %% FUNCTION DEFINITION
 function b = isnvp(c)
-	if ~isvector(c); b = false; return; end
+	
+	if ~isvector(c);			b = false; return; end
+	if mod(length(c), 2) ~= 0;	b = false; return; end
 	nvpchk = cellfun(@ischar, c(1:2:end));
-	b = all(nvpchck);
+	b = all(nvpchk);
+	
 end
