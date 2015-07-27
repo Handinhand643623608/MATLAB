@@ -55,8 +55,9 @@ function varargout = scale2rgb(inData, varargin)
 %       20130702:   Added documentation for "DataRange" property. Updated function to conform to recent standards.
 %       20140625:   Updated documentation.
 %       20140709:   Updated so that NaN colors can be specified as MATLAB color strings.
+%		20150727:	Deprecated the use of this function in favor of the improved version called NUM2RGB.
 
-DEPRECATED Color.FromData
+DEPRECATED num2rgb
 
 
 
