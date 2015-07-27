@@ -50,6 +50,10 @@
 %					specific figure number and with a close function callback assignment.
 %		20150128:	Added a new property "Patch" to hold patch graphics object references.
 %		20150507:	Overhauled the class documentation to summarize all of the properties and methods that are available.
+%		20150727:	Removed restrictions on the Background and Colormap properties to be Color data structures. These
+%					introduced new dependencies to the class and were not intuitive to anyone other than me. Also, the Color
+%					class itself currently introduces a lot of overhead to any processing, which definitely isn't needed in
+%					the HG2 graphics system. However, I've left in the code that maintains compatibility with that class. 
 
 
 
@@ -58,11 +62,10 @@ classdef Window < handle & Entity
 
 
 
-
     %% DATA
     properties (Dependent)
-        Background	@Color		% The background color of the window.
-        Colormap    @Color		% The color mapping used to display colorized data.
+        Background				% The background color of the window.
+        Colormap				% The color mapping used to display colorized data.
         Name        @char       % The string displayed in the window title bar.
         Position                % The position of the window on-screen in pixels.
         Size                    % The size of the window on-screen in pixels.
@@ -93,10 +96,10 @@ classdef Window < handle & Entity
 	methods
 		% Get methods
         function C = get.Background(H)
-            C = Color(get(H.FigureHandle, 'Color'));
+            C = get(H.FigureHandle, 'Color');
         end
 		function C = get.Colormap(H)
-            C = Color(get(H.FigureHandle, 'Colormap'));
+            C = get(H.FigureHandle, 'Colormap');
         end
         function s = get.Name(H)
             s = get(H.FigureHandle, 'Name');
@@ -163,8 +166,8 @@ classdef Window < handle & Entity
 		% WINDOW - Construct a window object with multiple features.
 		
 			function Defaults
-				Background			= Colors.White;
-				Colormap			= Colormaps.Jet;
+				Background			= [1, 1, 1];
+				Colormap			= jet(256);
 				FigureNumber		= [];
 				InvertHardcopy		= 'off';
 				MenuBar				= 'none';
