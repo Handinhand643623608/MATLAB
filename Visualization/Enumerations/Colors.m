@@ -9,10 +9,10 @@
 classdef Colors
 
 
-    
+
 	%% DATA
     properties (Constant)
-        
+
         % Principal Colors
         Black       = Color(0, 0, 0);			% The color black	(RGB = [0, 0, 0]).
         Blue        = Color(0, 0, 1);			% The color blue	(RGB = [0, 0, 1]).
@@ -25,13 +25,14 @@ classdef Colors
         White       = Color(1, 1, 1);			% The color white	(RGB = [1, 1, 1]).
 		Violet		= Color(0.5, 0, 1);			% The color violet	(RGB = [0.5, 0, 1]).
         Yellow      = Color(1, 1, 0);			% The color yellow	(RGB = [1, 1, 0]).
-    
+
         % Others
 		Orchid		= Color(150/255, 50/255, 255/255);
+        DeepBlue    = Color(50/255, 150/255, 1);
         VibrantBlue = Color(0, 0.75, 1);		% A vibrant blue color used extensively in my personalized color schemes.
-        
+
 	end
-        
-    
-	
+
+
+
 end
