@@ -23,7 +23,7 @@
 %		ToInt		- Converts a Color object array into an array of packed 32-bit integers containing the RGB values.
 %		ToHSV
 %		ToMatrix	- Converts a Color object array into a numeric RGB matrix whose channel values span the columns.
-%		ToRGB		- 
+%		ToRGB		-
 %
 %	Color Overloads:
 %		disp		- Displays information about one or more Color objects in the console window.
@@ -41,8 +41,8 @@
 
 %% CLASS DEFINITION
 classdef Color < Entity
-    
-    
+
+
 
     %% DATA
     properties
@@ -50,13 +50,13 @@ classdef Color < Entity
         G           % The green channel value between [0, 1].
         B           % The blue channel value between [0, 1].
     end
-    
+
     properties
 		Space	@Colorspace
 	end
-	
-	
-    
+
+
+
     %% CONSTRUCTORS
     methods
         function C = Color(varargin)
@@ -69,17 +69,17 @@ classdef Color < Entity
 		%
 		%	OUTPUT:
 		%		C:			[ M x 1 COLORS ]
-		%					A vector of color objects that correspond with each row of the input array(s). 
+		%					A vector of color objects that correspond with each row of the input array(s).
 		%
 		%	INPUTS:
 		%		rgb:		[ M x 3 DOUBLES ]
 		%					A single flattened RGB value array representing M colors. Each column of this array should
-		%					contain the red, green, and blue values of each color, in that order. 
+		%					contain the red, green, and blue values of each color, in that order.
 		%
 		%		r:			[ M x 1 DOUBLES ]
 		%					A vector of separated red channel values for each color. When this input specification is used,
 		%					the R, G and B vectors must all be of equal length.
-		%	
+		%
 		%		g:			[ M x 1 DOUBLES ]
 		%					A vector of separated green channel values for each color. When this input specification is used,
 		%					the R, G, and B vectors must all be of equal length.
@@ -98,7 +98,7 @@ classdef Color < Entity
                 [r, g, b] = Color.ParseConstructorInputs(varargin{:});
                 ncolors = length(r);
                 C(ncolors, 1) = Color();
-                
+
 				for a = 1:ncolors
                     C(a).R = r(a);
                     C(a).G = g(a);
@@ -110,7 +110,7 @@ classdef Color < Entity
 			end
 		end
 	end
-    
+
 	methods (Static)
 		function C = Black(varargin)
 		% BLACK - Creates a color object array of arbitrary size containing only the color black.
@@ -161,36 +161,36 @@ classdef Color < Entity
 		%
 		%	See also: BITMAP, COLOR.FROMRGB, COLORS
 			assert(isnumeric(x), 'The input data array must be of some numeric type.');
-			
+
 			if nargin == 1;	cmap = Colormaps.Jet;			end
 			if nargin < 3;	clim = Range.FromData(x);		end
 			if nargin < 4;  nancolor = Colors.Black;		end
-			
+
 			if ~isa(cmap, 'Color');		cmap = Color(cmap);			end
 			if ~isa(clim, 'Range');		clim = Range(clim);			end
 			if ~isa(nancolor, 'Color'); nancolor = Color(nancolor); end
 			idsNaN = isnan(x);
-			
+
 			% FIXME: This method is unbelievably slow given what it's doing. Need to figure out why and fix it.
-			
+
 			ncolors = length(cmap);
 			x = ( x - clim.Min ) ./ ( clim.Difference );
 			x = round(x .* (ncolors - 1)) + 1;
-			
+
 			idsc = min(ncolors, x);
 			idsc(idsc < 1) = 1;
 			idsc(idsc > ncolors) = ncolors;
-			
+
 			nx = numel(x);
 			c = zeros(nx, 3);
-			
+
 % 			C(nx) = Color();
 			cmap = cmap.ToArray();
 
 			for a = 1:nx
 				c(a, :) = cmap(idsc(a), :);
 			end
-			
+
 % 			C = cmap(idsc);
 			C = Color(c);
 			C = reshape(C, size(x));
@@ -212,15 +212,15 @@ classdef Color < Entity
 		%				An array of 32-bit unsigned integers whose bit fields contain 8-bit RGBA channel values.
 		%
 		%	See also: COLOR.TOINT
-		
+
 			r = bitand(i, 255);
 			g = bitand(bitshift(i, -8), 255);
 			b = bitand(bitshift(i, -16), 255);
-			
+
 			r = double(r) ./ 255;
 			g = double(g) ./ 255;
 			b = double(b) ./ 255;
-			
+
 			C = Color(r(:), g(:), b(:));
 			C = reshape(C, size(i));
 		end
@@ -230,7 +230,7 @@ classdef Color < Entity
 		%	COLOR.FROMRGB is effectively an alternate constructor method for the COLOR class that allows shaped arrays of
 		%	colors to be created from a pure RGB number array. This is helpful when a shaped array of RGB values already
 		%	exists (i.e. from the CDATA property of graphics objects), but the use of this class is desired. It avoids the
-		%	hassle of having to reshape the RGB data to comply with the principal constructor argument requirements. 
+		%	hassle of having to reshape the RGB data to comply with the principal constructor argument requirements.
 		%
 		%	SYNTAX:
 		%		C = Color.FromRGB(rgb)
@@ -247,7 +247,7 @@ classdef Color < Entity
 		%					must always be exactly 3.
             sz = size(rgb);
             assert(sz(end) == 3, 'RGB values must be correctly ordered and span the last dimension of the input array.');
-            
+
             rgb = reshape(rgb, [], 3);
             C = Color(rgb);
 			if (length(sz) > 2)
@@ -280,7 +280,7 @@ classdef Color < Entity
 		%					'r' OR 'red'
 		%					'w' OR 'white'
 		%					'y' OR 'yellow'
-		%	
+		%
 		%	See also: BITMAP, COLOR.FROMDATA, COLOR.FROMRGB, COLORS, STR2RGB
 			if ischar(s); s = { s }; end
 			C = Color(Color.TranslateColorStrings(s));
@@ -303,7 +303,7 @@ classdef Color < Entity
 		%		n:			INTEGER
 		%					The number of color interpolations to be made. This controls how many colors are present in the
 		%					outputted Color object vector.
-		%	
+		%
 		%		color:		[ R, G, B ] or COLOR
 		%					Two or more colors between which interpolation will occur. Any number of colors may be inputted
 		%					(so long as a minimum of two are provided), but each color must be a separate argument. These may
@@ -327,29 +327,29 @@ classdef Color < Entity
 		%						'v5cubic'	- The cubic interpolation method from MATLAB 5.
 		%
 		%	See also: INTERP1
-		
+
 			method = 'linear';
 			if (nargin > 1 && ischar(varargin{1}))
 				method = varargin{1};
 				varargin(1) = [];
 			end
-			
+
 			assert(length(varargin) >= 2, 'Interpolation can only occur between two or more inputted colors.');
-			
+
 			for a = 1:length(varargin)
 				if isa(varargin{a}, 'Color')
 					varargin{a} = varargin{a}.ToMatrix();
 				end
 			end
 			rgb = cat(1, varargin{:});
-			
+
 			ncolors = size(rgb, 1);
 			cpos = linspace(1, n, ncolors);
-			
+
 			r = interp1(cpos, rgb(:, 1), 1:n, method);
 			g = interp1(cpos, rgb(:, 2), 1:n, method);
 			b = interp1(cpos, rgb(:, 3), 1:n, method);
-			
+
 			C = Color([r', g', b']);
 		end
 		function C = White(varargin)
@@ -361,16 +361,16 @@ classdef Color < Entity
 			C = Color.FromRGB(ones(varargin{:}, 3));
 		end
 	end
-    
-	
-    
+
+
+
     %% UTILITIES
     methods (Hidden, Static, Access = protected)
         function [r, g, b]	= ParseConstructorInputs(varargin)
         % PARSECONSTRUCTORINPUTS - Standardizes the many constructor input possibilities into an RGB array.
             switch nargin
                 case 1
-                    arg = varargin{1};                    
+                    arg = varargin{1};
                     if iscellstr(arg);      c = Color.TranslateColorStrings(arg);
                     elseif ischar(arg);     c = Color.TranslateColorStrings({ arg });
                     elseif isnumeric(arg)
@@ -379,7 +379,7 @@ classdef Color < Entity
                         assert(size(c, 2) == 3, 'Colors must be specified as either grayscale intensities or RGB values.');
                     end
                     r = c(:, 1); g = c(:, 2); b = c(:, 3);
-                    
+
                 case 3
                     numcheck = cellfun(@isnumeric, varargin);
                     assert(all(numcheck), 'Inputs for R, G, and B arguments must contain numeric values.');
@@ -387,11 +387,11 @@ classdef Color < Entity
                     veccheck = isvector(r) && isvector(g) && isvector(b);
                     szcheck = ( length(r) == length(g) ) && ( length(g) == length(b) );
                     assert(veccheck && szcheck, 'R, G, and B arguments must all be vectors of equal length.');
-                    
+
                 otherwise
                     error('Colors must be specified as either string codes, grayscale intensities, or RGB values.');
             end
-		end		
+		end
 		function c			= TranslateColorStrings(s)
 		% TRANSLATECOLORSTRINGS - Translates common color codes and names into RGB values.
 			c = zeros(numel(s), 3);
@@ -410,7 +410,7 @@ classdef Color < Entity
 					case {'m', 'magenta'}
 						c(a, :) = [1 0 1];
 					case {'r', 'red'}
-						c(a, :) = [1 0 0];        
+						c(a, :) = [1 0 0];
 					case {'w', 'white'}
 						c(a, :) = [1 1 1];
 					case {'y', 'yellow'}
@@ -421,7 +421,7 @@ classdef Color < Entity
 			end
 		end
     end
-                
+
     methods
         function a = ToArray(C)
         % TOARRAY - Converts a Color object array into a numeric RGB array whose channel values span the final dimension.
@@ -451,7 +451,7 @@ classdef Color < Entity
 			end
 		end
 		function h = ToHex(C)
-			
+
 			h = cell(size(C));
 			for a = 1:numel(C)
 				cbits = round(C(a).ToArray() .* 255);
@@ -494,17 +494,17 @@ classdef Color < Entity
 		%				of any size and dimensionality.
 		%
 		%	See also: COLOR.FROMINT
-		
+
 			r = uint32([C.R]' .* 255);
 			g = uint32([C.G]' .* 255);
 			b = uint32([C.B]' .* 255);
 			a = uint32(255);
-			
+
 			i = r;
 			i = bitor(i, bitshift(g, 8));
 			i = bitor(i, bitshift(b, 16));
 			i = bitor(i, bitshift(a, 24));
-			
+
 			i = reshape(i, size(C));
 		end
 		function m = ToMatrix(C)
@@ -521,7 +521,7 @@ classdef Color < Entity
 		%
 		%	INPUT:
 		%		C:		COLOR or [ COLORS ]
-		%				A Color object array of any size and dimensionality to be converted into a numeric RGB matrix. 
+		%				A Color object array of any size and dimensionality to be converted into a numeric RGB matrix.
 		%
 		%	See also: COLOR.TOARRAY
 			m = ToArray(C(:));
@@ -541,21 +541,27 @@ classdef Color < Entity
 				R(a).Space = Colorspace.RGB;
 			end
 		end
-	end         
-                
+
+        function i = ToRGB8(C)
+        % TORGB8 - Converts color values to an array of 8-bit RGB channel values.
+            i = C.ToArray();
+            i = round(i .* 255);
+        end
+	end
+
     methods
-		
+
 		function C = Saturate(C)
-			
+
 			for a = 1:numel(C)
 				C(a).R = min(C(a).R, 1);
 				C(a).G = min(C(a).G, 1);
 				C(a).B = min(C(a).B, 1);
 			end
 		end
-		
+
 		function C = Shade(C, n)
-			
+
 			for a = 1:numel(C)
 				C(a).R = min(C(a).R * n, 1);
 				C(a).G = min(C(a).G * n, 1);
@@ -563,9 +569,9 @@ classdef Color < Entity
 			end
 		end
 	end
-	
-	
-	
+
+
+
 	%% MATLAB OVERLOADS
 	methods
 		function disp(C)
@@ -573,7 +579,7 @@ classdef Color < Entity
 			if (numel(C) > 1)
 				fprintf(1, [String.ArraySize(size(C)) ' Array of Color Objects:\n\n']);
 			end
-			
+
 			for a = 1:numel(C)
 				switch C(a).Space
 					case Colorspace.HSV
@@ -582,28 +588,28 @@ classdef Color < Entity
 						fprintf(1, '\t[R: %1.4f G: %1.4f B: %1.4f]\n', C(a).R, C(a).G, C(a).B);
 				end
 			end
-			
+
 			fprintf(1, '\n');
 		end
 		function d = double(C)
 			d = [C.R, C.G, C.B];
 		end
-		
+
 		function varargout = image(C, varargin)
-			
+
 			assert(ismatrix(C), 'Only two-dimensional color arrays can be used to generate images.');
-			
+
 			im = C.ToArray();
 			if (size(im, 3) ~= 3)
 				im = permute(im, [1 3 2]);
 			end
-			
+
 			figure;
 			assignOutputs(nargout, image(im, varargin{:}));
 		end
-		
+
 	end
-    
-	
-	
+
+
+
 end
