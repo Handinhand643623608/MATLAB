@@ -1,7 +1,7 @@
 function layBricks(arkData, varargin)
 %LAYBRICKS Generates the brick layout for the game.
 %   This function generates the brick layout and stores it as an array within the Arkanoid game
-%   object. 
+%   object.
 %
 %   Syntax:
 %   layBricks(arkData)
@@ -12,12 +12,15 @@ function layBricks(arkData, varargin)
 %   Written by Josh Grooms on 20130516
 %       20130521:   Implemented better brick textures from Photoshop. Implemented additional levels.
 %       20130522:   Implemented the unbreakable diamond block
+%       20150824:   Updated for compatibility with cumulative changes to file and folder management code over the last year.
+%                   Also updated for compatibility with Unix file systems.
 
 
 %% Construct an Array of Brick Objects
 % Initialize important variables
-brickDir = strrep(which('brick\brick'), '\brick.m', '');
-textures = fileData([brickDir '\Textures']);
+brickDir = strrep(which('brick/brick'), '/brick.m', '');
+% textures = fileData([brickDir '/Textures']);
+textures = contents([brickDir '/Textures']);
 
 % Get the current level & layout
 brickArray = level(eval(get(arkData.Level, 'String')));
@@ -35,12 +38,14 @@ for a = 1:szArray(1)
     for b = 1:szArray(2)
         if brickArray(a, b) ~= 0
             % Load the brick texture
-            currentTexture = flipdim(imread(textures(brickArray(a, b)).Path), 1);
-            
+            ctTexture = textures{brickArray(a, b)};
+            [~, ctTextureName, ~] = fileparts(ctTexture);
+            currentTexture = flipdim(imread(ctTexture), 1);
+
             % Assign brick hardness
-            if strcmpi(textures(brickArray(a, b)).Name, 'stone.tif');
+            if strcmpi(ctTextureName, 'stone.tif');
                 currentHardness = 2;
-            elseif strcmpi(textures(brickArray(a, b)).Name, 'diamond.tif');
+            elseif strcmpi(ctTextureName, 'diamond.tif');
                 currentHardness = inf;
             else
                 currentHardness = 1;
@@ -49,16 +54,16 @@ for a = 1:szArray(1)
             % Create a layout of brick objects
             currentPosition = [xPositions(b) yPositions(a)];
             tempBricks(a, b) = brick(arkData,...
-                'Hardness', currentHardness,...
-                'Position', currentPosition,...
-                'Size', szBrick,...
-                'Texture', currentTexture);
+                'Hardness',     currentHardness,...
+                'Position',     currentPosition,...
+                'Size',         szBrick,...
+                'Texture',      currentTexture);
         else
             currentPosition = [xPositions(b) yPositions(a)];
             tempBricks(a, b) = brick(arkData,...
-                'Destroyed', true,...
-                'Position', currentPosition,...
-                'Size', szBrick);
+                'Destroyed',    true,...
+                'Position',     currentPosition,...
+                'Size',         szBrick);
         end
     end
 end
