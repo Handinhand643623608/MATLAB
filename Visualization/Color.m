@@ -24,11 +24,12 @@
 %		ToHSV
 %		ToMatrix	- Converts a Color object array into a numeric RGB matrix whose channel values span the columns.
 %		ToRGB		-
+%       ToRGB8      - Converts a Color object into an 8-bit RGB array whose channel values span the final dimension.
 %
 %	Color Overloads:
 %		disp		- Displays information about one or more Color objects in the console window.
-%		double
-%		image
+%		double      - Converts a Color object array into an array of double-precision RGB channel values.
+%		image       - Displays an image of an array of Color objects.
 %
 %	See also: BITMAP, COLOR.COLOR, COLOR.FROMDATA, COLOR.FROMRGB, COLORS
 
@@ -36,6 +37,8 @@
 %   Written by Josh Grooms on 20150211
 %		20150508:	Overhauled the class documentation to summarize all of the properties and methods that are available.
 %					Implemented methods to convert colors to and from packed 32-bit integer values.
+%       20150824:   Implemented a method to convert RGB channel values from from double-precision to 8-bit precision.
+%       20150828:   Filled in documentation for the image and ToRGB8 methods.
 
 
 
@@ -431,7 +434,7 @@ classdef Color < Entity
 		%
 		%	OUTPUT:
 		%		a:		[ DOUBLES ]
-		%				An RGB color array whose red, green, and blue channel values span the the final dimension. This array
+		%				An RGB color array whose red, green, and blue channel values span the final dimension. This array
 		%				will always be of exactly the same size as C except over the last dimension, where its size will be 3
 		%				instead of 1.
 		%
@@ -526,24 +529,39 @@ classdef Color < Entity
 		%	See also: COLOR.TOARRAY
 			m = ToArray(C(:));
 		end
-		function R = ToRGB(C)
-		% TORGB - Converts color values to RGB color space.
-			R = C;
-			for a = 1:numel(R)
-				switch R(a).Space
-					case Colorspace.HSV
-						R(a) = Color(hsv2rgb(C(a).ToArray()));
-					case Colorspace.RGB
-						continue
-					otherwise
-						error('Cannot currently convert color spaces other than HSV to RGB.');
-				end
-				R(a).Space = Colorspace.RGB;
-			end
-		end
-
+        function R = ToRGB(C)
+        % TORGB - Converts color values to RGB color space.
+        	R = C;
+        	for a = 1:numel(R)
+        		switch R(a).Space
+        			case Colorspace.HSV
+        				R(a) = Color(hsv2rgb(C(a).ToArray()));
+        			case Colorspace.RGB
+        				continue
+        			otherwise
+        				error('Cannot currently convert color spaces other than HSV to RGB.');
+        		end
+        		R(a).Space = Colorspace.RGB;
+        	end
+        end
         function i = ToRGB8(C)
         % TORGB8 - Converts color values to an array of 8-bit RGB channel values.
+        %
+        %   SYNTAX:
+        %       i = C.ToRGB8()
+        %
+        %   OUTPUT:
+        %       i:      [ INTEGERS ]
+        %               An RGB color array whose red, green, and blue channel values span the final dimension. This array
+        %               will always be of exactly the same size as C except over the last dimension, where its size will be 3
+        %               instead of 1. Channel values will be expressed as integers with 8 bits of precision, meaning that
+        %               each will fall within the range [0, 255], inclusively.
+        %
+        %   INPUT:
+        %       C:      COLOR or [ COLORS ]
+        %               A Color object or array of objects to be converted into an 8-bit RGB integer array.
+        %
+        %   See also: Color.ToArray, Color.ToMatrix, Color.ToInt
             i = C.ToArray();
             i = round(i .* 255);
         end
@@ -596,7 +614,40 @@ classdef Color < Entity
 		end
 
 		function varargout = image(C, varargin)
-
+        % IMAGE - Displays an image of a Color matrix.
+        %
+        %   This method is an overload of the built-in function IMAGE that is provided for conveniently displaying Color
+        %   objects. It works by first converting instances of the Color class into arrays of double-precision RGB channel
+        %   values and then passing that array on to the native function. Because it is essentially a wrapper, nearly all of
+        %   the inputs that are acceptable for the built-in function are also acceptable here provided that they appear after
+        %   the object.
+        %
+        %   SYNTAX:
+        %       image(C)
+        %       image(C, ...NativeImageArgs...)
+        %       H = image(C,...)
+        %
+        %   OPTIONAL OUTPUT:
+        %       H:                  IMAGE HANDLE
+        %                           The handle of the image object that MATLAB creates. This is the same optional return
+        %                           value that can be obtained from the native function IMAGE.
+        %
+        %   INPUT:
+        %       C:                  COLOR or [ MxN COLORS ]
+        %                           A Color object or matrix of objects that will be used to produce an image. If a single
+        %                           Color data object is inputted, then the resulting image will be a uniform square
+        %                           containing one solid color. However, if a vector or matrix is provided (array
+        %                           dimensionalities higher than 2 are not supported), then the image will contain as many
+        %                           colored squares as there are elements of the array.
+        %
+        %   OPTIONAL INPUTS:
+        %       NativeImageArgs:    ANYTHING
+        %                           After the Color object, which is a required argument and must always be provided first in
+        %                           the argument list, this method accepts any number of inputs that are passed directly to
+        %                           the built-in MALTAB function IMAGE. See the documentation of that function for acceptable
+        %                           parameters and instructions on how to use them.
+        %
+        %   See also: image, imagesc, imshow
 			assert(ismatrix(C), 'Only two-dimensional color arrays can be used to generate images.');
 
 			im = C.ToArray();
@@ -605,9 +656,9 @@ classdef Color < Entity
 			end
 
 			figure;
-			assignOutputs(nargout, image(im, varargin{:}));
+            varargout = {};
+            assign(varargout, nargout, image(im, varargin{:}));
 		end
-
 	end
 
 
