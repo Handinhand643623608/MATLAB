@@ -208,10 +208,10 @@ classdef BrainPlot < Window
 			function Defaults	
 				Anatomical = [];
 				AxesColor = 'k';
+				Background = Colors.White;
 				CLim = [];
-				Color = 'w';
 				ColorbarLabel = [];
-				Colormap = jet(256);
+				Colormap = Colormaps.Jet;
 				MajorFontSize = 25;
 				MinorFontSize = 20;
 				Title = [];
@@ -221,11 +221,14 @@ classdef BrainPlot < Window
 				YTickLabel = [];
 				Zoom = 0.025;		
 			end
-			assignto(@Defaults, varargin);
+			assign(@Defaults, varargin);
 
 			% Determine the type of data based on its dimensionality
-			if (size(plotData, 1) == 68); H.PlotType = BrainPlotTypes.EEG;
-			else H.PlotType = BrainPlotTypes.MRI; end
+			if (size(plotData, 1) == 68)
+				DEPRECATED Montage.EEG
+				return;
+			end
+			H.PlotType = BrainPlotTypes.MRI;
 
 			% Construct the montage (ordering of events here is important)
 			H.Data = plotData;
@@ -240,8 +243,8 @@ classdef BrainPlot < Window
 			% Transfer user inputs to object properties
 			H.Anatomical = Anatomical;
 			H.AxesColor = AxesColor;
+			H.Background = Background;
 			H.CLim = CLim;
-			H.Color = Color;
 			H.ColorbarLabel = ColorbarLabel;
 			H.Colormap = Colormap;
 			H.MajorFontSize = MajorFontSize;
@@ -498,7 +501,7 @@ classdef BrainPlot < Window
                 case BrainPlotTypes.EEG
                     for a = 1:H.MontageSize(1)
                         for b = 1:H.MontageSize(2)
-                            BrainPlot.PlotEEG(H.Axes.Montage(a, b), H.Data(:, b, a), false);
+%                             BrainPlot.PlotEEG(H.Axes.Montage(a, b), H.Data(:, b, a), false);
                         end
                     end
                 
@@ -518,7 +521,7 @@ classdef BrainPlot < Window
                         for b = 1:H.MontageSize(2)
                             currentData = data(:, :, a, b);
                             if isempty(anatomical)
-                                currentData = scale2rgb(currentData, 'CLim', H.CLim);
+                                currentData = scale2rgb(currentData, 'CLim', H.CLim, 'Colormap', H.Colormap);
                             else
                                 currentData = H.FuseImages(currentData, anatomical(:, :, a), H.CLim);
                             end
