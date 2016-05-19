@@ -19,6 +19,8 @@ function PrepMotionSliceTime(boldData)
 %                   case, the extensions of some needed files are changed whenever AFNI outputs data.
 %       20140720:   Added in the option to turn off slice-timing corrections. This shouldn't be used on data sets with
 %                   fast TRs.
+%		20150430:	Implemented a protection against spaces being present in the "ProtocolName" field of dicom headers after
+%					this was encountered during the preprocessing of a CABI data set.
 
 
 
@@ -40,7 +42,7 @@ else
 end
 
 % Generate an output file name
-outputFile = dcmInfo.ProtocolName;
+outputFile = String.Deblank(dcmInfo.ProtocolName, '_');
 
 % Delete old files with the same name
 extStrs = {'.BRIK', '.BRIK.GZ', '.HEAD', '.1D'};
