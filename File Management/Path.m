@@ -15,19 +15,19 @@
 %		CopyTo			- Copies a source folder and all of its contents to a new location on a hard drive.
 %		NavigateTo		- Changes the MATLAB working directory to the one referenced by the Path object.
 %		ToCell			- Converts a Path object or array of objects into a cell array of full path strings.
-%		ToString		- 
+%		ToString		-
 %		View			- Opens a directory or a file's parent directory in Windows Explorer.
 %
 %	Path Static Methods:
 %		HasExtension	- Determines whether or not path strings have file extension components.
 %		Parts			- Breaks path strings down into directory, file name, and file extension components.
-%		
+%
 %	Path Overloads:
 %		cd				- Changes the MATLAB working directory to a new folder or the parent folder of a file.
 %		exist			- Determines whether or not files or folders exist on the computer at the specified locations.
 %
 %   See also: CONTENTS, DIR, FILE, FOLDER, FULLFILE, LS, SEARCH, WHERE
-    
+
 %% CHANGELOG
 %   Written by Josh Grooms on 20141010
 %       20141110:   Reorganized some of the properties of this class. Completely rewrote the ParseFullPath method to be
@@ -53,22 +53,22 @@
 
 
 
-%% CLASS DEFINITION 
+%% CLASS DEFINITION
 classdef (Abstract) Path < handle & Entity
-    
-	
-    
+
+
+
     %% DATA
 	properties (Abstract, Dependent)
 		FullPath                % Gets a string containing the full path to the stored reference.
 	end
-	
+
     properties (Dependent)
         Exists                  % Gets a Boolean indicating whether or not the file or folder exists on the computer.
 		ParentDirectory         % Gets a Folder object for the directory immediately above the currently stored reference.
 		ParentDrive             % Gets a Folder object for the drive letter of the stored reference (for Windows PCs only).
 	end
-    
+
     properties (SetAccess = protected)
         Name                    % Gets a string containing the name of the file or folder that the Path object points to.
     end
@@ -77,13 +77,13 @@ classdef (Abstract) Path < handle & Entity
         Directory				% The data behind ParentDirectory.
         Drive					% The data behind ParentDrive.
     end
-    
-    
-    
+
+
+
 	%% PROPERTIES
     methods
         function e = get.Exists(P)
-			if (isa(P, 'File')); type = 'file'; 
+			if (isa(P, 'File')); type = 'file';
             else type = 'dir'; end
             e = logical(exist(P.FullPath, type));
 		end
@@ -94,16 +94,16 @@ classdef (Abstract) Path < handle & Entity
             D = Folder(P.Drive);
 		end
 	end
-	
-	
-	
+
+
+
     %% CONSTRUCTORS
     methods
         function P = Path(p)
         % PATH - Constructs a new Path object from a path string.
 		%
 		%	This is the base constructor for any File and Folder objects that are created. Because the Path class is
-		%	abstract, this constructor cannot be invoked directly. 
+		%	abstract, this constructor cannot be invoked directly.
         %
         %   This is the constructor method for any path object. To use it, simply input a path string pointing to any file or
         %   folder on the computer currently being used. The returned object wraps the path string and automatically parses
@@ -135,7 +135,7 @@ classdef (Abstract) Path < handle & Entity
 			end
         end
 	end
-    
+
     methods (Static)
 		function [F, D] = Resolve(p)
 		% RESOLVE - Resolves a list of path strings into lists of File and Folder objects.
@@ -146,29 +146,30 @@ classdef (Abstract) Path < handle & Entity
 		%	OUTPUTS:
 		%		F:		[ M x 1 FILES ]
 		%				A list of File objects referencing all of the files that are listed in the inputted array.
-		%		
+		%
 		%		D:		[ N x 1 FOLDERS ]
 		%				A list of Folder objects referencing all of the directories that are listed in the inputted array.
-		%	
+		%
 		%	INPUT:
 		%		p:		STRING or { STRINGS }
 		%				A path string or cell array of strings referencing a mixture of files and folders on a computer.
 		%
 		%	See also: CONTENTS, FILE, FOLDER
-		
+
 			Path.AssertStringContents(p);
 			if (~iscell(p)); p = { p }; end
-			
-			extpat = '.*\..*$';
-			idsFolders = regexp(p, extpat);
-			idsFolders = cellfun(@isempty, idsFolders);
-			
+
+ 			extpat = '.*\..*$';
+            idsFolders = regexp(p, extpat);
+ 			idsFolders = cellfun(@isempty, idsFolders);
+ 			idsFolders = idsFolders | cellfun(@isdir, p);
+
 			folderlist = p(idsFolders);
 			filelist = p(~idsFolders);
-						
+
 			nfolders = length(folderlist);
 			nfiles = length(filelist);
-			
+
 			if (nfiles > 0)
 				F(nfiles, 1) = File();
 				for a = 1:nfiles
@@ -177,7 +178,7 @@ classdef (Abstract) Path < handle & Entity
 			else
 				F = [];
 			end
-			
+
 			if (nfolders > 0)
 				D(nfolders, 1) = Folder();
 				for a = 1:nfolders
@@ -188,24 +189,24 @@ classdef (Abstract) Path < handle & Entity
 			end
 		end
 	end
-	
-	
-	
+
+
+
     %% UTILITIES
 	methods (Abstract, Access = protected)
 		ParseFullPath(P, s)
 	end
-    
+
     methods (Static, Access = protected)
         function AssertStringContents(var)
         % ASSERTSTRINGCONTENTS - Throws an error if a variable is not a string or cell array of strings.
             assert(ischar(var) || iscellstr(var), 'Only strings or cell arrays of strings may be used with Path objects.');
         end
         function AssertSingleString(var)
-		% ASSERTSINGLESTRING - Throws an error if a variable is not one single string. 
+		% ASSERTSINGLESTRING - Throws an error if a variable is not one single string.
             assert(ischar(var), 'Only one string may be inputted to function at a time.');
 		end
-		
+
         function e = FormatExtensionString(e)
         % FORMATEXTENSIONSTRING - Removes dots from file extension strings.
             if (iscell(e)); e = cellfun(@(x) strrep(x, '.', ''), e, 'UniformOutput', false);
@@ -217,9 +218,9 @@ classdef (Abstract) Path < handle & Entity
 			p = Path.FormatSeparators(p);
         end
 	end
-	
+
 	methods (Static)
-		
+
 		function [d, n, e] = Parts(s)
 		% PARTS - Breaks path strings down into directory, file name, and file extension components.
 		%
@@ -238,29 +239,29 @@ classdef (Abstract) Path < handle & Entity
 		%		e:		{ STRINGS }
 		%				A cell array of strings containing the extensions of any files present in the inputted path array.
 		%				For path strings pointing to folders, the corresponding elements of this array will be empty strings.
-		%	
+		%
 		%	INPUT:
 		%		s:		STRING or { STRINGS }
 		%				A path string or cell array of strings to be decomposed into their constituent parts.
 		%
 		%	See also: PATH.HASEXTENSION
-		
+
 			Path.AssertStringContents(s);
-			if (~iscell(s)); s = { s }; end			
-			
+			if (~iscell(s)); s = { s }; end
+
 			szs = size(s);
 			d = cell(szs);
 			n = cell(szs);
 			e = cell(szs);
-			
+
 			for a = 1:numel(s)
 				[d{a}, n{a}, e{a}] = fileparts(s{a});
 			end
-			
+
 			d = Path.FormatSeparators(d);
 			n(Cell.IsEmpty(n)) = { '' };
 		end
-		
+
 		function s = FormatSeparators(s)
 		% FORMATSEPARATORS - Replaces any alternative path separators in a string with the universal '/' character.
 			s = strrep(s, '\', '/');
@@ -281,7 +282,7 @@ classdef (Abstract) Path < handle & Entity
 		%				A path string or cell array of strings to be tested.
 		%
 		%	See also: PATH.PARTS
-		
+
 			Path.AssertStringContents(s);
 			[~, ~, e] = Path.Parts(s);
 			b = ~Cell.IsEmpty(e);
@@ -311,9 +312,9 @@ classdef (Abstract) Path < handle & Entity
 			end
 		end
 	end
-	
+
 	methods
-		
+
 		% Object Conversion Methods
         function c = ToCell(P)
         % TOCELL - Converts a Path object or array of objects into cell array of full path strings.
@@ -342,7 +343,7 @@ classdef (Abstract) Path < handle & Entity
         %               A Path object or array of objects containing path strings to files or folders on the computer
         %               currently being used. Path objects may point to anything and may be inputted as arrays of any
         %               size and dimensionality.
-        
+
             if (numel(P) == 1)
                 s = P.FullPath;
                 return;
@@ -351,7 +352,7 @@ classdef (Abstract) Path < handle & Entity
                 s = reshape(s, size(P));
             end
         end
-        
+
         % Navigation Methods
         function NavigateTo(P)
         % NAVIGATETO - Changes MATLAB's current working directory to the folder that the path object points to.
@@ -387,9 +388,9 @@ classdef (Abstract) Path < handle & Entity
             if (P.IsFile); P.ParentDirectory.ViewInExplorer();
             else winopen(P.FullPath);
             end
-            
+
 		end
-		
+
 		% Utilities
 		function C = Clone(P)
 		% CLONE - Creates deep copies of inputted path objects.
@@ -410,7 +411,7 @@ classdef (Abstract) Path < handle & Entity
 		%	INPUT:
 		%		P:		FILE or [ FILES ] or FOLDER or [ FOLDERS ]
 		%				A path object or array of objects that are to be copied.
-		
+
 			if isa(P(1), 'Folder')
 				C(numel(P)) = Folder();
 				for a = 1:numel(P)
@@ -429,7 +430,7 @@ classdef (Abstract) Path < handle & Entity
 		%
 		%	COPYTO copies files and folders to a location that is accessible by the computer. This method works just like
 		%	copying and pasting does in the computer's file viewer and like the MATLAB-native function COPYFILE.
-		%	
+		%
 		%	SYNTAX:
 		%		b = P.CopyTo(destination)
 		%		b = CopyTo(P, destination)
@@ -450,12 +451,12 @@ classdef (Abstract) Path < handle & Entity
 		%						directories that do not exist will be created automatically.
 		%
 		%	See also: COPYFILE
-			
+
 			if (~isa(destination, 'Folder')); destination = Folder(destination); end
 			destination.AssertSingleObject();
-			
+
 			if (~destination.Exists); mkdir(D); end
-			
+
 			b = false(size(P));
 			pb = Progress('-fast', 'Copying Files');
 			if isa(P(1), 'Folder')
@@ -473,9 +474,9 @@ classdef (Abstract) Path < handle & Entity
 		end
 
 	end
-    
-    
-    
+
+
+
 	%% MATLAB OVERLOADS
 	methods
 		function cd(P)
@@ -492,8 +493,8 @@ classdef (Abstract) Path < handle & Entity
 			b = reshape([P.Exists], size(P));
 		end
 	end
-  
-                
-    
-    
+
+
+
+
 end
