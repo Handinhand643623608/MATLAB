@@ -2,6 +2,7 @@
 
 %% CHANGELOG
 %   Written by Josh Grooms on 20150211
+%   20160126:   Added some additional standard colors.
 
 
 
@@ -27,9 +28,12 @@ classdef Colors
         Yellow      = Color(1, 1, 0);			% The color yellow	(RGB = [1, 1, 0]).
 
         % Others
-		Orchid		= Color(150/255, 50/255, 255/255);
-        DeepBlue    = Color(50/255, 150/255, 1);
-        VibrantBlue = Color(0, 0.75, 1);		% A vibrant blue color used extensively in my personalized color schemes.
+        Aqua        = Color(      0,   200/255,    200/255);
+		Orchid		= Color(150/255,    50/255,    255/255);
+        DeepBlue    = Color(      0,   100/255,          1);
+        LightBlue   = Color( 50/255,   150/255,          1);
+        SkyBlue     = Color(150/255,   200/255,          1);
+        VibrantBlue = Color(      0,   200/255,          1);		% A vibrant blue color used extensively in my personalized color schemes.
 
 	end
 
