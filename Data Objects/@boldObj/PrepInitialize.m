@@ -68,6 +68,7 @@ function PrepInitialize(boldData)
 %       20130710:   Updated documentation. Removed option for inputting a parameter structure.
 %       20140929:   Major overhaul of this function to work with the preprocessing parameter structure overhaul. Added
 %                   in pulling of slice acquisition order from the DICOM header file (useful for STC later).
+%       20150428:   Updated to utilize Path objects.
 
 
 
@@ -81,18 +82,18 @@ params = mergestructs(...
 
 %% Get File & Directory Information
 % Get the current subject's data folder
-subjDirs = searchdir(params.RawDataPath, params.SubjectFolderID, 'Ext', 'folder');
-scanData.RootFolder = subjDirs{boldData.Subject};
+subjDirs = params.RawDataPath.FolderSearch(params.SubjectFolderID);
+scanData.RootFolder = subjDirs(boldData.Subject);
 
 % Get the current subject's functional data folder & DICOM files
-scanDirs = searchdir(scanData.RootFolder, params.FunctionalFolderID, 'Ext', 'folder');
-scanData.FunctionalFolder = scanDirs{boldData.Scan};
-scanData.RawFunctionalFiles = searchdir(scanData.FunctionalFolder, [], 'Ext', '.dcm');
+scanDirs = scanData.RootFolder.FolderSearch(params.FunctionalFolderID);
+scanData.FunctionalFolder = scanDirs(boldData.Scan);
+scanData.RawFunctionalFiles = scanData.FunctionalFolder.FileSearch('.*\.dcm$');
 
 % Get the current subject's anatomical data folder & DICOM files
-anatDirs = searchdir(scanData.RootFolder, params.AnatomicalFolderID, 'Ext', 'folder');
-scanData.AnatomicalFolder = anatDirs{1};
-scanData.RawAnatomicalFiles = searchdir(scanData.AnatomicalFolder, [], 'Ext', '.dcm');
+anatDirs = scanData.RootFolder.FolderSearch(params.AnatomicalFolderID);
+scanData.AnatomicalFolder = anatDirs(1);
+scanData.RawAnatomicalFiles = scanData.AnatomicalFolder.FileSearch('.*\.dcm$');
 
 % Generate a directory for storing NIFTI files
 scanData.IMGFolder = [scanData.FunctionalFolder '/IMG'];
@@ -102,8 +103,8 @@ if ~exist(scanData.IMGFolder, 'dir'); mkdir(scanData.IMGFolder); end
 
 %% Pull Valuable Information from DICOM Files in the Functional Folder
 % Get a reference to a DICOM file
-dcmFiles = searchdir(scanData.FunctionalFolder, [], 'ext', '.dcm');
-dcmFile = dcmFiles{floor(length(dcmFiles) / 2)};
+ndcm = length(scanData.RawFunctionalFiles);
+dcmFile = scanData.RawFunctionalFiles(floor(ndcm / 2)).ToString();
 dcmInfo = dicominfo(dcmFile);
 
 % Define important fields found in the DICOM header section

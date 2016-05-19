@@ -112,9 +112,9 @@ params = mergestructs(...
 
 %% Run Anatomical Image Segmentation
 % Get the MNI segment probability maps
-wmFile = searchdir(params.SegmentsFolder, 'white', 'Ext', '.nii');
-gmFile = searchdir(params.SegmentsFolder, 'grey', 'Ext', '.nii');
-csfFile = searchdir(params.SegmentsFolder, 'csf', 'Ext', '.nii');
+wmFile = params.SegmentsFolder.FileSearch('white').ToString();
+gmFile = params.SegmentsFolder.FileSearch('grey').ToString();
+csfFile = params.SegmentsFolder.FileSearch('csf').ToString();
 
 % Build the batch processing parameter structure
 matlabbatch{1}.spm.spatial.preproc = struct(...
