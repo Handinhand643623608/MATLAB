@@ -13,6 +13,7 @@
 %		Name		- The string displayed in the window title bar.
 %		Patch		- Handles to various Patch objects that exist within the window.
 %		Position	- The position of the lower left window corner, [X, Y] in pixels, on the computer screen.
+%       Resize      - A Boolean indicating whether the window can be resized by the user.
 %		Size		- The size of the window, [Width, Height] in pixels, on the computer screen.
 %		Text		- Handles to various Text objects that exist within the window.
 %
@@ -69,7 +70,7 @@ classdef Window < handle & Entity
         Colormap				% The color mapping used to display colorized data.
         Name        @char       % The string displayed in the window title bar.
         Position                % The position of the window on-screen in pixels.
-        Resize
+        Resize                  % A Boolean indicating whether this window can be resized by the user.
         Size                    % The size of the window on-screen in pixels.
     end
 
@@ -81,7 +82,7 @@ classdef Window < handle & Entity
         Text                    % Handles to various text objects that exist in the window.
     end
 
-    properties (Hidden, Access = protected)
+    properties(Hidden, Access = protected)
         FigureHandle            % The numerical figure handle this object controls.
         Listeners               % Handles of listeners for events & property changes.
         PositionEnum            % The screen position where the window should be located.
@@ -234,9 +235,8 @@ classdef Window < handle & Entity
 
     methods
 		function Close(W, varargin)
-		% CLOSE - Closes a window and delete the associated handle variable in the calling workspace.
-            delete(W.FigureHandle)
-            evalin('caller', ['clear ' inputname(1)]);
+		% CLOSE - Closes a window and invalidates the associated handle variable.
+            delete(W.FigureHandle);
         end
         function Store(W, filename)
 
