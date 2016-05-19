@@ -1,26 +1,77 @@
-classdef Montage < Window
-% MONTAGE - Displays a tightly packed grouping of MATLAB axes objects used for plotting.
+% MONTAGE - Displays a tightly packed grouping of MATLAB Axes objects used for plotting.
 %
+%	Montage Properties:
+%		Axes 				- A reference to the Axes object used for plotting in the window.
+%		AxesColor
+%		Background			- The background color of the window.
+%		Box					- Enables or disables the outline of each montage element.
+%		CLim
+%		Colorbar			- A reference to the Colorbar object displayed within the window.
+%		ColorbarLabel		- A title string for the colorbar that describes the units present on it.
+%		Colormap			- The color mapping used to display colorized data.
+%		Data				- A general-purpose field used for storing data related to window contents.
+%		MajorFontSize		- The font size of major plot text.
+%		MinorFontSize		- The font size of minor plot text.
+%		Name				- The string displayed in the window title bar.
+%		Patch				- Handles to various Patch objects that exist within the window.
+%		Position			- The position of the lower left window corner, [X, Y] in pixels, on the computer screen.
+%		Size				- The size of the window, [Width, Height] in pixels, on the computer screen.
+%		Text				- Handles to various Text objects that exist within the window.
+%		Title				- The overall title of the montage.
+%		XLabel				- The title for the overall montage x-axis.
+%		XLim
+%		XTickLabel
+%		YLabel				- The title for the overall montage y-axis.
+%		YLim
+%		YTickLabel
 %
+%	Montage Constructor:
+%		Montage
+%		EEG
+%		MRI
+%
+%	Montage Methods:
+%		Close				- Closes the window and deletes the associated handle variable in the calling workspace.
+%		Image
+%		NextElement
+%		Plot
+%		Recycle
+%		Refresh
+%		ShadedPlot
+%
+%	Dependencies:
+%		Entity
+%		Window
+%
+%	See also: AXES, FIGURE, PROGRESS, WINDOW
 
 %% CHANGELOG
 %	Written by Josh Grooms on 20141208
-%		20141212:	Changed how the y-axis tick labels are displayed by default. They are now flipped automatically by
-%					the getter/setter methods of this class so that first element of the inputted array is displayed at
-%					the top and subsequent tick labels are displayed under it (i.e. towards the origin). This was done
-%					because this is how the montage is created, meant to be read, and because I keep making the mistake
-%					of not flipping the labels myself in code that uses the montage.
+%		20141212:	Changed how the y-axis tick labels are displayed by default. They are now flipped automatically by the
+%					getter/setter methods of this class so that first element of the inputted array is displayed at the top
+%					and subsequent tick labels are displayed under it (i.e. towards the origin). This was done because this
+%					is how the montage is created, meant to be read, and because I keep making the mistake of not flipping
+%					the labels myself in code that uses the montage.
 %		20141215:	Fixed some bugs in the titling of expanded element views.
 %		20150128:	Finished implementing a static constructor method for creating EEG channel mapping montages.
 %       20150129:   Updated the PLOT method to be a little more flexible with its inputs. It now optionally accepts a value
 %                   for X or generates one using Y. Drafted some documentation for this method as well.
-	
-	
+%		20150727:	Removed all restrictions relating to Color data structures. These introduced new dependencies, a lot of
+%					overhead, and were not intuitive to anyone other than me. Compatibility with this class has been left in
+%					place, however. Also removed outside dependencies on Range objects and the function ISTRUE. Filled in a
+%					bunch of documentation for this class that was previously left blank.
+
+
+
+%% CLASS DEFINITION
+classdef Montage < Window
+
+
 
 	%% DATA
 	properties (Dependent)
         AxesColor               % The color of the primary plot axes.
-		Box
+		Box						% A Boolean that enables or disables the box outline for each Axes montage element.
         CLim					% The [MIN, MAX] data values that are mapped to colormap extremes.
         ColorbarLabel   @char   % A label string for the plot's colorbar.
         Title                   % The title string of the plot.
@@ -30,13 +81,13 @@ classdef Montage < Window
         YLabel                  % The y-axis label string.
 		YLim					% The [MIN, MAX] values displayed on an element's y-axis.
         YTickLabel              % The individual y-axis tick labels.
-	end	
+	end
 
 	properties (AbortSet)
 		MajorFontSize           % The font size (in font units) of major plot text (e.g. titles, axis titles, etc.).
         MinorFontSize           % The font size (in font units) of minor plot text (e.g. axis tick labels).
 	end
-	
+
 	properties %(Access = protected, Hidden)
 		ElementAspect			% The [HEIGHT, WIDTH] aspect ratio of each montage element.
 		ElementAxes				% An array of dimensions MONTAGESIZE containing axes handles for each montage element.
@@ -53,7 +104,7 @@ classdef Montage < Window
 
 	%% PROPERTIES
     methods
-        
+
         % Get methods
         function color  = get.AxesColor(H)
             color = get(H.Axes, 'XColor');
@@ -91,9 +142,12 @@ classdef Montage < Window
 			if ischar(ytick); ytick = cellstr(ytick); end
 			ytick = flip(ytick);
         end
-        
+
         % Set methods
         function set.AxesColor(H, color)
+
+			if isa(color, 'Color'); color = color.ToArray(); end
+
             set(H.Axes, 'XColor', color, 'YColor', color);
             set(get(H.Axes, 'Title'), 'Color', color);
             set(get(H.Axes, 'XLabel'), 'Color', color);
@@ -101,7 +155,8 @@ classdef Montage < Window
             set(get(H.Colorbar, 'YLabel'), 'Color', color);
 		end
 		function set.Box(H, box)
-			if istrue(box); box = 'on';
+
+			if Entity.IsTrue(box); box = 'on';
 			else box = 'off'; end
 			set(H.ElementAxes, 'Box', box);
 		end
@@ -111,7 +166,7 @@ classdef Montage < Window
 					set(H.Axes, 'CLimMode', 'auto');
 					return;
 				else
-					clim = Range.FromData(H.Data);
+					clim = [ min(H.Data(:)), max(H.Data(:)) ];
 				end
 			end
 			if isa(clim, 'Range'); clim = clim.ToArray(); end
@@ -154,39 +209,166 @@ classdef Montage < Window
         function set.YTickLabel(H, tlabels)
             set(H.Axes, 'YTick', H.YTick, 'YTickLabel', flip(tlabels));
 		end
-		
+
 	end
-	
-	
-	
+
+
+
 	%% CONSTRUCTORS
 	methods
 		function H = Montage(m, varargin)
-		% MONTAGE - Constructs a window object & initializes the plotting environment.
-		
+		% MONTAGE - Constructs an array of empty Axes objects in which data can be visualized.
+		%
+		%	SYNTAX:
+		%		H = Montage(m)
+		%		H = Montage(m, n)
+		%		H = Montage(..., 'PropertyName', PropertyValue,...)
+		%
+		%	OUTPUT:
+		%		H:					MONTAGE
+		%
+		%	INPUTS:
+		%		m:					INTEGER
+		%							The number of rows that will be present within the montage. This controls how many MATLAB
+		%							Axes objects appear in the up/down direction within the montage window. This argument is
+		%							a required input for this constructor method.
+		%
+		%		n:					INTEGER
+		%							The number of columns that will be present within the montage. This controls how many
+		%							MATLAB Axes objects appear in the left/right direction within the montage window. If 'n'
+		%							is not explicitly provided as an input, it will default to taking the same value as 'm'
+		%							above, resulting in a square array of montage elements.
+		%							DEFAULT: m
+		%
+		%	PROPERTIES:
+		%		AxesColor:			[ R, G, B ] or STRING or COLOR
+		%							The color of the overall montage x- and y-axes as well as the colorbar y-axis, if the
+		%							colorbar is being displayed. This argument also controls the coloring of any text labels
+		%							accompanying those axes and the overall title of the montage.
+		%							DEFAULT: [0, 0, 0]
+		%
+		%		Background: 		[ R, G, B ] or STRING or COLOR
+		%							The background color of the window containing the montage. Note that this does not
+		%							influence the color of individual montage elements, which are transparent by default, but
+		%							instead controls the coloring of the window regions that surround these elements.
+		%							DEFAULT: [1, 1, 1]
+		%
+		%		Box:				BOOLEAN
+		%							A Boolean value that enables or disables box outlines for each of the Axes objects
+		%							comprising the montage.
+		%							DEFAULT: true
+		%
+		%		CLim:				DOUBLE or [ DOUBLE, DOUBLE ]
+		%							The [MIN, MAX] data values that will be mapped to the extremes of the colormap being
+		%							used. This argument only applies to psuedo-colored data (e.g. scaled images) and by
+		%							default is calculated automatically using the data itself.
+		%							DEFAULT: []
+		%
+		%		Colorbar:			BOOLEAN
+		%							A Boolean that indicates whether or not a colorbar should be shown to the right of the
+		%							montage. The initial position of the colorbar is fixed.
+		%							DEFAULT: false
+		%
+		%		ColorbarLabel:		STRING
+		%							A title string that identifies the units present on the colorbar, if it is shown. If a
+		%							colorbar is not to be shown, then this argument has no effect.
+		%							DEFAULT: []
+		%
+		%		Colormap:			[ NC x 3 DOUBLES ] or [ COLORS ]
+		%							The color mapping used to display pseudo-colored data.
+		%							DEFAULT: jet(256)
+		%
+		%		ElementAspect:		[ DOUBLE, DOUBLE ]
+		%							The relative dimensions of the Axes objects used to make up the montage. This argument
+		%							should be formatted as the [WIDTH, HEIGHT] sizing of each element, where width and height
+		%							are specified relative to one another. Thus, for example, inputting a value of [1, 2] for
+		%							this paramter will result in montage elements being twice as tall as they are wide.
+		%							Although absolute element sizes are determined automatically, this argument allows some
+		%							control over their shapes, which can be useful for plotting different types of data.
+		%							DEFAULT: [1, 1]
+		%
+		%		MajorFontSize:		DOUBLE
+		%							The size in font units of the major text present on the montage. Major text includes: the
+		%							x- and y-axes labels (XLabel & YLabel properties), the montage title (Title property),
+		%							and the colorbar y-axis label (ColorbarLabel property). Other standard text present on
+		%							the montage is controlled by the MinorFontSize property.
+		%							DEFAULT: 25
+		%
+		%		MinorFontSize:		DOUBLE
+		%							The size in font units of hte minor text present on the montage. Minor text includes: the
+		%							x- and y-axis tick labels (XTickLabel and YTickLabel properties), and the colorbar y-axis
+		%							tick labels (not directly accessible through this class). Other standard text present on
+		%							the montage is controlled by the MajorFontSize property.
+		%							DEFAULT: 20
+		%
+		%		Title:				STRING
+		%							The title of the overall montage. This argument sets the string that will appear at
+		%							top-center within the montage window. It does not set titles for individual element Axes
+		%							objects.
+		%							DEFAULT: []
+		%
+		%		XLabel:				STRING
+		%							The title of the overall montage x-axis. This argument sets the string that will appear
+		%							beneath the primary x-axis within the montage window. It does not set titles for the
+		%							x-axes of individual elements.
+		%							DEFAULT: []
+		%
+		%		XLim:				[ DOUBLE, DOUBLE ]
+		%							The [MIN, MAX] limits of the x-axes for all individual montage elements. This argument
+		%							operates only on the montage elements themselves, and not the primary axes that encompass
+		%							them.
+		%							DEFAULT: [0, 1]
+		%
+		%		XTickLabel:			{ STRINGS }
+		%							The tick labels of the overall montage x-axis. This argument sets the labels that appear
+		%							beneath every column of the montage. It does not set tick labels for the x-axes of
+		%							individual elements.
+		%							DEFAULT: []
+		%
+		%		YLabel:				STRING
+		%							The title of the overall montage y-axis. This argument sets the string that will appear
+		%							to the left of the primary y-axis within the montage window. It does not set titles for
+		%							the y-axes of individual elements.
+		%							DEFAULT: []
+		%
+		%		YLim:				[ DOUBLE, DOUBLE ]
+		%							The [MIN, MAX] limits of the y-axes for all individual montage elements. This argument
+		%							operates only on the montage elements themselves, and not the primary axes that encompass
+		%							them.
+		%							DEFAULT: [0, 1]
+		%
+		%		YTickLabel:			{ STRINGS }
+		%							The tick labels of the overall montage y-axis. This argument sets the labels that appear
+		%							to the left of every row of the montage. It does not set tick labels for the y-axes of
+		%							individual elements.
+		%							DEFAULT: []
+		%
+		%	See also: Figure, Montage.EEG, Montage.Image, Montage.MRI, Montage.Plot, Window, Window.Window
+
 			% Initialize a window object for displaying the data
 			H = H@Window(...
-                'MenuBar', 'none',...
-                'NumberTitle', 'off',...
-                'Position', WindowPositions.CenterCenter,...
-                'Size', WindowSizes.FullScreen); drawnow
-			
+                'MenuBar',		'none',...
+                'NumberTitle',	'off',...
+                'Position',		WindowPositions.CenterCenter,...
+                'Size',			WindowSizes.FullScreen);
+			drawnow
+
 			% Error check
 			assert(nargin >= 1, 'Constructing a montage requires a size to be specified.');
-			
+
 			% Determine the size of the axes array that will form the montage
-			if isnumeric(varargin{1})
+			if (nargin > 1) && isnumeric(varargin{1})
 				n = varargin{1};
 				varargin(1) = [];
 			else
 				n = m;
 			end
-			
+
 			% Overridable default settings
-			function Defaults	
-				AxesColor		= 'k';
-				Background		= Colors.White;
-				Box				= 'on';
+			function Defaults
+				AxesColor		= [0, 0, 0];
+				Background		= [1, 1, 1];
+				Box				= true;
 				CLim			= [];
                 Colorbar		= 'off';
                 ColorbarLabel	= '';
@@ -203,20 +385,20 @@ classdef Montage < Window
 				YTickLabel		= [];
 			end
 			assign(@Defaults, varargin);
-			
+
 			H.ElementIndex = 1;
 			H.MontageSize = [m, n];
-			
+
 			H.ElementAspect = ElementAspect;
 			H.InitializePrimaryAxes();
 			H.SetAxesTickSpacing();
-			
-            if (istrue(Colorbar)); H.Colorbar = colorbar('EastOutside'); end
-            
+
+            if (Entity.IsTrue(Colorbar)); H.Colorbar = colorbar('EastOutside'); end
+
 			H.SetElementSize();
 			H.RetrofitPrimaryAxes();
 			H.InitializeElementAxes();
-			
+
 			H.AxesColor			= AxesColor;
 			H.Background		= Background;
 			H.Box				= Box;
@@ -233,10 +415,10 @@ classdef Montage < Window
 			H.YLabel			= YLabel;
 			H.YLim				= YLim;
 			H.YTickLabel		= YTickLabel;
-			
+
 		end
     end
-	
+
 	methods (Static)
         function H = EEG(x, varargin)
 		% EEG - Creates a montage of colored EEG channel mappings.
@@ -295,7 +477,7 @@ classdef Montage < Window
 		%							DEFAULT: []
 		%
 		%		XTickLabel:			{ STRINGS } or [ DOUBLES ]
-		%							The labels that will be displayed immediately beneath the x-axis. One label must be 
+		%							The labels that will be displayed immediately beneath the x-axis. One label must be
 		%							present for each column displayed in the montage. This can be used to provide additional
 		%							identifying information for the columns.
 		%							DEFAULT: 1:M
@@ -313,23 +495,23 @@ classdef Montage < Window
 		%							DEFAULT: 1:N
 		%
 		%	See also: BRAINPLOT, MONTAGE
-		
+
 			H = [];
             nchans = 68;
             assert(nargin >= 1, 'EEG data must be supplied to create a montage of channel mappings.');
-			
+
 			if isa(x, 'Montage')
 				H = x;
 				x = varargin{1};
 				varargin(1) = [];
 			end
-			
+
 			assert(isnumeric(x), 'EEG data must be provided as a numeric array with %d rows.', nchans);
 			assert(size(x, 1) == nchans, 'EEG data must be correctly ordered and provided for all %d channels.', nchans);
 
 			nx = size(x, 2);
 			ny = size(x, 3);
-			
+
 			function Defaults
 				CLim			= Range.FromData(x);
 				Colorbar		= 'on';
@@ -344,7 +526,7 @@ classdef Montage < Window
 				YTickLabel		= 1:ny;
 			end
 			assign(@Defaults, varargin);
-			
+
 			if isempty(H)
 				H = Montage(ny, nx,...
 					'CLim',				CLim,...
@@ -359,52 +541,89 @@ classdef Montage < Window
 					'YLabel',			YLabel,...
 					'YTickLabel',		YTickLabel);
 			end
-			
+
 			H.Data = x;
 			x = Color.FromData(x, H.Colormap, H.CLim, Colors.Black);
 			x = permute(x, [1 3 2]);
-			
+
 			if isempty(H.Template)
 				set(H.ElementAxes, 'Color', 'k');
 				templateFile = File.Which('EEG Channel Map Template.fig');
 				H.Template = hgload(templateFile.ToString(), struct('Parent', H.ElementAxes(1)));
 				H.Patch = gobjects(numel(x), 1);
-				
+
 				for a = 1:numel(H.ElementAxes)
 					idx = (a - 1) * nchans + 1;
 					H.Patch(idx:(idx + nchans - 1)) = copyobj(H.Template, H.ElementAxes(a));
 				end
 			end
-            
+
 			x = x.ToMatrix();
 			for a = 1:size(x, 1)
 				set(H.Patch(a),...
 					'FaceColor',    x(a, :),...
 					'EdgeColor',    x(a, :));
 			end
-			
+
 			drawnow;
 		end
 		function M = MRI(x, varargin)
-			
+		% MRI - Creates a montage of pseudo-colored MRI brain volumes.
+		%
+		%	SYNTAX:
+		%		M = Montage.MRI(x)
+		%		M = Montage.MRI(M, x)
+		%		M = Montage.MRI(..., 'PropertyName', PropertyValue,...)
+		%
+		%	OUTPUT:
+		%		M:
+		%
+		%	INPUT:
+		%		M:
+		%
+		%		x:
+		%
+		%	PROPERTIES:
+		%		CLim:
+		%
+		%		Colorbar:
+		%
+		%		Colormap:
+		%
+		%		ColorbarLabel:
+		%
+		%		MajorFontSize:
+		%
+		%		MinorFontSize:
+		%
+		%		Title:
+		%
+		%		XLabel:
+		%
+		%		XTickLabel:
+		%
+		%		YLabel:
+		%
+		%		YTickLabel:
+
 			M = [];
 			assert(nargin >= 1, 'MRI data must be supplied to create a montage of channel mappings.');
-			
+
 			if isa(x, 'Montage')
 				M = x;
 				x = varargin{1};
 				varargin(1) = [];
 			end
-			
+
 			assert(isnumeric(x), 'MRI data must be provided as a numeric array.');
-			
+
 			nx = size(x, 4);
 			ny = size(x, 3);
-			
+
 			function Defaults
-				CLim			= Range.FromData(x);
+				CLim			= [ min(x(:)), max(x(:)) ];
 				Colorbar		= 'on';
-				Colormap		= Colormaps.Jet;
+				Colormap		= jet(256);
 				ColorbarLabel	= '';
 				MajorFontSize	= 20;
 				MinorFontSize	= 15;
@@ -415,7 +634,7 @@ classdef Montage < Window
 				YTickLabel		= 1:ny;
 			end
 			assign(@Defaults, varargin)
-			
+
 			if isempty(M)
 				M = Montage(ny, nx,...
 					'CLim',				CLim,...
@@ -430,27 +649,27 @@ classdef Montage < Window
 					'YLabel',			YLabel,...
 					'YTickLabel',		YTickLabel);
 			end
-			
+
 			M.Data = x;
-			x = Color.FromData(x, M.Colormap, M.CLim, Colors.Black);
-			x = permute(x, [2 1 3 4]);
+			x = num2rgb(x, M.Colormap, M.CLim, [0, 0, 0]);
+			x = permute(x, [2 1 3 4 5]);
 			x = flip(x, 3);
-			
+
 			szx = size(x);
 			for a = 1:szx(4)
 				for b = 1:szx(3)
-					ct = x(:, :, b, a);
-					M.Image(ct.ToArray())
+					ct = squeeze(x(:, :, b, a, :));
+					M.Image(ct)
 				end
 			end
-			
+
 			drawnow;
 		end
     end
-    
-    
-	
-	%% UTILITIES 
+
+
+
+	%% UTILITIES
 	methods (Access = protected)
 		function ExpandElement(H, src, ~)
 		% EXPANDELEMENT - Copies the contents of a clicked montage element into a larger new figure window.
@@ -460,7 +679,7 @@ classdef Montage < Window
 		%	then determines which particular axes detected the click and opens a new window that displays a larger
 		%	version of the montage element, which is useful for closer inspections of data that would otherwise be
 		%	difficult to see in montage form.
-			
+
 			% Generate a new figure & axes for the expanded view
 			H.ExpandedFigures = cat(1, H.ExpandedFigures, figure('CloseRequestFcn', @H.OnExpansionClosing));
 			AE = axes(...
@@ -470,25 +689,25 @@ classdef Montage < Window
 				'Parent', H.ExpandedFigures(end),...
 				'XLim', H.XLim,...
 				'YLim', H.YLim);
-			
+
 			% Copy the data plotted in the montage into the expanded view
 			[idxRow, idxCol] = find(H.ElementAxes == src);
 			A = H.ElementAxes(idxRow, idxCol);
 			copyobj(get(A, 'Children'), AE);
 
-			% Generate a generic title to identify the displayed data            
+			% Generate a generic title to identify the displayed data
 			if isempty(H.XLabel); xl = 'X';
 			else xl = H.XLabel; end
 			if isempty(H.YLabel); yl = 'Y';
 			else yl = H.YLabel; end
-            
+
             xtl = H.XTickLabel;
             ytl = H.YTickLabel;
             if (length(xtl) >= idxCol) && (~isempty(xtl{idxCol})); xt = xtl{idxCol};
             else xt = num2str(idxCol); end
             if (length(ytl) >= idxRow) && (~isempty(ytl{idxRow})); yt = ytl{idxRow};
             else yt = num2str(idxRow); end
-				
+
 			% Apply the title to the expanded view axes
 			expTitle = sprintf('%s: %s\n%s: %s', xl, xt, yl, yt);
 			title(AE, expTitle);
@@ -559,7 +778,7 @@ classdef Montage < Window
             H.XTick = linspace(xHalfSpacing, 1 - xHalfSpacing, H.MontageSize(2));
             H.YTick = linspace(yHalfSpacing, 1 - yHalfSpacing, H.MontageSize(1));
 		end
-		
+
 		function A = NewElement(H, position)
         % NEWELEMENT - Creates individual montage element axes at the specified position.
         %
@@ -599,8 +818,8 @@ classdef Montage < Window
 				'YTickLabelMode',           'manual');
 		end
 	end
-	
-	methods		
+
+	methods
 		function A = NextElement(H)
 		% NEXTELEMENT - Returns a handle to the next montage element axes to be plotted to.
 		%
@@ -633,14 +852,14 @@ classdef Montage < Window
 			A = H.ElementAxes(H.ElementIndex);
 			H.ElementIndex = H.ElementIndex + 1;
         end
-		
+
         function Close(H, varargin)
 		% CLOSE - Closes the montage window and any expanded element windows that remain open.
 			if (H.ExpandedFigures ~= 0); delete(H.ExpandedFigures); end
 			Close@Window(H);
 		end
 		function Image(H, x)
-			
+
 			A = H.NextElement();
 			cla(A);
 			image(...
@@ -679,29 +898,29 @@ classdef Montage < Window
         %       LineColor:      [ R, G, B ]
         %
         %       LineWidth:      DOUBLE
-		
+
             assert(nargin >= 2, 'Data must be provided in order to generate a plot.');
             assert(isnumeric(x), 'Only numeric data can be plotted in a montage element.');
             if (nargin == 2) || isempty(y)
-                y = x; 
+                y = x;
                 x = [];
             elseif ischar(y)
                 varargin = [y varargin];
                 y = x;
                 x = [];
             end
-                
+
 			function Defaults
 				LineColor = [0, 0.5, 0.75];
 				LineWidth = 1.25;
 			end
 			assign(@Defaults, varargin);
-		
+
             if isempty(x)
                 if isvector(y); x = 1:length(y);
                 else x = 1:size(y, 1); end
             end
-            
+
 			% A line is used here because "plot" resets a bunch of axes properties to "auto"
 			A = H.NextElement();
 			cla(A);
@@ -819,7 +1038,7 @@ classdef Montage < Window
 		%						DEFAULT: [0, 0.5, 0.75]
 		%
 		%	See also: PLOT, MONTAGE.NEXTELEMENT
-			
+
 			% Error checks
 			assert(isvector(x) && isvector(y) && isnumeric(x) && isnumeric(y),...
 				'Data being plotted must be vectors of a numeric type.');
@@ -827,7 +1046,7 @@ classdef Montage < Window
 				'Shading data must be provided as a vector or a matrix with either two rows or columns.');
 			assert(isequal(length(x), length(y), length(z)),...
 				'Data being plotted must all be of equal length.');
-			
+
 			% Overridable default settings
 			function Defaults
 				Alpha = 0.3;
@@ -836,7 +1055,7 @@ classdef Montage < Window
 				ShadeColor = [0, 0.5, 0.75];
 			end
 			assignto(@Defaults, varargin);
-			
+
 			% Format the inputted data
 			x = x(:);
 			y = y(:);
@@ -845,11 +1064,11 @@ classdef Montage < Window
 			elseif (~all(size(z) == 2) && size(z, 1) == 2)
 				z = z';
 			end
-			
+
 			% Format the axes object being plotted to
 			A = H.NextElement();
 			set(A, 'NextPlot', 'add');
-			
+
 			% Plot the data
 			fill(...
 				[x; flip(x)],...
@@ -859,10 +1078,10 @@ classdef Montage < Window
 				'FaceAlpha', Alpha,...
 				'Parent', A);
 			plot(A, x, y, 'Color', LineColor, 'LineWidth', LineWidth);
-			
-		end
-	end	
 
-	
-	
+		end
+	end
+
+
+
 end
