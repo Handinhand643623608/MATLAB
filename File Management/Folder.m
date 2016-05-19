@@ -22,9 +22,9 @@
 %		FolderSearch	- Searches for specific folders within a directory and, optionally, its subdirectories.
 %		NavigateTo		- Changes the MATLAB working directory to the one referenced by the Folder object.
 %		ToCell			- Converts Folder objects into a cell array of full path strings.
-%		ToString		- 
+%		ToString		-
 %		View			- Opens a directory in Windows Explorer.
-%	
+%
 %	Folder Overloads:
 %		addpath			- Adds a directory to the MATLAB search path list.
 %		cd				- Changes the MATLAB working directory to the one referenced by the Path object.
@@ -44,32 +44,32 @@
 
 %% CLASS DEFINITION
 classdef Folder < Path
-	
-	
-	
+
+
+
 	%% DATA
 	properties (Dependent)
 		FullPath
 	end
-	
+
 	methods (Static)
         function P = PWD
         % Gets the current working directory as a Path object.
             P = Folder(pwd);
         end
 	end
-	
-	
-	
+
+
+
 	%% PROPERTIES
 	methods
 		function p = get.FullPath(D)
 			p = [D.Directory '/' D.Name];
 		end
 	end
-	
-	
-	
+
+
+
 	%% CONSTRUCTORS
 	methods
 		function F = Folder(p)
@@ -78,7 +78,7 @@ classdef Folder < Path
 			F = F@Path(p);
 		end
 	end
-	
+
 	methods (Static)
 		function D = Where(f)
         % WHERE - Identifies the directory containing a function or file.
@@ -93,7 +93,7 @@ classdef Folder < Path
 		%	INPUT:
 		%		f:		STRING or FILE or FOLDER
 		%				A single path string, File object, or Folder object whose parent directory is to be identified.
-		
+
 			if (isa(fileName, 'Path'))
                 D = fileName.ParentDirectory;
 			else
@@ -102,9 +102,9 @@ classdef Folder < Path
 			end
         end
 	end
-		
-		
-	
+
+
+
 	%% UTILITIES
 	methods (Access = protected)
 		function ParseFullPath(D, s)
@@ -116,18 +116,18 @@ classdef Folder < Path
 		%
 		%		s:		STRING
 		%				A single path string to be broken down.
-		
+
 			D.AssertSingleObject();
 			Path.AssertSingleString(s);
-			
-			[d, n, e] = fileparts(s);
-			assert(isempty(e), ['The path reference %s appears to contain an extension, which is an error for folders. \n'...
-				'Check this reference to ensure that it is a folder, rename it if necessary (do not use ''.''characters), '...
-				'or use File objects to reference files with extensions.'], s);
-			
+
+            isFolder = exist(s);
+            assert(isFolder == 0 || isFolder == 7, ...
+                sprintf('Attempted to construct a folder object using the file reference:\n\t%s', s);
+
+            [d, n, e] = fileparts(s);
 			D.Directory = Path.FormatPathString(d);
 			D.Name = n;
-			
+
 			if (ispc)
 				drivePattern = '^([^\\/]:).*';
                 driveLetter = regexp(D.Directory, drivePattern, 'tokens');
@@ -137,7 +137,7 @@ classdef Folder < Path
 			end
 		end
 	end
-	
+
 	methods
         function [F, D] = Contents(P)
         % CONTENTS - Gets a list of all files and folders within a directory.
@@ -148,7 +148,7 @@ classdef Folder < Path
 		%	OUTPUTS:
 		%		F:		[ N x 1 FILES ]
 		%				A list of File objects referencing all of the files contained in the directory path P.
-		%		
+		%
 		%		D:		[ M x 1 FOLDERS ]
 		%				A list of Folder objects referencing all of the immediate subdirectories of D.
 		%
@@ -157,7 +157,7 @@ classdef Folder < Path
 		%				A single Folder object referencing the directory whose contents are to be obtained.
 		%
 		%	See also:	FOLDER.FILECONTENTS, FOLDER.FILESEARCH, FOLDER.FOLDERCONTENTS, FOLDER.FOLDERSEARCH
-		
+
             P.AssertSingleObject();
             [F, D] = Path.Resolve(contents(P.FullPath));
 		end
@@ -186,11 +186,11 @@ classdef Folder < Path
 		%							DEFAULT: false
 		%
         %   See also: FOLDER.CONTENTS, FOLDER.FILESEARCH, FOLDER.FOLDERCONTENTS, FOLDER.FOLDERSEARCH
-		
+
 			if (nargin == 1); includeSubfolders = false; end
-			
+
             D.AssertSingleObject();
-			
+
 			[F, folders] = D.Contents();
 			if (includeSubfolders)
 				for a = 1:length(folders)
@@ -204,7 +204,7 @@ classdef Folder < Path
         %   This method searches for files matching a specified signature inside of a directory, pointed to by the inputted
         %   Folder object. It can also search for files within the subfolders of the inputted path.
         %
-        %   PERFORMING SEARCHES:		
+        %   PERFORMING SEARCHES:
         %		In order to find references to specific files, the query string is compared against the full file names
         %		(including extensions) of each file in the directory that D references. Any files whose names match the query
         %		signature will be returned as File objects in the ouput array.
@@ -241,18 +241,18 @@ classdef Folder < Path
 		%							path in D. Inputting TRUE for this argument lets FileSearch return results that are
 		%							located beyond the first level of the tree starting with D.
 		%							DEFAULT: false
-        %   
+        %
         %   See also:   FOLDER.CONTENTS, FOLDER.FILECONTENTS, REGEXP, REGEXPI
-		
+
 			if (nargin == 2); includeSubfolders = false; end
-			
+
             D.AssertSingleObject();
 			Path.AssertSingleString(query);
-            
+
             F = D.FileContents(includeSubfolders);
             idsNoMatch = regexpi({ F.FullName }', query);
             idsNoMatch = cellfun(@isempty, idsNoMatch);
-            
+
             if (all(idsNoMatch))
                 warning(['No files with the signature %s were found in %s.\n'...
                          'Check to ensure that the file exists in this folder'],...
@@ -261,7 +261,7 @@ classdef Folder < Path
                 F = File();
                 return;
             end
-            
+
             F(idsNoMatch) = [];
         end
 		function D = FolderContents(P, includeSubfolders)
@@ -274,7 +274,7 @@ classdef Folder < Path
 		%	OUTPUT:
 		%		D:					[ M x 1 FOLDERS ]
 		%							A list of Folder objects referencing all of the folders in the directory path D. If the
-		%							option to gather subfolders is used, then this list will contain all folders located in 
+		%							option to gather subfolders is used, then this list will contain all folders located in
 		%							the tree under D.
 		%
 		%	INPUT:
@@ -289,11 +289,11 @@ classdef Folder < Path
 		%							DEFAULT: false
 		%
 		%	See also: FOLDER.CONTENTS, FOLDER.FILECONTENTS, FOLDER.FILESEARCH, FOLDER.FOLDERSEARCH
-		
+
 			if (nargin == 1); includeSubfolders = false; end
-			
+
             P.AssertSingleObject();
-			
+
 			[~, D] = P.Contents();
 			if (includeSubfolders)
 				for a = 1:length(D)
@@ -317,13 +317,13 @@ classdef Folder < Path
 		%	INPUTS:
 		%		P:					FOLDER
 		%							A single Folder object referencing the directory whose subfolders are to be searched.
-		%		
+		%
 		%		query:				STRING
 		%							A string query used to identify specific folders within the directory that D points to.
 		%							This argument is compared against each of the folder names in that directory using
 		%							regular expressions. Any folder whose name contains this query signature will be included
 		%							in the returned Folder object array. Letter casing is ignored.
-		%	
+		%
 		%	OPTIONAL INPUT:
 		%		includeSubfolders:	BOOLEAN
 		%							A Boolean indicating whether or not to search for folders within the subdirectories of
@@ -332,16 +332,16 @@ classdef Folder < Path
 		%							DEFAULT: false
 		%
 		%	See also: FOLDER.CONTENTS, FOLDER.FILECONTENTS, FOLDER.FILESEARCH, FOLDER.FOLDERCONTENTS
-		
+
 			if (nargin == 2); includeSubfolders = false; end
-			
+
 			P.AssertSingleObject();
 			Path.AssertSingleString(query);
-			
+
 			D = P.FolderContents(includeSubfolders);
 			idsNoMatch = regexpi({ P.Name }', query);
 			idsNoMatch = cellfun(@isempty, idsNoMatch);
-			
+
 			if (all(idsNoMatch))
                 warning(['No folders with the signature %s were found in %s.\n'...
                          'Check to ensure that the folder exists.'],...
@@ -350,13 +350,13 @@ classdef Folder < Path
                 D = Folder();
                 return;
 			end
-			
+
 			D(idsNoMatch) = [];
 		end
 	end
-	
-	
-	
+
+
+
 	%% MATLAB OVERLOADS
     methods
         function addpath(D)
@@ -379,17 +379,17 @@ classdef Folder < Path
         end
         function P = horzcat(D, varargin)
 		% HORZCAT - Performs horizontal concatenation between Folder objects and strings.
-			
+
 			assert(isa(D, 'Folder'), 'Path concatenation can only occur when starting with a directory reference.');
 			Path.AssertStringContents(varargin);
-						
+
 			append = [varargin{:}];
 			nd = numel(D);
 			if Path.HasExtension(append)
 				P(nd) = File();
 				for a = 1:nd
 					P(a) = File([D(a).FullPath append]);
-				end				
+				end
 			else
 				P(nd) = Folder();
 				for a = 1:nd
@@ -403,7 +403,7 @@ classdef Folder < Path
         %   See also: MKDIR
             [s, m, id] = mkdir(D.FullPath);
 		end
-	end  
-	
-	
+	end
+
+
 end
