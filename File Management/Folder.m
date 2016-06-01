@@ -122,7 +122,7 @@ classdef Folder < Path
 
             isFolder = exist(s);
             assert(isFolder == 0 || isFolder == 7, ...
-                sprintf('Attempted to construct a folder object using the file reference:\n\t%s', s);
+                sprintf('Attempted to construct a folder object using the file reference:\n\t%s', s));
 
             [d, n, e] = fileparts(s);
 			D.Directory = Path.FormatPathString(d);
