@@ -27,6 +27,7 @@
 %		20150507:	Updated to prevent Deprecated and Prototyping folders from ever being added to MATLAB's search path. Even
 %					adding all of the code folders and then removing those two was causing some problems.
 %		20150612:	Added in support for MATLAB running on my Surface tablet.
+%       20160711:   Added support for my workstation at EagleView Technologies.
 
 
 
@@ -37,6 +38,8 @@ switch (lower(getenv('COMPUTERNAME')))
 		main = 'C:/Users/Josh/Dropbox/MATLAB Code';
     case 'shella-bigboy1'
 		main = 'C:/Users/jgrooms/Dropbox/MATLAB Code';
+    case 'bo-dv-jgroomsd'
+        main = 'C:/Users/joshua.grooms/Dropbox/MATLAB Code';
 	otherwise
 		main = '/home/jgrooms/Dropbox/MATLAB Code';
 end
