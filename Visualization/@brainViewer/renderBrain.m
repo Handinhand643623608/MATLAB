@@ -7,8 +7,8 @@ function renderBrain(brainData, varargin)
 
 %% Initialize
 % Pull data from the data object
-volumeData = brainData.Data.Anatomical; 
-colorData = brainData.Data.Color; 
+volumeData = brainData.Data.Anatomical;
+colorData = brainData.Data.Color;
 rotAxis = brainData.Parameters.RotationAxis;
 rotAlpha = brainData.Parameters.RotationAlpha;
 
@@ -23,7 +23,7 @@ brainSurface = isosurface(volumeData, brainData.IsoValue, colorData, 'noshare');
 brainCap = brainData.Data.Cap(brainData.SlicePosition);
 
 % Invert vertex color data (not clear how these are being calculated, but this works)
-cmap = get(brainData, 'Colormap');
+cmap = get(brainData.FigureHandle, 'Colormap');
 numColors = size(cmap, 1);
 cData = brainSurface.facevertexcdata;
 cData = -(cData - 0.75) + 0.75;

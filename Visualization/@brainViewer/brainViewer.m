@@ -5,6 +5,7 @@ classdef brainViewer < Window
 %% CHANGELOG
 %   Written by Josh Grooms on 20131208
 %       20140829:   Updated for compatibility with the WINDOW class updates (formerly WINDOWOBJ).
+%       20160525:   Updated to restore minimum working functionality (still pretty buggy, though).
 
 %% TODOS
 % TODO - Implement speed improvements
@@ -16,7 +17,7 @@ classdef brainViewer < Window
 % TODO - Improve functional-anatomical image registration
 
 
-    
+
     %% Object Properties
     properties (SetObservable, AbortSet)
         AnatomicalBrain = 'MNIHD';
@@ -26,7 +27,7 @@ classdef brainViewer < Window
         Parameters
         Patches
         SlicePlane = 'Transverse'
-        SlicePosition        
+        SlicePosition
     end
 
 
@@ -36,13 +37,11 @@ classdef brainViewer < Window
             %BRAINVIEWER Constructs a window object & display a 3D brain inside.
             % Initialize a window object for displaying the data
             brainData = brainData@Window(...
-                'Color', 'k',...
-                'Colormap', jet(256),...
-                'MenuBar', 'figure',...
-                'NumberTitle', 'off',...
-                'Position', WindowPositions.UpperRight,...
-                'Size', WindowSizes.QuarterScreen); drawnow
-                        
+                'Background',   'k',...
+                'MenuBar',      'figure',...
+                'Position',     WindowPositions.UpperRight,...
+                'Size',         WindowSizes.QuarterScreen); drawnow
+
             % Initialize modeling parameters
             initializeParameters(brainData, varargin{:});
             % Initialize the GUI
@@ -60,7 +59,7 @@ classdef brainViewer < Window
 
 
     %% Rendering Methods
-    methods (Access = protected)        
+    methods (Access = protected)
         % Change the data set for the anatomical brain rendering
         function changeBrain(brainData, src, ~)
             set(brainData.Menus.Settings.Render.(brainData.AnatomicalBrain), 'Checked', 'off');
@@ -69,7 +68,7 @@ classdef brainViewer < Window
             delete(brainData.Patches.Surface, brainData.Patches.Cap);
             render(brainData, brainData.Data.Functional, brainData.Parameters.Threshold);
         end
-        
+
         % Change the plane used to slice the brain volume while the figure is running
         function changeSlicePlane(brainData, src, ~)
             set(brainData.Menus.Settings.SlicePlane.(brainData.SlicePlane), 'Checked', 'off');
@@ -78,7 +77,7 @@ classdef brainViewer < Window
             delete(brainData.Patches.Surface, brainData.Patches.Cap);
             render(brainData, brainData.Data.Functional, brainData.Parameters.Threshold);
         end
-        
+
         % Generalized rendering process
         function render(brainData, varargin)
             initializeParameters(brainData, varargin{:});
@@ -87,7 +86,7 @@ classdef brainViewer < Window
             renderBrain(brainData);
             fuseImages(brainData);
         end
-        
+
         % Toggle anatomical direction text labels on or off
         function toggleDirectionLabels(brainData, varargin)
             labelNames = fieldnames(brainData.Text.Directions);
@@ -101,52 +100,52 @@ classdef brainViewer < Window
                 end
             end
         end
-        
+
     end
-    
-        
+
+
     %% Navigation Methods
-    methods (Access = protected)        
+    methods (Access = protected)
         % Make the mouse transparent & set up model rotation during a mouse click
         function clickFcn(brainData, varargin)
-            brainData.MousePosition = get(brainData, 'CurrentPoint');
-            set(brainData,...
+            brainData.MousePosition = get(brainData.FigureHandle, 'CurrentPoint');
+            set(brainData.FigureHandle,...
                 'Pointer', 'custom',...
                 'PointerShapeCData', nan(16, 16),...
                 'WindowButtonMotionFcn', @(src, evt) brainData.motionFcn(src, evt));
         end
-        
+
         % Rotate the model with the mouse while holding a click
         function motionFcn(brainData, varargin)
             currentView = get(brainData.Axes, 'View');
-            currentPosition = get(brainData, 'CurrentPoint');
+            currentPosition = get(brainData.FigureHandle, 'CurrentPoint');
             diffView = brainData.MousePosition - currentPosition;
             set(brainData.Axes, 'View', currentView + diffView);
             brainData.MousePosition = currentPosition;
         end
-        
+
         % Change the mouse cursor back to normal & stop rotating the model
         function releaseFcn(brainData, varargin)
-            set(brainData,...
+            set(brainData.FigureHandle,...
                 'Pointer', 'arrow',...
                 'WindowButtonMotionFcn', '');
         end
-        
+
         % Display slices of the brain using the mouse scroll wheel
         function sliceFcn(brainData, ~, evt)
             scrollNum = evt.VerticalScrollCount;
             brainData.SlicePosition = brainData.SlicePosition + scrollNum;
             sliceRange = brainData.Parameters.SliceRange;
-            if brainData.SlicePosition > sliceRange(end); brainData.SlicePosition = sliceRange(end); 
+            if brainData.SlicePosition > sliceRange(end); brainData.SlicePosition = sliceRange(end);
             elseif brainData.SlicePosition < sliceRange(1); brainData.SlicePosition = sliceRange(1); end
             set(brainData.Text.Slice.Number, 'String', num2str(brainData.SlicePosition));
             updateRender(brainData); drawnow
         end
     end
-    
-    
+
+
     %% Private Methods
-    methods (Access = protected)            
+    methods (Access = protected)
         % Set up important rendering parameters
         initializeParameters(brainData, varargin)
         % Initialize patch slice indices

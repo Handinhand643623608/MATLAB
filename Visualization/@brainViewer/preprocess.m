@@ -38,7 +38,7 @@ idsZeros = volumeData == 0;
 
 %% Anatomical Image Coloration
 % Get the number of colors in the color mapping
-numColors = get(brainData, 'Colormap');
+numColors = get(brainData.FigureHandle, 'Colormap');
 numColors = size(numColors, 1);
 
 % Generate color mapping indices for each anatomical data point
