@@ -73,16 +73,45 @@ classdef Cell
 			
 		end
 		
-		
 		function s = ToStruct(c)
 			
 			assert(isnvp(c), 'Converting a cell to a structure requires a fieldname/value paired list.');
 			s = struct(c{:});
 		end
 		
+	end
+	
+	
+	
+	%% ERROR HANDLING
+	methods (Hidden, Static, Access = private)
 		
+		function AssertCell(c)
+		% ASSERTCELL - Throws a standardized exception if the input argument is not a cell array.
+			if ~iscell(c)
+				fname = dbstack(1);
+				throwAsCaller(Cell.NotACellException(inputname(1), fname.name));
+			end
+		end
+		function AssertCellContents(c)
+		% ASSERTCELLCONTENTS - Throws a standardized exception if the input argument is not a cell array of cells.
+			if ~Cell.Isa(c, 'cell')
+				fname = dbstack(1);
+				throwAsCaller(Cell.CellContentsException(inputname(1), fname.name));
+			end
+		end
+		
+		function E = CellContentsException(vname, fname)
+			
+			E = MException('Cell:CellContents', 'The argument %s in %s must be a cell array of cells.', vname, fname);
+		end
+		function E = NotACellException(vname, fname)
+			
+			E = MException('Cell:NotACell', 'The argument %s in %s must be a cell array.', vname, fname);
+		end
 		
 	end
+	
 	
 	
 	
