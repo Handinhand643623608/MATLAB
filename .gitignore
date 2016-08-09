@@ -14,8 +14,8 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 
-# Prototyping & Sandboxing Functions
-Prototyping/
+# Personal data
+Health Data/
 
 # Daily Research Activity Logs
 Today Scripts/
@@ -44,3 +44,5 @@ Icon
 .Trashes
 
 CompletedRegistration.mat
+*.svn-base
+Deprecated/Ancient/Power Spectra/.svn/wc.db
