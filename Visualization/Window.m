@@ -10,6 +10,7 @@
 %		Colorbar	- A reference to the Colorbar object displayed within the window.
 %		Colormap	- The color mapping used to display colorized data.
 %		Data		- A general-purpose field used for storing data related to window contents.
+%       Handle      - The underlying figure window that is wrapped by this class.
 %		Name		- The string displayed in the window title bar.
 %		Patch		- Handles to various Patch objects that exist within the window.
 %		Position	- The position of the lower left window corner, [X, Y] in pixels, on the computer screen.
@@ -56,6 +57,9 @@
 %					class itself currently introduces a lot of overhead to any processing, which definitely isn't needed in
 %					the HG2 graphics system. However, I've left in the code that maintains compatibility with that class.
 %       20150824:   Implemented a wrapper property for controlling the resizability of MATLAB figures.
+%       20160810:   Implemented an accessor for getting the underlying figure window. Originally, this wasn't included in order
+%                   to prevent tampering with settings that this class wouldn't be able to observe. However, not having access
+%                   gets in the way more often than it helps.
 
 
 
@@ -68,6 +72,7 @@ classdef Window < handle & Entity
     properties (Dependent)
         Background				% The background color of the window.
         Colormap				% The color mapping used to display colorized data.
+        Handle                  % The handle to the underlying figure window wrapped by this object.
         Name        @char       % The string displayed in the window title bar.
         Position                % The position of the window on-screen in pixels.
         Resize                  % A Boolean indicating whether this window can be resized by the user.
@@ -82,8 +87,8 @@ classdef Window < handle & Entity
         Text                    % Handles to various text objects that exist in the window.
     end
 
-    properties(Hidden, Access = protected)
-        FigureHandle            % The numerical figure handle this object controls.
+    properties (Hidden, Access = protected)
+        FigureHandle            % The numeric figure handle this object controls.
         Listeners               % Handles of listeners for events & property changes.
         PositionEnum            % The screen position where the window should be located.
         SizeEnum                % The screen size that the window should be.
@@ -103,6 +108,9 @@ classdef Window < handle & Entity
         end
 		function C = get.Colormap(H)
             C = get(H.FigureHandle, 'Colormap');
+        end
+        function h = get.Handle(H)
+            h = H.FigureHandle;
         end
         function s = get.Name(H)
             s = get(H.FigureHandle, 'Name');
@@ -142,7 +150,7 @@ classdef Window < handle & Entity
                 if isvector(position) && length(position) == 2
                     H.Rectangle(1:2) = position;
                 else
-                    error('Window positions can only be specified using two-element vectors or string shortcuts.');
+                    error('Window positions can only be specified using two-element vectors or enumerator shortcuts.');
                 end
             end
         end
@@ -160,10 +168,10 @@ classdef Window < handle & Entity
                 H.SizeEnum = size;
             elseif isnumeric(size)
 				assert(isvector(size) && length(size) == 2,...
-					'Window sizes can only be specified using two-element vectors or string shortcuts.');
+					'Window sizes can only be specified using two-element vectors or enumerator shortcuts.');
                 H.Rectangle(3:4) = size;
             else
-                error('Window size must be specified as either as WindowSize enumerator or a two-element numeric vector');
+                error('Window sizes can only be specified using two-element vectors or enumerator shortcuts.');
             end
             if ~isempty(H.PositionEnum); H.Position = H.PositionEnum; end
 		end
