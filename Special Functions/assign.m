@@ -164,7 +164,7 @@
 %						first NARGOUT variables will appear as outputs. NARGOUT values greater than the length of this list
 %						will result in errors.
 %
-%   See also:   ASSIGNIN, ASSIGNINPUTS, NARGIN, NARGOUT, VARARGIN, VARARGOUT
+%   See also:   ASSIGNIN, NARGIN, NARGOUT, VARARGIN, VARARGOUT
 
 %% CHANGELOG
 %	Written by Josh Grooms on 20141120
@@ -174,7 +174,11 @@
 %		20150528:	Implemented the ability to assign arguments to variable-length function output lists (i.e. varargout
 %					cells). Also eliminated all external dependencies within this function. Lastly, completely rewrote the
 %					documentation for this function to improve clarity and to describe the latest changes.
-
+%       20161014:   Implemented the ability to assign unnamed argument lists (i.e. those that don't follow the 'name/value' 
+%                   convention) using a separately specified '-order' argument. This is helpful in functions whose defaultable
+%                   argument values are frequently overridden by inputs. It also helps with converting older functions
+%                   (especially those with long, fixed argument lists) over to this input system without completely breaking an
+%                   API.
 
 
 %% FUNCTION DEFINITION
@@ -187,36 +191,36 @@ function assign(target, varargin)
 			
 			% Formatting checks
 			nargs = varargin{1};
-			varargin(1) = [];
+			varargin(1) = [ ];
 			assert(isnumeric(nargs) && numel(nargs) == 1,...
 				'An integer number of arguments is required when assigning function output variables.');
 			assert(nargs <= length(varargin), 'Too many output variables were requested from the function.');
 			
 			% Assign variables to 'varargout'
 			outargs = cell(1, nargs);
-			assignin('caller', inputname(1), {});
+			assignin('caller', 'varargout', { });
 			if nargs > 0
 				for a = 1:nargs
 					outargs{a} = varargin{a};
 				end
-				assignin('caller', inputname(1), outargs);
+				assignin('caller', 'varargout', outargs);
 			end
 		
 		% Assigning function inputs (i.e. variables to a Defaults block)
-		case 'function_handle'	
-
-			% Allow inputting of either the whole 'varargin' cell, a comma-separated argument list, or a structure
-			if (length(varargin) == 1) && iscell(varargin{1})
-				varargin = varargin{1};
-			end
-			if isstruct(varargin)
-				varargin = DecomposeStructure(varargin);
-			end
+		case 'function_handle'
 			
+            if length(varargin) == 1
+                inargs = PreprocessArguments(varargin{1});
+            elseif strcmpi(varargin{2}, '-order')
+                inargs = PreprocessArguments(varargin{1}, varargin{3});
+            else
+                inargs = { };
+            end
+
 			% Formatting checks
-			nargs = length(varargin);
+			nargs = length(inargs);
 			if (nargs > 0)
-				assert(mod(nargs, 2) == 0 && iscellstr(varargin(1:2:end)),...
+				assert(mod(nargs, 2) == 0 && iscellstr(inargs(1:2:end)),...
 					'Argument lists must be supplied as pairs of string variable names and their corresponding values.');
 			end
 			
@@ -239,12 +243,12 @@ function assign(target, varargin)
 				'assigning input arguments.']);
 
 			% Ensure that argument names have corresponding variables that already exist
-			memberCheck = all(ismember(varargin(1:2:end), newvars));
+			memberCheck = all(ismember(inargs(1:2:end), newvars));
 			assert(memberCheck, 'Input argument names must always correspond with default variable names.');
 
 			% Assign values to variables in the caller workspace
-			for a = 1:2:length(varargin)
-				assignin('caller', varargin{a}, varargin{a + 1});
+			for a = 1:2:length(inargs)
+				assignin('caller', inargs{a}, inargs{a + 1});
 			end
 			
 		otherwise
@@ -268,4 +272,36 @@ function c = DecomposeStructure(s)
 		c{b + 1} = s.(fnames{a});
 		b = b + 2;
 	end
+end
+
+function nvplist = PreprocessArguments(arglist, order)
+        
+    % Allow name/value pairs of input arguments
+    if IsNVP(arglist)
+        nvplist = arglist;
+        
+    % Allow a structure of field/value pairs of input arguments
+    elseif iscell(arglist) && isstruct(arglist{1})
+        nvplist = DecomposeStructure(arglist{1});
+        
+    % Allow argument values corresponding with an ordered list of argument names
+    elseif nargin == 2
+        assert(length(arglist) <= length(order),...
+            'Input argument lists must obey the order specified by the ''-order'' switch.');
+
+        nargs = length(arglist);
+        nvplist = cell(1, 2 * nargs);
+        nvplist(1:2:2*nargs) = order(1:nargs);
+        nvplist(2:2:2*nargs) = arglist(1:nargs);
+    end
+end
+
+function b = IsNVP(arglist)
+% ISNVP - Checks whether an inputted variable could consist of name/value pairs.
+    if ~iscell(arglist);            b = false; return; end
+    if ~isvector(arglist);          b = false; return; end
+    if mod(length(arglist), 2);     b = false; return; end
+    
+    nvpchk = cellfun(@ischar, arglist(1:2:end));
+    b = all(nvpchk);
 end
